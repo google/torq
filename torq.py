@@ -15,11 +15,14 @@
 #
 
 import argparse
+import os
 from command import ProfilerCommand, HWCommand, ConfigCommand
 from validation_error import ValidationError
 
 DEFAULT_DUR_MS = 10000
 MIN_DURATION_MS = 3000
+DEFAULT_OUT_DIR = "."
+PREDEFINED_PERFETTO_CONFIGS = ['default', 'lightweight', 'memory']
 
 
 def create_parser():
@@ -31,7 +34,7 @@ def create_parser():
                       default='custom', help='The event to trace/profile.')
   parser.add_argument('-p', '--profiler', choices=['perfetto', 'simpleperf'],
                       default='perfetto', help='The performance data source.')
-  parser.add_argument('-o', '--out-dir', default='.',
+  parser.add_argument('-o', '--out-dir', default=DEFAULT_OUT_DIR,
                       help='The path to the output directory.')
   parser.add_argument('-d', '--dur-ms', type=int, default=DEFAULT_DUR_MS,
                       help=('The duration (ms) of the event. Determines when'
@@ -45,7 +48,10 @@ def create_parser():
                       help=('Simpleperf supported events to be collected.'
                             ' e.g. cpu-cycles, instructions'))
   parser.add_argument('--perfetto-config', default='default',
-                      help='Filepath of the perfetto config to use.')
+                      help=('Predefined perfetto configs can be used:'
+                            ' %s. A filepath with a custom config could'
+                            ' also be provided.'
+                            % (", ".join(PREDEFINED_PERFETTO_CONFIGS))))
   parser.add_argument('--between-dur-ms', type=int, default=DEFAULT_DUR_MS,
                       help='Time (ms) to wait before executing the next event.')
   parser.add_argument('--ui', action=argparse.BooleanOptionalAction,
@@ -122,7 +128,7 @@ def create_parser():
 def verify_args_valid(args):
   if args.subcommands is not None and (args.event != "custom" or
                                        args.profiler != "perfetto" or
-                                       args.out_dir != "." or
+                                       args.out_dir != DEFAULT_OUT_DIR or
                                        args.dur_ms != DEFAULT_DUR_MS or
                                        args.app is not None or
                                        args.runs != 1 or
@@ -138,6 +144,11 @@ def verify_args_valid(args):
         ("Command is invalid because profiler command is followed by a hw"
          " or config command."),
         "Remove the 'hw' or 'config' subcommand to profile the device instead.")
+
+  if args.out_dir != DEFAULT_OUT_DIR and not os.path.isdir(args.out_dir):
+    return None, ValidationError(
+        ("Command is invalid because --out-dir is not a valid directory"
+         " path: %s." % args.out_dir), None)
 
   if args.dur_ms < MIN_DURATION_MS:
     return None, ValidationError(
@@ -156,8 +167,7 @@ def verify_args_valid(args):
   if args.runs < 1:
     return None, ValidationError(
         ("Command is invalid because --runs cannot be set to a value smaller"
-         " than 1."),
-        None)
+         " than 1."), None)
 
   if args.simpleperf_event is not None and args.profiler != "simpleperf":
     return None, ValidationError(
@@ -175,12 +185,24 @@ def verify_args_valid(args):
         ("Only set --simpleperf-event cpu-cycles once if you want"
          " to collect cpu-cycles."))
 
-  if args.perfetto_config != "default" and args.profiler != "perfetto":
+  if args.perfetto_config != "default":
+    if args.profiler != "perfetto":
+      return None, ValidationError(
+          ("Command is invalid because --perfetto-config cannot be passed"
+           " if --profiler is not set to perfetto."),
+          ("Set --profiler perfetto to choose a perfetto-config"
+           " to use."))
+
+  if (args.perfetto_config not in PREDEFINED_PERFETTO_CONFIGS and
+      not os.path.isfile(args.perfetto_config)):
     return None, ValidationError(
-        ("Command is invalid because --perfetto-config cannot be passed"
-         " if --profiler is not set to perfetto."),
-        ("Set --profiler perfetto to choose a perfetto-config"
-         " to use."))
+        ("Command is invalid because --perfetto-config is not a valid"
+         " file path: %s" % args.perfetto_config),
+        ("Predefined perfetto configs can be used:\n"
+         "\t torq --perfetto-config %s\n"
+         "\t A filepath with a config can also be used:\n"
+         "\t torq --perfetto-config <config-filepath>"
+         % ("\n\t torq --perfetto-config ".join(PREDEFINED_PERFETTO_CONFIGS))))
 
   if args.between_dur_ms < MIN_DURATION_MS:
     return None, ValidationError(
