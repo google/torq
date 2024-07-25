@@ -17,6 +17,7 @@
 import argparse
 import os
 from command import ProfilerCommand, HWCommand, ConfigCommand
+from device import AdbDevice
 from validation_error import ValidationError
 
 DEFAULT_DUR_MS = 10000
@@ -380,7 +381,8 @@ def main():
     print_error(error)
     return
   command = get_command_type(args)
-  error = command.execute()
+  device = AdbDevice()
+  error = command.execute(device)
   if error is not None:
     print_error(error)
     return
