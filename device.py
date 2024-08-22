@@ -17,89 +17,13 @@
 import subprocess
 import os
 import time
-from abc import ABC, abstractmethod
 from validation_error import ValidationError
 
 ADB_ROOT_TIMED_OUT_LIMIT_SECS = 5
 POLLING_INTERVAL_SECS = 0.5
 
 
-class Device(ABC):
-  """
-  Abstract base class representing a device. This class defines the APIs
-  needed to interact with the current device.
-  """
-
-  @abstractmethod
-  def __init__(self, serial):
-    raise NotImplementedError
-
-  @abstractmethod
-  def get_adb_devices(self):
-    raise NotImplementedError
-
-  @abstractmethod
-  def check_device_connection(self):
-    raise NotImplementedError
-
-  @abstractmethod
-  def root_device(self):
-    raise NotImplementedError
-
-  @abstractmethod
-  def remove_file(self, file_path):
-    raise NotImplementedError
-
-  @abstractmethod
-  def start_perfetto_trace(self, config):
-    raise NotImplementedError
-
-  @abstractmethod
-  def pull_file(self, file_path, host_file):
-    raise NotImplementedError
-
-  @abstractmethod
-  def get_num_cpus(self):
-    raise NotImplementedError
-
-  @abstractmethod
-  def get_memory(self):
-    raise NotImplementedError
-
-  @abstractmethod
-  def get_max_num_cpus(self):
-    raise NotImplementedError
-
-  @abstractmethod
-  def get_max_memory(self):
-    raise NotImplementedError
-
-  @abstractmethod
-  def set_hw_config(self, hw_config):
-    raise NotImplementedError
-
-  @abstractmethod
-  def set_num_cpus(self, num_cpus):
-    raise NotImplementedError
-
-  @abstractmethod
-  def set_memory(self, memory):
-    raise NotImplementedError
-
-  @abstractmethod
-  def app_exists(self, app):
-    raise NotImplementedError
-
-  @abstractmethod
-  def simpleperf_event_exists(self, simpleperf_event):
-    raise NotImplementedError
-
-  @abstractmethod
-  def user_exists(self, user):
-    raise NotImplementedError
-
-
-class AdbDevice(Device):
+class AdbDevice:
   """
   Class representing a device. APIs interact with the current device through
   the adb bridge.
@@ -107,7 +31,8 @@ class AdbDevice(Device):
   def __init__(self, serial):
     self.serial = serial
 
-  def get_adb_devices(self):
+  @staticmethod
+  def get_adb_devices():
     """
     Returns a list of devices connected to the adb bridge.
     The output of the command 'adb devices' is expected to be of the form:
