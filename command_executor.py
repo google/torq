@@ -107,6 +107,28 @@ class ProfilerCommandExecutor(CommandExecutor):
     return None
 
 
+class UserSwitchCommandExecutor(ProfilerCommandExecutor):
+
+  def prepare_device_for_run(self, command, device, run):
+    super().prepare_device_for_run(command, device, run)
+    current_user = device.get_current_user()
+    if command.from_user != current_user:
+      print("Switching from the current user, %s, to the from-user, %s."
+            % (current_user, command.from_user))
+      device.perform_user_switch(command.from_user)
+
+  def trigger_system_event(self, command, device):
+    print("Switching from the from-user, %s, to the to-user, %s."
+          % (command.from_user, command.to_user))
+    device.perform_user_switch(command.to_user)
+
+  def cleanup(self, command, device):
+    if device.get_current_user() != command.original_user:
+      print("Switching from the to-user, %s, back to the original user, %s."
+            % (command.to_user, command.original_user))
+      device.perform_user_switch(command.original_user)
+
+
 class HWCommandExecutor(CommandExecutor):
 
   def execute_command(self, hw_command, device):

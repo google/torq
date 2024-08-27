@@ -24,11 +24,14 @@ from command_executor import ProfilerCommandExecutor
 from device import AdbDevice
 from torq import DEFAULT_DUR_MS, DEFAULT_OUT_DIR
 
-MOCK_ERROR = "mock-error"
-MOCK_CONFIG = "mock-config"
-MOCK_EXCEPTION = Exception(MOCK_ERROR)
+TEST_ERROR_MSG = "test-error"
+TEST_EXCEPTION = Exception(TEST_ERROR_MSG)
+TEST_SERIAL = "test-serial"
 FIRST_RUN_TERMINAL_OUTPUT = "Performing run 1"
 DEFAULT_PERFETTO_CONFIG = "default"
+TEST_USER_ID_1 = 0
+TEST_USER_ID_2 = 1
+TEST_USER_ID_3 = 2
 
 
 class ProfilerCommandExecutorUnitTest(unittest.TestCase):
@@ -183,36 +186,36 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_command.dur_ms = DEFAULT_DUR_MS
     self.mock_command.excluded_ftrace_events = []
     self.mock_command.included_ftrace_events = []
-    self.mock_device.root_device.side_effect = MOCK_EXCEPTION
+    self.mock_device.root_device.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
       self.command_executor.execute_command(self.mock_command, self.mock_device)
 
-    self.assertEqual(str(e.exception), MOCK_ERROR)
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
 
   def test_execute_command_prepare_device_for_run_remove_file_failure(self):
     self.mock_command.runs = 1
     self.mock_command.dur_ms = DEFAULT_DUR_MS
     self.mock_command.excluded_ftrace_events = []
     self.mock_command.included_ftrace_events = []
-    self.mock_device.remove_file.side_effect = MOCK_EXCEPTION
+    self.mock_device.remove_file.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
       self.command_executor.execute_command(self.mock_command, self.mock_device)
 
-    self.assertEqual(str(e.exception), MOCK_ERROR)
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
 
   def test_execute_command_execute_run_start_perfetto_trace_failure(self):
     self.mock_command.runs = 1
     self.mock_command.dur_ms = DEFAULT_DUR_MS
     self.mock_command.excluded_ftrace_events = []
     self.mock_command.included_ftrace_events = []
-    self.mock_device.start_perfetto_trace.side_effect = MOCK_EXCEPTION
+    self.mock_device.start_perfetto_trace.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
       self.command_executor.execute_command(self.mock_command, self.mock_device)
 
-    self.assertEqual(str(e.exception), MOCK_ERROR)
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
 
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_execute_command_execute_run_start_process_wait_failure(self,
@@ -222,12 +225,12 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_command.excluded_ftrace_events = []
     self.mock_command.included_ftrace_events = []
     self.mock_device.start_perfetto_trace.return_value = mock_process
-    mock_process.wait.side_effect = MOCK_EXCEPTION
+    mock_process.wait.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
       self.command_executor.execute_command(self.mock_command, self.mock_device)
 
-    self.assertEqual(str(e.exception), MOCK_ERROR)
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
 
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_execute_command_retrieve_perf_data_pull_file_failure(self,
@@ -237,12 +240,140 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_command.excluded_ftrace_events = []
     self.mock_command.included_ftrace_events = []
     self.mock_device.start_perfetto_trace.return_value = mock_process
-    self.mock_device.pull_file.side_effect = MOCK_EXCEPTION
+    self.mock_device.pull_file.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
       self.command_executor.execute_command(self.mock_command, self.mock_device)
 
-    self.assertEqual(str(e.exception), MOCK_ERROR)
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
+
+
+class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
+
+  def simulate_user_switch(self, user):
+    self.current_user = user
+
+  def setUp(self):
+    self.command = ProfilerCommand(
+        "profiler", "user-switch", None, DEFAULT_OUT_DIR, DEFAULT_DUR_MS, None,
+        1, None, DEFAULT_PERFETTO_CONFIG, None, False, [], [], None, None)
+    self.mock_device = mock.create_autospec(AdbDevice, instance=True,
+                                            serial=TEST_SERIAL)
+    self.mock_device.check_device_connection.return_value = None
+    self.mock_device.user_exists.return_value = None
+    self.current_user = TEST_USER_ID_3
+    self.mock_device.get_current_user.side_effect = lambda: self.current_user
+
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_command_user_switch_all_users_different_success(self,
+      mock_process):
+    self.command.from_user = TEST_USER_ID_1
+    self.command.to_user = TEST_USER_ID_2
+    self.mock_device.start_perfetto_trace.return_value = mock_process
+    self.mock_device.perform_user_switch.side_effect = (
+        lambda user: self.simulate_user_switch(user))
+
+    error = self.command.command_executor.execute(self.command,
+                                                  self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(self.current_user, TEST_USER_ID_3)
+    self.assertEqual(self.mock_device.perform_user_switch.call_count, 3)
+
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_command_user_switch_command_failure(self, mock_process):
+    self.command.from_user = TEST_USER_ID_2
+    self.command.to_user = TEST_USER_ID_1
+    self.mock_device.start_perfetto_trace.return_value = mock_process
+    self.mock_device.perform_user_switch.side_effect = TEST_EXCEPTION
+
+    with self.assertRaises(Exception) as e:
+      self.command.command_executor.execute(self.command, self.mock_device)
+
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
+    self.assertEqual(self.mock_device.perform_user_switch.call_count, 1)
+
+  def test_execute_command_user_switch_same_user_error(self):
+    self.command.from_user = TEST_USER_ID_1
+    self.command.to_user = TEST_USER_ID_1
+
+    error = self.command.command_executor.execute(self.command,
+                                                  self.mock_device)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(error.message, ("Cannot perform user-switch to user %s"
+                                     " because the current user on device"
+                                     " %s is already %s."
+                                     % (TEST_USER_ID_1, TEST_SERIAL,
+                                        TEST_USER_ID_1)))
+    self.assertEqual(error.suggestion, ("Choose a --to-user ID that is"
+                                        " different than the --from-user ID."))
+    self.assertEqual(self.mock_device.perform_user_switch.call_count, 0)
+
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_command_user_switch_from_user_empty_success(self,
+      mock_process):
+    self.command.from_user = None
+    self.command.to_user = TEST_USER_ID_2
+    self.mock_device.start_perfetto_trace.return_value = mock_process
+    self.mock_device.perform_user_switch.side_effect = (
+        lambda user: self.simulate_user_switch(user))
+
+    error = self.command.command_executor.execute(self.command,
+                                                  self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(self.current_user, TEST_USER_ID_3)
+    self.assertEqual(self.mock_device.perform_user_switch.call_count, 2)
+
+  def test_execute_command_user_switch_from_user_empty_same_user_error(self):
+    self.command.from_user = None
+    self.command.to_user = self.current_user
+
+    error = self.command.command_executor.execute(self.command,
+                                                  self.mock_device)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(error.message, ("Cannot perform user-switch to user %s"
+                                     " because the current user on device"
+                                     " %s is already %s."
+                                     % (self.current_user, TEST_SERIAL,
+                                        self.current_user)))
+    self.assertEqual(error.suggestion, ("Choose a --to-user ID that is"
+                                        " different than the --from-user ID."))
+    self.assertEqual(self.mock_device.perform_user_switch.call_count, 0)
+
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_command_user_switch_from_user_is_current_user_success(self,
+      mock_process):
+    self.command.from_user = self.current_user
+    self.command.to_user = TEST_USER_ID_2
+    self.mock_device.start_perfetto_trace.return_value = mock_process
+    self.mock_device.perform_user_switch.side_effect = (
+        lambda user: self.simulate_user_switch(user))
+
+    error = self.command.command_executor.execute(self.command,
+                                                  self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(self.current_user, TEST_USER_ID_3)
+    self.assertEqual(self.mock_device.perform_user_switch.call_count, 2)
+
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_command_user_switch_to_user_is_current_user_success(self,
+      mock_process):
+    self.command.from_user = TEST_USER_ID_1
+    self.command.to_user = self.current_user
+    self.mock_device.start_perfetto_trace.return_value = mock_process
+    self.mock_device.perform_user_switch.side_effect = (
+        lambda user: self.simulate_user_switch(user))
+
+    error = self.command.command_executor.execute(self.command,
+                                                  self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(self.current_user, TEST_USER_ID_3)
+    self.assertEqual(self.mock_device.perform_user_switch.call_count, 2)
 
 
 if __name__ == '__main__':
