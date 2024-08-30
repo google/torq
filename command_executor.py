@@ -16,7 +16,7 @@
 
 import time
 from abc import ABC, abstractmethod
-from config_builder import PREDEFINED_PERFETTO_CONFIGS
+from config_builder import PREDEFINED_PERFETTO_CONFIGS, build_custom_config
 from open_ui import open_trace
 
 PERFETTO_TRACE_FILE = "/data/misc/perfetto-traces/trace.perfetto-trace"
@@ -79,7 +79,7 @@ class ProfilerCommandExecutor(CommandExecutor):
     if command.perfetto_config in PREDEFINED_PERFETTO_CONFIGS:
       return PREDEFINED_PERFETTO_CONFIGS[command.perfetto_config](command)
     else:
-      raise NotImplementedError
+      return build_custom_config(command)
 
   def prepare_device(self, command, device, config):
     return None

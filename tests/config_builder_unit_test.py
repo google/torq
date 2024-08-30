@@ -15,10 +15,15 @@
 #
 
 import unittest
+import builtins
 from unittest import mock
-from config_builder import build_default_config
+from config_builder import build_default_config, build_custom_config
 from command import ProfilerCommand
+from torq import DEFAULT_DUR_MS
 
+TEST_FAILURE_MSG = "Test failure."
+TEST_DUR_MS = 9000
+INVALID_DUR_MS = "invalid-dur-ms"
 
 DEFAULT_CONFIG_9000_DUR_MS = f'''\
 <<EOF
@@ -177,7 +182,7 @@ data_sources: {{
     }}
   }}
 }}
-duration_ms: 9000
+duration_ms: {TEST_DUR_MS}
 write_into_file: true
 file_write_period_ms: 5000
 max_file_size_bytes: 100000000000
@@ -343,7 +348,7 @@ data_sources: {{
     }}
   }}
 }}
-duration_ms: 10000
+duration_ms: {DEFAULT_DUR_MS}
 write_into_file: true
 file_write_period_ms: 5000
 max_file_size_bytes: 100000000000
@@ -513,7 +518,7 @@ data_sources: {{
     }}
   }}
 }}
-duration_ms: 10000
+duration_ms: {DEFAULT_DUR_MS}
 write_into_file: true
 file_write_period_ms: 5000
 max_file_size_bytes: 100000000000
@@ -524,58 +529,179 @@ incremental_state_config {{
 
 EOF'''
 
+CUSTOM_CONFIG_9000_DUR_MS = f'''\
+
+buffers: {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.ftrace"
+    target_buffer: 2
+    ftrace_config {{
+      ftrace_events: "dmabuf_heap/dma_heap_stat"
+      atrace_categories: "aidl"
+      atrace_apps: "lmkd"
+      buffer_size_kb: 16384
+      drain_period_ms: 150
+      symbolize_ksyms: true
+    }}
+  }}
+}}
+duration_ms: {TEST_DUR_MS}
+write_into_file: true
+file_write_period_ms: 5000
+max_file_size_bytes: 100000000000
+flush_period_ms: 5000
+incremental_state_config {{
+  clear_period_ms: 5000
+}}
+
+'''
+
+CUSTOM_CONFIG_9000_DUR_MS_WITH_WHITE_SPACE = f'''\
+
+buffers: {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.ftrace"
+    target_buffer: 2
+    ftrace_config {{
+      ftrace_events: "dmabuf_heap/dma_heap_stat"
+      atrace_categories: "aidl"
+      atrace_apps: "lmkd"
+      buffer_size_kb: 16384
+      drain_period_ms: 150
+      symbolize_ksyms: true
+    }}
+  }}
+}}
+duration_ms:                                               {TEST_DUR_MS}
+write_into_file: true
+file_write_period_ms: 5000
+max_file_size_bytes: 100000000000
+flush_period_ms: 5000
+incremental_state_config {{
+  clear_period_ms: 5000
+}}
+
+'''
+
+CUSTOM_CONFIG_INVALID_DUR_MS = f'''\
+
+buffers: {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.ftrace"
+    target_buffer: 2
+    ftrace_config {{
+      ftrace_events: "dmabuf_heap/dma_heap_stat"
+      atrace_categories: "aidl"
+      atrace_apps: "lmkd"
+      buffer_size_kb: 16384
+      drain_period_ms: 150
+      symbolize_ksyms: true
+    }}
+  }}
+}}
+duration_ms: {INVALID_DUR_MS}
+write_into_file: true
+file_write_period_ms: 5000
+max_file_size_bytes: 100000000000
+flush_period_ms: 5000
+incremental_state_config {{
+  clear_period_ms: 5000
+}}
+
+'''
+
+CUSTOM_CONFIG_NO_DUR_MS = f'''\
+
+buffers: {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.ftrace"
+    target_buffer: 2
+    ftrace_config {{
+      ftrace_events: "dmabuf_heap/dma_heap_stat"
+      atrace_categories: "aidl"
+      atrace_apps: "lmkd"
+      buffer_size_kb: 16384
+      drain_period_ms: 150
+      symbolize_ksyms: true
+    }}
+  }}
+}}
+write_into_file: true
+file_write_period_ms: 5000
+max_file_size_bytes: 100000000000
+flush_period_ms: 5000
+incremental_state_config {{
+  clear_period_ms: 5000
+}}
+
+'''
+
 
 class ConfigBuilderUnitTest(unittest.TestCase):
 
-  def test_config_builder_setting_valid_dur_ms(self):
-    mock_command = mock.create_autospec(ProfilerCommand, instance=True)
-    mock_command.dur_ms = 9000
-    mock_command.excluded_ftrace_events = None
-    mock_command.included_ftrace_events = None
+  def setUp(self):
+    self.command = ProfilerCommand(
+        None, "custom", None, None, DEFAULT_DUR_MS, None, None, "test-path",
+        None, None, None, [], [], None, None)
 
-    config, error = build_default_config(mock_command)
+  def test_build_default_config_setting_valid_dur_ms(self):
+    self.command.dur_ms = TEST_DUR_MS
+
+    config, error = build_default_config(self.command)
 
     self.assertEqual(error, None)
     self.assertEqual(config, DEFAULT_CONFIG_9000_DUR_MS)
 
-  def test_config_builder_setting_invalid_dur_ms(self):
-    mock_command = mock.create_autospec(ProfilerCommand, instance=True)
-    mock_command.dur_ms = None
-    mock_command.excluded_ftrace_events = None
-    mock_command.included_ftrace_events = None
+  def test_build_default_config_setting_invalid_dur_ms(self):
+    self.command.dur_ms = None
 
     with self.assertRaises(ValueError) as e:
-      build_default_config(mock_command)
+      build_default_config(self.command)
 
     self.assertEqual(str(e.exception), ("Cannot create config because a valid"
                                         " dur_ms was not set."))
 
-  def test_config_builder_removing_valid_excluded_ftrace_events(self):
-    mock_command = mock.create_autospec(ProfilerCommand, instance=True)
-    mock_command.dur_ms = 10000
-    mock_command.excluded_ftrace_events = ["power/suspend_resume",
+  def test_build_default_config_removing_valid_excluded_ftrace_events(self):
+    self.command.excluded_ftrace_events = ["power/suspend_resume",
                                            "mm_event/mm_event_record"]
-    mock_command.included_ftrace_events = None
 
-    config, error = build_default_config(mock_command)
+    config, error = build_default_config(self.command)
 
     self.assertEqual(error, None)
     self.assertEqual(config, DEFAULT_CONFIG_EXCLUDED_FTRACE_EVENTS)
 
-  def test_config_builder_removing_invalid_excluded_ftrace_events(self):
-    mock_command = mock.create_autospec(ProfilerCommand, instance=True)
-    mock_command.dur_ms = 10000
-    mock_command.excluded_ftrace_events = ["invalid_ftrace_event"]
-    mock_command.included_ftrace_events = None
+  def test_build_default_config_removing_invalid_excluded_ftrace_events(self):
+    self.command.excluded_ftrace_events = ["invalid_ftrace_event"]
 
-    config, error = build_default_config(mock_command)
+    config, error = build_default_config(self.command)
 
     self.assertEqual(config, None)
     self.assertNotEqual(error, None)
     self.assertEqual(error.message, ("Cannot remove ftrace event %s from config"
                                      " because it is not one of the config's"
-                                     " ftrace events."
-                                     % mock_command.excluded_ftrace_events[0]))
+                                     " ftrace events." %
+                                     self.command.excluded_ftrace_events[0]
+                                     ))
     self.assertEqual(error.suggestion, ("Please specify one of the following"
                                         " possible ftrace events:\n\t"
                                         " dmabuf_heap/dma_heap_stat\n\t"
@@ -607,32 +733,27 @@ class ConfigBuilderUnitTest(unittest.TestCase):
                                         " vmscan/*\n\t"
                                         " workqueue/*"))
 
-  def test_config_builder_adding_valid_included_ftrace_events(self):
-    mock_command = mock.create_autospec(ProfilerCommand, instance=True)
-    mock_command.dur_ms = 10000
-    mock_command.excluded_ftrace_events = None
-    mock_command.included_ftrace_events = ["mock_ftrace_event1",
+  def test_build_default_config_adding_valid_included_ftrace_events(self):
+    self.command.included_ftrace_events = ["mock_ftrace_event1",
                                            "mock_ftrace_event2"]
 
-    config, error = build_default_config(mock_command)
+    config, error = build_default_config(self.command)
 
     self.assertEqual(error, None)
     self.assertEqual(config, DEFAULT_CONFIG_INCLUDED_FTRACE_EVENTS)
 
-  def test_config_builder_adding_invalid_included_ftrace_events(self):
-    mock_command = mock.create_autospec(ProfilerCommand, instance=True)
-    mock_command.dur_ms = 10000
-    mock_command.excluded_ftrace_events = None
-    mock_command.included_ftrace_events = ["power/suspend_resume"]
+  def test_build_default_config_adding_invalid_included_ftrace_events(self):
+    self.command.included_ftrace_events = ["power/suspend_resume"]
 
-    config, error = build_default_config(mock_command)
+    config, error = build_default_config(self.command)
 
     self.assertEqual(config, None)
     self.assertNotEqual(error, None)
     self.assertEqual(error.message, ("Cannot add ftrace event %s to config"
                                      " because it is already one of the"
-                                     " config's ftrace events."
-                                     % mock_command.included_ftrace_events[0]))
+                                     " config's ftrace events." %
+                                     self.command.included_ftrace_events[0]
+                                     ))
     self.assertEqual(error.suggestion, ("Please do not specify any of the"
                                         " following ftrace events that are"
                                         " already included:\n\t"
@@ -664,6 +785,66 @@ class ConfigBuilderUnitTest(unittest.TestCase):
                                         " task/task_rename\n\t"
                                         " vmscan/*\n\t"
                                         " workqueue/*"))
+
+  @mock.patch("builtins.open", mock.mock_open(
+      read_data=CUSTOM_CONFIG_9000_DUR_MS))
+  def test_build_custom_config_extracting_valid_dur_ms(self):
+    config, error = build_custom_config(self.command)
+
+    self.assertEqual(error, None)
+    self.assertEqual(config, f"<<EOF\n\n{CUSTOM_CONFIG_9000_DUR_MS}\n\n\nEOF")
+    self.assertEqual(self.command.dur_ms, TEST_DUR_MS)
+
+  @mock.patch("builtins.open", mock.mock_open(
+      read_data=CUSTOM_CONFIG_9000_DUR_MS_WITH_WHITE_SPACE))
+  def test_build_custom_config_extracting_valid_dur_ms_with_white_space(self):
+    config, error = build_custom_config(self.command)
+
+    self.assertEqual(error, None)
+    self.assertEqual(config, (
+        f"<<EOF\n\n{CUSTOM_CONFIG_9000_DUR_MS_WITH_WHITE_SPACE}\n\n\nEOF"))
+    self.assertEqual(self.command.dur_ms, TEST_DUR_MS)
+
+  @mock.patch("builtins.open", mock.mock_open(
+      read_data=CUSTOM_CONFIG_INVALID_DUR_MS))
+  def test_build_custom_config_extracting_invalid_dur_ms_error(self):
+    config, error = build_custom_config(self.command)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(config, None)
+    self.assertEqual(error.message,
+                     ("Failed to parse custom perfetto-config on local file"
+                      " path: %s. Invalid duration_ms field in config."
+                      % self.command.perfetto_config))
+    self.assertEqual(error.suggestion,
+                     ("Make sure the perfetto config passed via arguments has a"
+                      " valid duration_ms value."))
+
+  @mock.patch("builtins.open", mock.mock_open(
+      read_data=CUSTOM_CONFIG_NO_DUR_MS))
+  def test_build_custom_config_injecting_dur_ms(self):
+    duration_string = "duration_ms: " + str(self.command.dur_ms)
+
+    config, error = build_custom_config(self.command)
+
+    self.assertEqual(error, None)
+    self.assertEqual(config, (
+        f"<<EOF\n\n{CUSTOM_CONFIG_NO_DUR_MS}\n{duration_string}\n\nEOF"))
+
+  @mock.patch.object(builtins, "open")
+  def test_build_custom_config_parsing_error(self, mock_open_file):
+    self.command.dur_ms = None
+    mock_open_file.side_effect = Exception(TEST_FAILURE_MSG)
+
+    config, error = build_custom_config(self.command)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(config, None)
+    self.assertEqual(error.message, ("Failed to parse custom perfetto-config on"
+                                     " local file path: %s. %s"
+                                     % (self.command.perfetto_config,
+                                        TEST_FAILURE_MSG)))
+    self.assertEqual(error.suggestion, None)
 
 
 if __name__ == '__main__':
