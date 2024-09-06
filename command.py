@@ -16,7 +16,8 @@
 
 from abc import ABC, abstractmethod
 from command_executor import ProfilerCommandExecutor, \
-  UserSwitchCommandExecutor, HWCommandExecutor, ConfigCommandExecutor
+  UserSwitchCommandExecutor, BootCommandExecutor, HWCommandExecutor, \
+  ConfigCommandExecutor
 from validation_error import ValidationError
 
 
@@ -67,6 +68,8 @@ class ProfilerCommand(Command):
       case "user-switch":
         self.original_user = None
         self.command_executor = UserSwitchCommandExecutor()
+      case "boot":
+        self.command_executor = BootCommandExecutor()
       case _:
         raise ValueError("Invalid event name was used.")
 

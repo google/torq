@@ -29,6 +29,7 @@ DEFAULT_PERFETTO_CONFIG = "default"
 TEST_USER_ID_1 = 0
 TEST_USER_ID_2 = 1
 TEST_USER_ID_3 = 2
+TEST_DURATION = 0
 
 
 class ProfilerCommandExecutorUnitTest(unittest.TestCase):
@@ -165,7 +166,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
                                         " workqueue/*"))
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
-  def test_execute_run_root_failure(self):
+  def test_execute_root_device_failure(self):
     self.mock_device.root_device.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
@@ -339,6 +340,104 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.current_user, TEST_USER_ID_3)
     self.assertEqual(self.mock_device.perform_user_switch.call_count, 2)
     self.assertEqual(self.mock_device.pull_file.call_count, 1)
+
+
+class BootCommandExecutorUnitTest(unittest.TestCase):
+
+  def setUp(self):
+    self.command = ProfilerCommand(
+        PROFILER_COMMAND_TYPE, "boot", None, DEFAULT_OUT_DIR, TEST_DURATION,
+        None, 1, None, DEFAULT_PERFETTO_CONFIG, TEST_DURATION, False, [], [],
+        None, None)
+    self.mock_device = mock.create_autospec(AdbDevice, instance=True,
+                                            serial=TEST_SERIAL)
+    self.mock_device.check_device_connection.return_value = None
+
+  def test_execute_reboot_success(self):
+    error = self.command.execute(self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(self.mock_device.reboot.call_count, 1)
+    self.assertEqual(self.mock_device.pull_file.call_count, 1)
+
+  def test_execute_reboot_multiple_runs_success(self):
+    self.command.runs = 5
+
+    error = self.command.execute(self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(self.mock_device.reboot.call_count, 5)
+    self.assertEqual(self.mock_device.pull_file.call_count, 5)
+
+  def test_execute_reboot_failure(self):
+    self.mock_device.reboot.side_effect = TEST_EXCEPTION
+
+    with self.assertRaises(Exception) as e:
+      self.command.execute(self.mock_device)
+
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
+    self.assertEqual(self.mock_device.reboot.call_count, 1)
+    self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+  def test_execute_root_device_failure(self):
+    self.mock_device.root_device.side_effect = TEST_EXCEPTION
+
+    with self.assertRaises(Exception) as e:
+      self.command.execute(self.mock_device)
+
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
+    self.assertEqual(self.mock_device.reboot.call_count, 0)
+    self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+  def test_execute_write_to_file_failure(self):
+    self.mock_device.write_to_file.side_effect = TEST_EXCEPTION
+
+    with self.assertRaises(Exception) as e:
+      self.command.execute(self.mock_device)
+
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
+    self.assertEqual(self.mock_device.reboot.call_count, 0)
+    self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+  def test_execute_remove_file_failure(self):
+    self.mock_device.remove_file.side_effect = TEST_EXCEPTION
+
+    with self.assertRaises(Exception) as e:
+      self.command.execute(self.mock_device)
+
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
+    self.assertEqual(self.mock_device.reboot.call_count, 0)
+    self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+  def test_execute_set_prop_failure(self):
+    self.mock_device.set_prop.side_effect = TEST_EXCEPTION
+
+    with self.assertRaises(Exception) as e:
+      self.command.execute(self.mock_device)
+
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
+    self.assertEqual(self.mock_device.reboot.call_count, 0)
+    self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+  def test_execute_wait_for_device_failure(self):
+    self.mock_device.wait_for_device.side_effect = TEST_EXCEPTION
+
+    with self.assertRaises(Exception) as e:
+      self.command.execute(self.mock_device)
+
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
+    self.assertEqual(self.mock_device.reboot.call_count, 1)
+    self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+  def test_execute_wait_for_boot_to_complete_failure(self):
+    self.mock_device.wait_for_boot_to_complete.side_effect = TEST_EXCEPTION
+
+    with self.assertRaises(Exception) as e:
+      self.command.execute(self.mock_device)
+
+    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
+    self.assertEqual(self.mock_device.reboot.call_count, 1)
+    self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
 
 if __name__ == '__main__':
