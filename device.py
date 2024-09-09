@@ -160,6 +160,48 @@ class AdbDevice:
       raise Exception(("Device with serial %s took too long to finish"
                        " rebooting." % self.serial))
 
+  def get_packages(self):
+    return [package.removeprefix("package:") for package in subprocess.run(
+        ["adb", "-s", self.serial, "shell", "pm", "list", "packages"],
+        capture_output=True).stdout.decode("utf-8").splitlines()]
+
+  def package_exists(self, package):
+    packages = self.get_packages()
+    if package in packages:
+      return None
+    return ValidationError(("Package %s does not exist on device with serial"
+                            " %s." % (package, self.serial)),
+                           ("Select from one of the following packages on"
+                            " device with serial %s: \n\t %s"
+                            % (self.serial, (",\n\t ".join(packages)))))
+
+  def get_pid(self, package):
+    return subprocess.run("adb -s %s shell pidof %s" % (self.serial, package),
+                          shell=True, capture_output=True
+                          ).stdout.decode("utf-8").split("\n")[0]
+
+  def is_package_running(self, package):
+    return self.get_pid(package) != ""
+
+  def start_package(self, package):
+    if subprocess.run(
+        ["adb", "-s", self.serial, "shell", "am", "start", package],
+        capture_output=True).stderr.decode("utf-8").split("\n")[0] != "":
+      return ValidationError(("Cannot start package %s on device with"
+                              " serial %s because %s is a service package,"
+                              " which doesn't implement a MAIN activity."
+                              % (package, self.serial, package)), None)
+    return None
+
+  def kill_pid(self, package):
+    pid = self.get_pid(package)
+    if pid != "":
+      subprocess.run(["adb", "-s", self.serial, "shell", "kill", "-9", pid])
+
+  def force_stop_package(self, package):
+    subprocess.run(["adb", "-s", self.serial, "shell", "am", "force-stop",
+                    package])
+
   def get_num_cpus(self):
     raise NotImplementedError
 
@@ -179,9 +221,6 @@ class AdbDevice:
     raise NotImplementedError
 
   def set_memory(self, memory):
-    raise NotImplementedError
-
-  def app_exists(self, app):
     raise NotImplementedError
 
   def simpleperf_event_exists(self, simpleperf_event):
