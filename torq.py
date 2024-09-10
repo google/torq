@@ -194,10 +194,23 @@ def verify_args(args):
         ("To profile an app startup run:"
          " torq --event app-startup --app <package-name>"))
 
+  if args.event == "app-startup" and args.app is None:
+    return None, ValidationError(
+        "Command is invalid because --app is not passed.",
+        ("Set --event %s --app <package> to perform an %s."
+         % (args.event, args.event)))
+
   if args.runs < 1:
     return None, ValidationError(
         ("Command is invalid because --runs cannot be set to a value smaller"
          " than 1."), None)
+
+  if args.runs > 1 and args.ui:
+    return None, ValidationError(("Command is invalid because --ui cannot be"
+                                  " passed if --runs is set to a value greater"
+                                  " than 1."),
+                                 ("Set torq -r %d --no-ui to perform %d runs."
+                                  % (args.runs, args.runs)))
 
   if args.simpleperf_event is not None and args.profiler != "simpleperf":
     return None, ValidationError(

@@ -22,6 +22,7 @@ from torq import create_parser, verify_args, get_command_type,\
   DEFAULT_DUR_MS, DEFAULT_OUT_DIR
 
 TEST_USER_ID = 10
+TEST_PACKAGE = "com.android.contacts"
 
 
 class TorqUnitTest(unittest.TestCase):
@@ -73,7 +74,8 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(error, None)
     self.assertEqual(args.event, "user-switch")
 
-    parser = self.set_up_parser("torq.py -e app-startup")
+    parser = self.set_up_parser(
+        "torq.py -e app-startup --app %s" % TEST_PACKAGE)
 
     args = parser.parse_args()
     args, error = verify_args(args)
@@ -160,7 +162,27 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(error, None)
     self.assertEqual(args.dur_ms, 100000)
 
-  def test_verify_args_ui_bool_true_and_runs_dependencies(self):
+  def test_verify_args_ui_and_runs_valid_dependency(self):
+    parser = self.set_up_parser("torq.py -r 2 --no-ui")
+
+    args = parser.parse_args()
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+
+  def test_verify_args_ui_and_runs_invalid_dependency(self):
+    parser = self.set_up_parser("torq.py -r 2 --ui")
+
+    args = parser.parse_args()
+    args, error = verify_args(args)
+
+    self.assertEqual(error.message, ("Command is invalid because --ui cannot be"
+                                     " passed if --runs is set to a value"
+                                     " greater than 1."))
+    self.assertEqual(error.suggestion, ("Set torq -r 2 --no-ui to perform 2"
+                                        " runs."))
+
+  def test_verify_args_ui_bool_true_and_runs_default_dependencies(self):
     parser = self.set_up_parser("torq.py")
 
     args = parser.parse_args()
@@ -178,7 +200,7 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(args.ui, True)
 
   # UI is false by default when multiple runs are specified.
-  def test_verify_args_ui_bool_false_and_runs_dependencies(self):
+  def test_verify_args_ui_bool_false_and_runs_default_dependency(self):
     parser = self.set_up_parser("torq.py -r 2")
 
     args = parser.parse_args()
@@ -427,17 +449,27 @@ class TorqUnitTest(unittest.TestCase):
                                         " %s." % (str(TEST_USER_ID),
                                                   str(TEST_USER_ID))))
 
-  # TODO: Make sure that package name is correct once feature is implemented.
   def test_verify_args_app_and_event_valid_dependency(self):
-    parser = self.set_up_parser("torq.py -e app-startup -a google")
+    parser = self.set_up_parser("torq.py -e app-startup -a %s" % TEST_PACKAGE)
 
     args = parser.parse_args()
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
 
-  def test_verify_args_app_and_event_invalid_dependency(self):
-    parser = self.set_up_parser("torq.py -a google")
+  def test_verify_args_app_not_passed_and_event_invalid_dependency(self):
+    parser = self.set_up_parser("torq.py -e app-startup")
+
+    args = parser.parse_args()
+    args, error = verify_args(args)
+
+    self.assertEqual(error.message,
+                     "Command is invalid because --app is not passed.")
+    self.assertEqual(error.suggestion, ("Set --event app-startup --app "
+                                        "<package> to perform an app-startup."))
+
+  def test_verify_args_app_and_app_startup_not_set_invalid_dependency(self):
+    parser = self.set_up_parser("torq.py -a %s" % TEST_PACKAGE)
 
     args = parser.parse_args()
     args, error = verify_args(args)
