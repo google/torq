@@ -16,11 +16,13 @@
 
 import unittest
 import subprocess
+import sys
+import io
 from unittest import mock
-from command import ProfilerCommand
+from command import ProfilerCommand, ConfigCommand
 from device import AdbDevice
 from validation_error import ValidationError
-from torq import DEFAULT_DUR_MS, DEFAULT_OUT_DIR
+from torq import DEFAULT_DUR_MS, DEFAULT_OUT_DIR, PREDEFINED_PERFETTO_CONFIGS
 
 PROFILER_COMMAND_TYPE = "profiler"
 TEST_ERROR_MSG = "test-error"
@@ -558,6 +560,22 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.mock_device.start_package.call_count, 1)
     self.assertEqual(self.mock_device.kill_pid.call_count, 1)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+
+class ConfigCommandExecutorUnitTest(unittest.TestCase):
+
+  def test_config_list(self):
+    self.command = ConfigCommand("config list", None, None)
+    self.mock_device = mock.create_autospec(AdbDevice, instance=True,
+                                            serial=TEST_SERIAL)
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    error = self.command.execute(self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(terminal_output.getvalue(), (
+        "%s\n" % "\n".join(list(PREDEFINED_PERFETTO_CONFIGS.keys()))))
 
 
 if __name__ == '__main__':

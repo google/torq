@@ -202,7 +202,8 @@ class ConfigCommandExecutor(CommandExecutor):
   def execute_command(self, config_command, device):
     match config_command.get_type():
       case "config list":
-        return self.execute_config_list_command()
+        print("\n".join(list(PREDEFINED_PERFETTO_CONFIGS.keys())))
+        return None
       case "config show":
         return self.execute_config_show_command(config_command.config_name)
       case "config pull":
@@ -210,9 +211,6 @@ class ConfigCommandExecutor(CommandExecutor):
                                                 config_command.file_path)
       case _:
         raise ValueError("Invalid config subcommand was used.")
-
-  def execute_config_list_command(self):
-    return None
 
   def execute_config_show_command(self, config_name):
     return None
