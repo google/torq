@@ -35,7 +35,7 @@ TEST_PROP = "test-prop"
 TEST_PROP_VALUE = "test-prop-value"
 TEST_PID_OUTPUT = b"8241\n"
 BOOT_COMPLETE_OUTPUT = b"1\n"
-
+ANDROID_SDK_VERSION_T = 33
 
 class DeviceUnitTest(unittest.TestCase):
 
@@ -740,6 +740,27 @@ class DeviceUnitTest(unittest.TestCase):
 
     with self.assertRaises(Exception) as e:
       adbDevice.force_stop_package(TEST_PACKAGE_1)
+
+    self.assertEqual(str(e.exception), TEST_FAILURE_MSG)
+
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_prop_success(self, mock_subprocess_run):
+    test_prop_value = ANDROID_SDK_VERSION_T
+    mock_subprocess_run.return_value = self.generate_mock_completed_process(
+        stdout_string=b'%d\n' % test_prop_value)
+    adbDevice = AdbDevice(TEST_DEVICE_SERIAL)
+
+    prop_value = int(adbDevice.get_prop(TEST_PROP))
+
+    self.assertEqual(prop_value, test_prop_value)
+
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_prop_package_failure(self, mock_subprocess_run):
+    mock_subprocess_run.side_effect = TEST_EXCEPTION
+    adbDevice = AdbDevice(TEST_DEVICE_SERIAL)
+
+    with self.assertRaises(Exception) as e:
+      adbDevice.get_prop(TEST_PROP)
 
     self.assertEqual(str(e.exception), TEST_FAILURE_MSG)
 

@@ -37,6 +37,8 @@ TEST_PACKAGE_1 = "test-package-1"
 TEST_PACKAGE_2 = "test-package-2"
 TEST_PACKAGE_3 = "test-package-3"
 TEST_DURATION = 0
+ANDROID_SDK_VERSION_S = 32
+ANDROID_SDK_VERSION_T = 33
 
 
 class ProfilerCommandExecutorUnitTest(unittest.TestCase):
@@ -49,6 +51,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device = mock.create_autospec(AdbDevice, instance=True,
                                             serial=TEST_SERIAL)
     self.mock_device.check_device_connection.return_value = None
+    self.mock_device.get_android_sdk_version.return_value = ANDROID_SDK_VERSION_T
 
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_execute_one_run_and_use_ui_success(self, mock_process):
@@ -240,6 +243,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.user_exists.return_value = None
     self.current_user = TEST_USER_ID_3
     self.mock_device.get_current_user.side_effect = lambda: self.current_user
+    self.mock_device.get_android_sdk_version.return_value = ANDROID_SDK_VERSION_T
 
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_execute_all_users_different_success(self, mock_process):
@@ -360,6 +364,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device = mock.create_autospec(AdbDevice, instance=True,
                                             serial=TEST_SERIAL)
     self.mock_device.check_device_connection.return_value = None
+    self.mock_device.get_android_sdk_version.return_value = ANDROID_SDK_VERSION_T
 
   def test_execute_reboot_success(self):
     error = self.command.execute(self.mock_device)
@@ -385,6 +390,21 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.reboot.call_count, 1)
+    self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+  def test_execute_get_prop_and_old_android_version_failure(self):
+    self.mock_device.get_android_sdk_version.return_value = ANDROID_SDK_VERSION_S
+
+    error = self.command.execute(self.mock_device)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(error.message, (
+        "Cannot perform trace on boot because only devices with version Android 13 (T)"
+        " or newer can be configured to automatically start recording traces on boot."))
+    self.assertEqual(error.suggestion, (
+        "Update your device or use a different device with Android 13 (T) or"
+        " newer."))
+    self.assertEqual(self.mock_device.reboot.call_count, 0)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
   def test_execute_write_to_file_failure(self):
@@ -461,6 +481,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_packages.return_value = [TEST_PACKAGE_1,
                                                   TEST_PACKAGE_2]
     self.mock_device.is_package_running.return_value = False
+    self.mock_device.get_android_sdk_version.return_value = ANDROID_SDK_VERSION_T
 
   def test_app_startup_command_success(self):
     self.mock_device.start_package.return_value = None

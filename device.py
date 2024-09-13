@@ -192,6 +192,14 @@ class AdbDevice:
     subprocess.run(["adb", "-s", self.serial, "shell", "am", "force-stop",
                     package])
 
+  def get_prop(self, prop):
+    return subprocess.run(
+        ["adb", "-s", self.serial, "shell", "getprop", prop],
+        capture_output=True).stdout.decode("utf-8").split("\n")[0]
+
+  def get_android_sdk_version(self):
+    return int(get_prop("ro.build.version.sdk"))
+
   def get_num_cpus(self):
     raise NotImplementedError
 

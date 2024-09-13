@@ -20,6 +20,7 @@ from command_executor import ProfilerCommandExecutor, \
   HWCommandExecutor, ConfigCommandExecutor
 from validation_error import ValidationError
 
+ANDROID_SDK_VERSION_T = 33
 
 class Command(ABC):
   """
@@ -82,6 +83,8 @@ class ProfilerCommand(Command):
     match self.event:
       case "user-switch":
         return self.validate_user_switch(device)
+      case "boot":
+        return self.validate_boot(device)
       case "app-startup":
         return self.validate_app_startup(device)
 
@@ -102,6 +105,16 @@ class ProfilerCommand(Command):
                              % (self.to_user, device.serial, self.from_user),
                              "Choose a --to-user ID that is different than"
                              " the --from-user ID.")
+    return None
+
+  @staticmethod
+  def validate_boot(device):
+    if device.get_android_sdk_version() < ANDROID_SDK_VERSION_T:
+      return ValidationError(
+          ("Cannot perform trace on boot because only devices with version Android 13"
+           " (T) or newer can be configured to automatically start recording traces on"
+           " boot."), ("Update your device or use a different device with"
+                      " Android 13 (T) or newer."))
     return None
 
   def validate_app_startup(self, device):
