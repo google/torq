@@ -82,7 +82,8 @@ class ProfilerCommandExecutor(CommandExecutor):
       open_trace(host_file, WEB_UI_ADDRESS)
     return None
 
-  def create_config(self, command, android_sdk_version):
+  @staticmethod
+  def create_config(command, android_sdk_version):
     if command.perfetto_config in PREDEFINED_PERFETTO_CONFIGS:
       return PREDEFINED_PERFETTO_CONFIGS[command.perfetto_config](
           command, android_sdk_version)
@@ -130,9 +131,12 @@ class UserSwitchCommandExecutor(ProfilerCommandExecutor):
     super().prepare_device_for_run(command, device, run)
     current_user = device.get_current_user()
     if command.from_user != current_user:
-      print("Switching from the current user, %s, to the from-user, %s."
-            % (current_user, command.from_user))
+      dur_seconds = command.dur_ms / 1000
+      print("Switching from the current user, %s, to the from-user, %s. Waiting"
+            " for %s seconds."
+            % (current_user, command.from_user, dur_seconds))
       device.perform_user_switch(command.from_user)
+      time.sleep(dur_seconds)
 
   def trigger_system_event(self, command, device):
     print("Switching from the from-user, %s, to the to-user, %s."
