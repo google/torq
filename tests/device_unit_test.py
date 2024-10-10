@@ -356,7 +356,7 @@ class DeviceUnitTest(unittest.TestCase):
     adbDevice = AdbDevice(TEST_DEVICE_SERIAL)
     command = ProfilerCommand("profiler", "custom", None, None,
                               10000, None, None, ["cpu-cycles"], None, None,
-                              None, None, None, None, None)
+                              None, None, None, None, None, None, None)
     mock_process = adbDevice.start_simpleperf_trace(command)
 
     # No exception is expected to be thrown
@@ -369,7 +369,7 @@ class DeviceUnitTest(unittest.TestCase):
 
     command = ProfilerCommand("profiler", "custom", None, None,
                               10000, None, None, ["cpu-cycles"], None, None,
-                              None, None, None, None, None)
+                              None, None, None, None, None, None, None)
     with self.assertRaises(Exception) as e:
       adbDevice.start_simpleperf_trace(command)
 

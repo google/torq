@@ -349,7 +349,7 @@ def create_profiler_command(args):
                          args.perfetto_config, args.between_dur_ms,
                          args.ui, args.excluded_ftrace_events,
                          args.included_ftrace_events, args.from_user,
-                         args.to_user)
+                         args.to_user, args.scripts_path, args.symbols)
 
 
 def create_config_command(args):

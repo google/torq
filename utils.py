@@ -15,6 +15,7 @@
 #
 
 import os
+import subprocess
 
 def path_exists(path: str):
   if path is None:
@@ -25,3 +26,20 @@ def dir_exists(path: str):
   if path is None:
     return False
   return os.path.isdir(os.path.expanduser(path))
+
+def convert_simpleperf_to_gecko(scripts_path, host_raw_trace_filename,
+    host_gecko_trace_filename, symbols):
+  expanded_symbols = os.path.expanduser(symbols)
+  expanded_scripts_path = os.path.expanduser(scripts_path)
+  print("Building binary cache, please wait. If no samples were recorded,"
+        " the trace will be empty.")
+  subprocess.run(("%s/binary_cache_builder.py -i %s -lib %s"
+                  % (expanded_scripts_path, host_raw_trace_filename,
+                     expanded_symbols)),
+                 shell=True)
+  subprocess.run(("%s/gecko_profile_generator.py -i %s > %s"
+                  % (expanded_scripts_path, host_raw_trace_filename,
+                     host_gecko_trace_filename)),
+                 shell=True)
+  if not path_exists(host_gecko_trace_filename):
+    raise Exception("Gecko file was not created.")
