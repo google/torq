@@ -41,6 +41,334 @@ TEST_DURATION = 0
 ANDROID_SDK_VERSION_S = 32
 ANDROID_SDK_VERSION_T = 33
 
+TEST_DEFAULT_CONFIG = f'''\
+buffers: {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+buffers {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+buffers: {{
+  size_kb: 260096
+  fill_policy: RING_BUFFER
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.process_stats"
+    process_stats_config {{
+      scan_all_processes_on_start: true
+    }}
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "android.log"
+    android_log_config {{
+    }}
+  }}
+}}
+
+data_sources {{
+  config {{
+    name: "android.packages_list"
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.sys_stats"
+    target_buffer: 1
+    sys_stats_config {{
+      stat_period_ms: 500
+      stat_counters: STAT_CPU_TIMES
+      stat_counters: STAT_FORK_COUNT
+      meminfo_period_ms: 1000
+      meminfo_counters: MEMINFO_ACTIVE_ANON
+      meminfo_counters: MEMINFO_ACTIVE_FILE
+      meminfo_counters: MEMINFO_INACTIVE_ANON
+      meminfo_counters: MEMINFO_INACTIVE_FILE
+      meminfo_counters: MEMINFO_KERNEL_STACK
+      meminfo_counters: MEMINFO_MLOCKED
+      meminfo_counters: MEMINFO_SHMEM
+      meminfo_counters: MEMINFO_SLAB
+      meminfo_counters: MEMINFO_SLAB_UNRECLAIMABLE
+      meminfo_counters: MEMINFO_VMALLOC_USED
+      meminfo_counters: MEMINFO_MEM_FREE
+      meminfo_counters: MEMINFO_SWAP_FREE
+      vmstat_period_ms: 1000
+      vmstat_counters: VMSTAT_PGFAULT
+      vmstat_counters: VMSTAT_PGMAJFAULT
+      vmstat_counters: VMSTAT_PGFREE
+      vmstat_counters: VMSTAT_PGPGIN
+      vmstat_counters: VMSTAT_PGPGOUT
+      vmstat_counters: VMSTAT_PSWPIN
+      vmstat_counters: VMSTAT_PSWPOUT
+      vmstat_counters: VMSTAT_PGSCAN_DIRECT
+      vmstat_counters: VMSTAT_PGSTEAL_DIRECT
+      vmstat_counters: VMSTAT_PGSCAN_KSWAPD
+      vmstat_counters: VMSTAT_PGSTEAL_KSWAPD
+      vmstat_counters: VMSTAT_WORKINGSET_REFAULT
+      cpufreq_period_ms: 500
+    }}
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "android.surfaceflinger.frametimeline"
+    target_buffer: 2
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.ftrace"
+    target_buffer: 2
+    ftrace_config {{
+      ftrace_events: "dmabuf_heap/dma_heap_stat"
+      ftrace_events: "ftrace/print"
+      ftrace_events: "gpu_mem/gpu_mem_total"
+      ftrace_events: "ion/ion_stat"
+      ftrace_events: "kmem/ion_heap_grow"
+      ftrace_events: "kmem/ion_heap_shrink"
+      ftrace_events: "kmem/rss_stat"
+      ftrace_events: "lowmemorykiller/lowmemory_kill"
+      ftrace_events: "mm_event/mm_event_record"
+      ftrace_events: "oom/mark_victim"
+      ftrace_events: "oom/oom_score_adj_update"
+      ftrace_events: "power/cpu_frequency"
+      ftrace_events: "power/cpu_idle"
+      ftrace_events: "power/gpu_frequency"
+      ftrace_events: "power/suspend_resume"
+      ftrace_events: "power/wakeup_source_activate"
+      ftrace_events: "power/wakeup_source_deactivate"
+      ftrace_events: "sched/sched_blocked_reason"
+      ftrace_events: "sched/sched_process_exit"
+      ftrace_events: "sched/sched_process_free"
+      ftrace_events: "sched/sched_switch"
+      ftrace_events: "sched/sched_wakeup"
+      ftrace_events: "sched/sched_wakeup_new"
+      ftrace_events: "sched/sched_waking"
+      ftrace_events: "task/task_newtask"
+      ftrace_events: "task/task_rename"
+      ftrace_events: "vmscan/*"
+      ftrace_events: "workqueue/*"
+      atrace_categories: "aidl"
+      atrace_categories: "am"
+      atrace_categories: "dalvik"
+      atrace_categories: "binder_lock"
+      atrace_categories: "binder_driver"
+      atrace_categories: "bionic"
+      atrace_categories: "camera"
+      atrace_categories: "disk"
+      atrace_categories: "freq"
+      atrace_categories: "idle"
+      atrace_categories: "gfx"
+      atrace_categories: "hal"
+      atrace_categories: "input"
+      atrace_categories: "pm"
+      atrace_categories: "power"
+      atrace_categories: "res"
+      atrace_categories: "rro"
+      atrace_categories: "sched"
+      atrace_categories: "sm"
+      atrace_categories: "ss"
+      atrace_categories: "thermal"
+      atrace_categories: "video"
+      atrace_categories: "view"
+      atrace_categories: "wm"
+      atrace_apps: "lmkd"
+      atrace_apps: "system_server"
+      atrace_apps: "com.android.systemui"
+      atrace_apps: "com.google.android.gms"
+      atrace_apps: "com.google.android.gms.persistent"
+      atrace_apps: "android:ui"
+      atrace_apps: "com.google.android.apps.maps"
+      atrace_apps: "*"
+      buffer_size_kb: 16384
+      drain_period_ms: 150
+      symbolize_ksyms: true
+    }}
+  }}
+}}
+duration_ms: 10000
+write_into_file: true
+file_write_period_ms: 5000
+max_file_size_bytes: 100000000000
+flush_period_ms: 5000
+incremental_state_config {{
+  clear_period_ms: 5000
+}}
+'''
+
+TEST_DEFAULT_CONFIG_OLD_ANDROID = f'''\
+buffers: {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+buffers {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+buffers: {{
+  size_kb: 260096
+  fill_policy: RING_BUFFER
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.process_stats"
+    process_stats_config {{
+      scan_all_processes_on_start: true
+    }}
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "android.log"
+    android_log_config {{
+    }}
+  }}
+}}
+
+data_sources {{
+  config {{
+    name: "android.packages_list"
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.sys_stats"
+    target_buffer: 1
+    sys_stats_config {{
+      stat_period_ms: 500
+      stat_counters: STAT_CPU_TIMES
+      stat_counters: STAT_FORK_COUNT
+      meminfo_period_ms: 1000
+      meminfo_counters: MEMINFO_ACTIVE_ANON
+      meminfo_counters: MEMINFO_ACTIVE_FILE
+      meminfo_counters: MEMINFO_INACTIVE_ANON
+      meminfo_counters: MEMINFO_INACTIVE_FILE
+      meminfo_counters: MEMINFO_KERNEL_STACK
+      meminfo_counters: MEMINFO_MLOCKED
+      meminfo_counters: MEMINFO_SHMEM
+      meminfo_counters: MEMINFO_SLAB
+      meminfo_counters: MEMINFO_SLAB_UNRECLAIMABLE
+      meminfo_counters: MEMINFO_VMALLOC_USED
+      meminfo_counters: MEMINFO_MEM_FREE
+      meminfo_counters: MEMINFO_SWAP_FREE
+      vmstat_period_ms: 1000
+      vmstat_counters: VMSTAT_PGFAULT
+      vmstat_counters: VMSTAT_PGMAJFAULT
+      vmstat_counters: VMSTAT_PGFREE
+      vmstat_counters: VMSTAT_PGPGIN
+      vmstat_counters: VMSTAT_PGPGOUT
+      vmstat_counters: VMSTAT_PSWPIN
+      vmstat_counters: VMSTAT_PSWPOUT
+      vmstat_counters: VMSTAT_PGSCAN_DIRECT
+      vmstat_counters: VMSTAT_PGSTEAL_DIRECT
+      vmstat_counters: VMSTAT_PGSCAN_KSWAPD
+      vmstat_counters: VMSTAT_PGSTEAL_KSWAPD
+      vmstat_counters: VMSTAT_WORKINGSET_REFAULT
+
+    }}
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "android.surfaceflinger.frametimeline"
+    target_buffer: 2
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.ftrace"
+    target_buffer: 2
+    ftrace_config {{
+      ftrace_events: "dmabuf_heap/dma_heap_stat"
+      ftrace_events: "ftrace/print"
+      ftrace_events: "gpu_mem/gpu_mem_total"
+      ftrace_events: "ion/ion_stat"
+      ftrace_events: "kmem/ion_heap_grow"
+      ftrace_events: "kmem/ion_heap_shrink"
+      ftrace_events: "kmem/rss_stat"
+      ftrace_events: "lowmemorykiller/lowmemory_kill"
+      ftrace_events: "mm_event/mm_event_record"
+      ftrace_events: "oom/mark_victim"
+      ftrace_events: "oom/oom_score_adj_update"
+      ftrace_events: "power/cpu_frequency"
+      ftrace_events: "power/cpu_idle"
+      ftrace_events: "power/gpu_frequency"
+      ftrace_events: "power/suspend_resume"
+      ftrace_events: "power/wakeup_source_activate"
+      ftrace_events: "power/wakeup_source_deactivate"
+      ftrace_events: "sched/sched_blocked_reason"
+      ftrace_events: "sched/sched_process_exit"
+      ftrace_events: "sched/sched_process_free"
+      ftrace_events: "sched/sched_switch"
+      ftrace_events: "sched/sched_wakeup"
+      ftrace_events: "sched/sched_wakeup_new"
+      ftrace_events: "sched/sched_waking"
+      ftrace_events: "task/task_newtask"
+      ftrace_events: "task/task_rename"
+      ftrace_events: "vmscan/*"
+      ftrace_events: "workqueue/*"
+      atrace_categories: "aidl"
+      atrace_categories: "am"
+      atrace_categories: "dalvik"
+      atrace_categories: "binder_lock"
+      atrace_categories: "binder_driver"
+      atrace_categories: "bionic"
+      atrace_categories: "camera"
+      atrace_categories: "disk"
+      atrace_categories: "freq"
+      atrace_categories: "idle"
+      atrace_categories: "gfx"
+      atrace_categories: "hal"
+      atrace_categories: "input"
+      atrace_categories: "pm"
+      atrace_categories: "power"
+      atrace_categories: "res"
+      atrace_categories: "rro"
+      atrace_categories: "sched"
+      atrace_categories: "sm"
+      atrace_categories: "ss"
+      atrace_categories: "thermal"
+      atrace_categories: "video"
+      atrace_categories: "view"
+      atrace_categories: "wm"
+      atrace_apps: "lmkd"
+      atrace_apps: "system_server"
+      atrace_apps: "com.android.systemui"
+      atrace_apps: "com.google.android.gms"
+      atrace_apps: "com.google.android.gms.persistent"
+      atrace_apps: "android:ui"
+      atrace_apps: "com.google.android.apps.maps"
+      atrace_apps: "*"
+      buffer_size_kb: 16384
+      drain_period_ms: 150
+      symbolize_ksyms: true
+    }}
+  }}
+}}
+duration_ms: 10000
+write_into_file: true
+file_write_period_ms: 5000
+max_file_size_bytes: 100000000000
+flush_period_ms: 5000
+incremental_state_config {{
+  clear_period_ms: 5000
+}}
+'''
+
 
 class ProfilerCommandExecutorUnitTest(unittest.TestCase):
 
@@ -586,18 +914,61 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
 
 class ConfigCommandExecutorUnitTest(unittest.TestCase):
 
-  def test_config_list(self):
-    self.command = ConfigCommand("config list", None, None)
+  def setUp(self):
     self.mock_device = mock.create_autospec(AdbDevice, instance=True,
                                             serial=TEST_SERIAL)
+    self.mock_device.check_device_connection.return_value = None
+    self.mock_device.get_android_sdk_version.return_value = (
+        ANDROID_SDK_VERSION_T)
+
+  def test_config_list(self):
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
+    self.command = ConfigCommand("config list", None, None, None, None, None)
     error = self.command.execute(self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(terminal_output.getvalue(), (
         "%s\n" % "\n".join(list(PREDEFINED_PERFETTO_CONFIGS.keys()))))
+
+  def test_config_show(self):
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    self.command = ConfigCommand("config show", "default", None, DEFAULT_DUR_MS,
+                                 None, None)
+    error = self.command.execute(self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
+
+  def test_config_show_no_device_connection(self):
+    self.mock_device.check_device_connection.return_value = (
+        TEST_VALIDATION_ERROR)
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    self.command = ConfigCommand("config show", "default", None, DEFAULT_DUR_MS,
+                                 None, None)
+    error = self.command.execute(self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
+
+  def test_config_show_old_android_version(self):
+    self.mock_device.get_android_sdk_version.return_value = (
+        ANDROID_SDK_VERSION_S)
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    self.command = ConfigCommand("config show", "default", None, DEFAULT_DUR_MS,
+                                 None, None)
+    error = self.command.execute(self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(terminal_output.getvalue(),
+                     TEST_DEFAULT_CONFIG_OLD_ANDROID)
 
 
 if __name__ == '__main__':

@@ -324,14 +324,22 @@ def create_profiler_command(args):
 
 
 def create_config_command(args):
-  command = None
   type = "config " + args.config_subcommand
-  if args.config_subcommand == "pull":
-    command = ConfigCommand(type, args.config_name, args.file_path)
-  if args.config_subcommand == "show":
-    command = ConfigCommand(type, args.config_name, None)
-  if args.config_subcommand == "list":
-    command = ConfigCommand(type, None, None)
+  config_name = None
+  file_path = None
+  dur_ms = None
+  excluded_ftrace_events = None
+  included_ftrace_events = None
+  if args.config_subcommand == "pull" or args.config_subcommand == "show":
+    config_name = args.config_name
+    dur_ms = args.dur_ms
+    excluded_ftrace_events = args.excluded_ftrace_events
+    included_ftrace_events = args.included_ftrace_events
+    if args.config_subcommand == "pull":
+      file_path = args.file_path
+
+  command = ConfigCommand(type, config_name, file_path, dur_ms,
+      excluded_ftrace_events, included_ftrace_events)
   return command
 
 

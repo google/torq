@@ -24,6 +24,7 @@ PERFETTO_TRACE_FILE = "/data/misc/perfetto-traces/trace.perfetto-trace"
 PERFETTO_BOOT_TRACE_FILE = "/data/misc/perfetto-traces/boottrace.perfetto-trace"
 WEB_UI_ADDRESS = "https://ui.perfetto.dev"
 TRACE_START_DELAY_SECS = 0.5
+ANDROID_SDK_VERSION_T = 33
 
 
 class CommandExecutor(ABC):
@@ -188,21 +189,31 @@ class ConfigCommandExecutor(CommandExecutor):
   def execute(self, command, device):
     return self.execute_command(command, device)
 
-  def execute_command(self, config_command, device):
-    match config_command.get_type():
+  def execute_command(self, command, device):
+    match command.get_type():
       case "config list":
         print("\n".join(list(PREDEFINED_PERFETTO_CONFIGS.keys())))
         return None
       case "config show":
-        return self.execute_config_show_command(config_command.config_name)
+        return self.execute_config_show_command(command, device)
       case "config pull":
-        return self.execute_config_pull_command(config_command.config_name,
-                                                config_command.file_path)
+        return self.execute_config_pull_command(command)
       case _:
         raise ValueError("Invalid config subcommand was used.")
 
-  def execute_config_show_command(self, config_name):
+  def execute_config_pull_command(self, command):
     return None
 
-  def execute_config_pull_command(self, config_name, file_path):
+  def execute_config_show_command(self, command, device):
+    error = device.check_device_connection()
+    android_sdk_version = ANDROID_SDK_VERSION_T
+    if error is None:
+      device.root_device()
+      android_sdk_version = device.get_android_sdk_version()
+    config, error = PREDEFINED_PERFETTO_CONFIGS[command.config_name](
+        command, android_sdk_version)
+
+    if error is not None:
+      return error
+    print("\n".join(config.strip().split("\n")[2:-2]))
     return None

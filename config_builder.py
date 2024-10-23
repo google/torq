@@ -238,11 +238,11 @@ def build_default_config(command, android_sdk_version):
   return textwrap.dedent(config), None
 
 
-def build_lightweight_config(command):
+def build_lightweight_config(command, android_sdk_version):
   raise NotImplementedError
 
 
-def build_memory_config(command):
+def build_memory_config(command, android_sdk_version):
   raise NotImplementedError
 
 
