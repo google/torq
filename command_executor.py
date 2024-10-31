@@ -62,23 +62,23 @@ class ProfilerCommandExecutor(CommandExecutor):
     error = self.prepare_device(command, device, config)
     if error is not None:
       return error
-    host_file = None
-    host_gecko_file = None
+    host_raw_trace_filename = None
+    host_gecko_trace_filename = None
     for run in range(1, command.runs + 1):
       timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
       if command.profiler == "perfetto":
-        host_file = f"{command.out_dir}/trace-{timestamp}.perfetto-trace"
+        host_raw_trace_filename = f"{command.out_dir}/trace-{timestamp}.perfetto-trace"
       else:
-        host_file = f"{command.out_dir}/perf-{timestamp}.data"
-        host_gecko_file = f"{command.out_dir}/perf-{timestamp}.json"
+        host_raw_trace_filename = f"{command.out_dir}/perf-{timestamp}.data"
+        host_gecko_trace_filename = f"{command.out_dir}/perf-{timestamp}.json"
       error = self.prepare_device_for_run(command, device)
       if error is not None:
         return error
       error = self.execute_run(command, device, config, run)
       if error is not None:
         return error
-      error = self.retrieve_perf_data(command, device, host_file,
-                                      host_gecko_file)
+      error = self.retrieve_perf_data(command, device, host_raw_trace_filename,
+                                      host_gecko_trace_filename)
       if error is not None:
         return error
       if command.runs != run:
@@ -87,10 +87,11 @@ class ProfilerCommandExecutor(CommandExecutor):
     if error is not None:
       return error
     if command.use_ui:
-      if command.profiler == "perfetto":
-        open_trace(host_file, WEB_UI_ADDRESS)
-      else:
-        open_trace(host_gecko_file, WEB_UI_ADDRESS)
+        error = open_trace(host_raw_trace_filename
+                           if command.profiler == "perfetto" else
+                           host_gecko_trace_filename, WEB_UI_ADDRESS, False)
+        if error is not None:
+          return error
     return None
 
   @staticmethod
@@ -126,13 +127,14 @@ class ProfilerCommandExecutor(CommandExecutor):
   def trigger_system_event(self, command, device):
     return None
 
-  def retrieve_perf_data(self, command, device, host_file, host_gecko_file):
+  def retrieve_perf_data(self, command, device, host_raw_trace_filename,
+      host_gecko_trace_filename):
     if command.profiler == "perfetto":
-      device.pull_file(PERFETTO_TRACE_FILE, host_file)
+      device.pull_file(PERFETTO_TRACE_FILE, host_raw_trace_filename)
     else:
-      device.pull_file(SIMPLEPERF_TRACE_FILE, host_file)
-      convert_simpleperf_to_gecko(command.scripts_path, host_file,
-                                  host_gecko_file, command.symbols)
+      device.pull_file(SIMPLEPERF_TRACE_FILE, host_raw_trace_filename)
+      convert_simpleperf_to_gecko(command.scripts_path, host_raw_trace_filename,
+                                  host_gecko_trace_filename, command.symbols)
 
   def cleanup(self, command, device):
     return None
@@ -190,8 +192,9 @@ class BootCommandExecutor(ProfilerCommandExecutor):
   def trigger_system_event(self, command, device):
     device.reboot()
 
-  def retrieve_perf_data(self, command, device, host_file, host_gecko_file):
-    device.pull_file(PERFETTO_BOOT_TRACE_FILE, host_file)
+  def retrieve_perf_data(self, command, device, host_raw_trace_filename,
+      host_gecko_trace_filename):
+    device.pull_file(PERFETTO_BOOT_TRACE_FILE, host_raw_trace_filename)
 
 
 class AppStartupCommandExecutor(ProfilerCommandExecutor):

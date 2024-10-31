@@ -134,3 +134,19 @@ python_test_host {
         unit_test: true,
     },
 }
+
+python_test_host {
+    name: "open_ui_unit_test",
+    main: "tests/open_ui_unit_test.py",
+    srcs: ["tests/open_ui_unit_test.py"],
+    defaults: ["torq_defaults"],
+    version: {
+        py3: {
+            enabled: true,
+            embedded_launcher: false,
+        },
+    },
+    test_options: {
+        unit_test: true,
+    },
+}

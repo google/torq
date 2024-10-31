@@ -162,12 +162,13 @@ class OpenCommand(Command):
   """
   Represents commands which open traces.
   """
-  def __init__(self, file_path):
+  def __init__(self, file_path, use_trace_processor):
     super().__init__(type)
     self.file_path = file_path
+    self.use_trace_processor = use_trace_processor
 
   def validate(self, device):
     raise NotImplementedError
 
   def execute(self, device):
-    open_trace(self.file_path, WEB_UI_ADDRESS)
+    return open_trace(self.file_path, WEB_UI_ADDRESS, self.use_trace_processor)

@@ -35,7 +35,7 @@ class HandleInput:
       if confirmation.lower() == "n":
         return self.no_callback_func()
 
-      print("Invalid input. Please, try again.")
+      print("Invalid input. Please try again.")
       i += 1
 
     return ValidationError("Invalid inputs.",

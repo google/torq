@@ -111,6 +111,10 @@ def create_parser():
                                             'to open trace files in the '
                                             'perfetto ui.'))
   open_parser.add_argument('file_path', help='Path to trace file.')
+  open_parser.add_argument('--use_trace_processor', default=False,
+                           action='store_true',
+                                  help=('Enables using trace_processor to open '
+                                        'the trace regardless of its size.'))
   return parser
 
 
@@ -379,7 +383,7 @@ def get_command_type(args):
   if args.subcommands == "config":
     command = create_config_command(args)
   if args.subcommands == "open":
-    command = OpenCommand(args.file_path)
+    command = OpenCommand(args.file_path, args.use_trace_processor)
   return command
 
 

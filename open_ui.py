@@ -20,6 +20,17 @@ import webbrowser
 import socketserver
 import http.server
 import os
+import subprocess
+from handle_input import HandleInput
+from utils import path_exists
+from validation_error import ValidationError
+
+TORQ_TEMP_DIR = "/tmp/.torq"
+TRACE_PROCESSOR_BINARY = "/trace_processor"
+TORQ_TEMP_TRACE_PROCESSOR = TORQ_TEMP_DIR + TRACE_PROCESSOR_BINARY
+ANDROID_PERFETTO_TOOLS_DIR = "/external/perfetto/tools"
+ANDROID_TRACE_PROCESSOR = ANDROID_PERFETTO_TOOLS_DIR + TRACE_PROCESSOR_BINARY
+LARGE_FILE_SIZE = 1024 * 1024 * 512  # 512 MB
 
 
 class HttpHandler(http.server.SimpleHTTPRequestHandler):
@@ -42,19 +53,68 @@ class HttpHandler(http.server.SimpleHTTPRequestHandler):
   def log_message(self, format, *args):
     pass
 
+def download_trace_processor(path):
+  if (("ANDROID_BUILD_TOP" in os.environ and
+       path_exists(os.environ["ANDROID_BUILD_TOP"] + ANDROID_TRACE_PROCESSOR))):
+    return os.environ["ANDROID_BUILD_TOP"] + ANDROID_TRACE_PROCESSOR
+  if path_exists(TORQ_TEMP_TRACE_PROCESSOR):
+    return TORQ_TEMP_TRACE_PROCESSOR
 
-def open_trace(path, origin):
+  def download_accepted_callback():
+    subprocess.run(("mkdir -p %s && wget -P %s "
+                    "https://get.perfetto.dev/trace_processor && chmod +x "
+                    "%s/trace_processor"
+                    % (TORQ_TEMP_DIR, TORQ_TEMP_DIR, TORQ_TEMP_DIR)),
+                   shell=True)
+
+    if not path_exists(TORQ_TEMP_TRACE_PROCESSOR):
+      print("Could not download perfetto scripts. Continuing.")
+      return None
+
+    return TORQ_TEMP_TRACE_PROCESSOR
+
+  def rejected_callback():
+    print("Will continue without downloading perfetto scripts.")
+    return None
+
+  input_handler = HandleInput("You do not have $ANDROID_BUILD_TOP configured "
+                              "with the $ANDROID_BUILD_TOP%s directory.\nYour "
+                              "perfetto trace is larger than 512MB, so "
+                              "attempting to load the trace in the perfetto UI "
+                              "without the perfetto scripts might not work.\n"
+                              "torq can download the perfetto scripts to '%s'. "
+                              "Are you ok with this download? [Y/N]: "
+                              % (ANDROID_PERFETTO_TOOLS_DIR, TORQ_TEMP_DIR),
+                              "Please accept or reject the download.",
+                              download_accepted_callback, rejected_callback)
+
+  return input_handler.handle_input()
+
+def open_trace(path, origin, use_trace_processor):
   PORT = 9001
   path = os.path.abspath(path)
-  os.chdir(os.path.dirname(path))
-  fname = os.path.basename(path)
-  socketserver.TCPServer.allow_reuse_address = True
-  with socketserver.TCPServer(("127.0.0.1", PORT), HttpHandler) as httpd:
-    address = (f"{origin}/#!/?url=http://127.0.0.1:"
-               f"{PORT}/{fname}&referrer=open_trace_in_ui")
-    webbrowser.open_new_tab(address)
-    httpd.expected_fname = fname
-    httpd.fname_get_completed = None
-    httpd.allow_origin = origin
-    while httpd.fname_get_completed is None:
-      httpd.handle_request()
+  if os.path.getsize(path) >= LARGE_FILE_SIZE or use_trace_processor:
+    trace_processor_path = download_trace_processor(path)
+    if isinstance(trace_processor_path, ValidationError):
+      return trace_processor_path
+    if trace_processor_path is not None:
+      webbrowser.open_new_tab(origin)
+      print("Refresh the Perfetto UI once the trace is loaded and follow the "
+            "directions. Do not exit out of torq until you are done viewing "
+            "the trace.")
+      subprocess.run("%s --httpd %s" % (trace_processor_path, path), shell=True)
+  else: # Open trace directly in UI
+    os.chdir(os.path.dirname(path))
+    fname = os.path.basename(path)
+    socketserver.TCPServer.allow_reuse_address = True
+    with (socketserver.TCPServer(("127.0.0.1", PORT), HttpHandler)
+          as httpd):
+      address = (f"{origin}/#!/?url=http://127.0.0.1:"
+                 f"{PORT}/{fname}&referrer=open_trace_in_ui")
+      webbrowser.open_new_tab(address)
+      httpd.expected_fname = fname
+      httpd.fname_get_completed = None
+      httpd.allow_origin = origin
+      while httpd.fname_get_completed is None:
+        httpd.handle_request()
+  return None

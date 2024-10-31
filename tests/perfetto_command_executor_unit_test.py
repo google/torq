@@ -384,7 +384,9 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
 
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_execute_one_run_and_use_ui_success(self, mock_process):
-    with mock.patch("command_executor.open_trace", autospec=True):
+    with (mock.patch("command_executor.open_trace", autospec=True)
+          as mock_open_trace):
+      mock_open_trace.return_value = None
       self.command.use_ui = True
       self.mock_device.start_perfetto_trace.return_value = mock_process
 
@@ -398,7 +400,9 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
   @mock.patch.object(os.path, "exists", autospec=True)
   def test_execute_one_simpleperf_run_success(self,
       mock_exists, mock_process, mock_run):
-    with mock.patch("command_executor.open_trace", autospec=True):
+    with (mock.patch("command_executor.open_trace", autospec=True)
+          as mock_open_trace):
+      mock_open_trace.return_value = None
       self.mock_device.start_simpleperf_trace.return_value = mock_process
       mock_exists.return_value = True
       mock_run.return_value = None
