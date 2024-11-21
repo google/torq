@@ -26,6 +26,7 @@ PERFETTO_TRACE_FILE = "/data/misc/perfetto-traces/trace.perfetto-trace"
 PERFETTO_BOOT_TRACE_FILE = "/data/misc/perfetto-traces/boottrace.perfetto-trace"
 WEB_UI_ADDRESS = "https://ui.perfetto.dev"
 TRACE_START_DELAY_SECS = 0.5
+MAX_WAIT_FOR_INIT_USER_SWITCH_SECS = 180
 ANDROID_SDK_VERSION_T = 33
 
 
@@ -134,12 +135,17 @@ class UserSwitchCommandExecutor(ProfilerCommandExecutor):
     super().prepare_device_for_run(command, device)
     current_user = device.get_current_user()
     if command.from_user != current_user:
-      dur_seconds = command.dur_ms / 1000
+      dur_seconds = min(command.dur_ms / 1000,
+                        MAX_WAIT_FOR_INIT_USER_SWITCH_SECS)
       print("Switching from the current user, %s, to the from-user, %s. Waiting"
             " for %s seconds."
             % (current_user, command.from_user, dur_seconds))
       device.perform_user_switch(command.from_user)
       time.sleep(dur_seconds)
+      if device.get_current_user() != command.from_user:
+        raise Exception(("Device with serial %s took more than %d secs to "
+                         "switch to the initial user."
+                         % (device.serial, dur_seconds)))
 
   def trigger_system_event(self, command, device):
     print("Switching from the from-user, %s, to the to-user, %s."
