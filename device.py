@@ -99,7 +99,7 @@ class AdbDevice:
                        " being rooted." % self.serial))
 
   def remove_file(self, file_path):
-    subprocess.run(["adb", "-s", self.serial, "shell", "rm", file_path])
+    subprocess.run(["adb", "-s", self.serial, "shell", "rm", "-f", file_path])
 
   def start_perfetto_trace(self, config):
     return subprocess.Popen(("adb -s %s shell perfetto -c - --txt -o"
