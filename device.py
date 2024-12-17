@@ -110,8 +110,8 @@ class AdbDevice:
   def start_simpleperf_trace(self, command):
     events_param = "-e " + ",".join(command.simpleperf_event)
     return subprocess.Popen(("adb -s %s shell simpleperf record -a -f 1000 "
-                             "--post-unwind=yes -m 8192 -g --duration %d"
-                             " %s -o %s"
+                             "--exclude-perf --post-unwind=yes -m 8192 -g "
+                             "--duration %d %s -o %s"
                              % (self.serial,
                                 int(math.ceil(command.dur_ms/1000)),
                                 events_param, SIMPLEPERF_TRACE_FILE)),
