@@ -16,9 +16,9 @@
 
 import os
 import subprocess
-from utils import path_exists, dir_exists
-from validation_error import ValidationError
-from handle_input import HandleInput
+from .utils import path_exists, dir_exists
+from .validation_error import ValidationError
+from .handle_input import HandleInput
 
 TORQ_TEMP_DIR = "/tmp/.torq"
 TEMP_CACHE_BUILDER_SCRIPT = TORQ_TEMP_DIR + "/binary_cache_builder.py"

@@ -17,9 +17,9 @@
 import unittest
 import builtins
 from unittest import mock
-from config_builder import build_default_config, build_custom_config
-from command import ProfilerCommand
-from torq import DEFAULT_DUR_MS
+from src.config_builder import build_default_config, build_custom_config
+from src.command import ProfilerCommand
+from src.torq import DEFAULT_DUR_MS
 
 TEST_FAILURE_MSG = "Test failure."
 TEST_DUR_MS = 9000

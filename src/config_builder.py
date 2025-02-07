@@ -15,7 +15,7 @@
 #
 
 import textwrap
-from validation_error import ValidationError
+from .validation_error import ValidationError
 
 ANDROID_SDK_VERSION_T = 33
 

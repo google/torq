@@ -15,11 +15,11 @@
 #
 
 from abc import ABC, abstractmethod
-from command_executor import ProfilerCommandExecutor, \
+from .command_executor import ProfilerCommandExecutor, \
   UserSwitchCommandExecutor, BootCommandExecutor, AppStartupCommandExecutor, \
   ConfigCommandExecutor, WEB_UI_ADDRESS
-from validation_error import ValidationError
-from open_ui import open_trace
+from .validation_error import ValidationError
+from .open_ui import open_trace
 
 ANDROID_SDK_VERSION_T = 33
 

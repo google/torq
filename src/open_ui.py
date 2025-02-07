@@ -21,9 +21,9 @@ import socketserver
 import http.server
 import os
 import subprocess
-from handle_input import HandleInput
-from utils import path_exists, wait_for_process_or_ctrl_c, wait_for_output
-from validation_error import ValidationError
+from .handle_input import HandleInput
+from .utils import path_exists, wait_for_process_or_ctrl_c, wait_for_output
+from .validation_error import ValidationError
 
 TORQ_TEMP_DIR = "/tmp/.torq"
 TRACE_PROCESSOR_BINARY = "/trace_processor"

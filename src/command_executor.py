@@ -18,10 +18,10 @@ import datetime
 import subprocess
 import time
 from abc import ABC, abstractmethod
-from config_builder import PREDEFINED_PERFETTO_CONFIGS, build_custom_config
-from open_ui import open_trace
-from device import SIMPLEPERF_TRACE_FILE
-from utils import convert_simpleperf_to_gecko
+from .config_builder import PREDEFINED_PERFETTO_CONFIGS, build_custom_config
+from .open_ui import open_trace
+from .device import SIMPLEPERF_TRACE_FILE
+from .utils import convert_simpleperf_to_gecko
 
 PERFETTO_TRACE_FILE = "/data/misc/perfetto-traces/trace.perfetto-trace"
 PERFETTO_BOOT_TRACE_FILE = "/data/misc/perfetto-traces/boottrace.perfetto-trace"

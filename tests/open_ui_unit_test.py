@@ -24,9 +24,9 @@ import subprocess
 import sys
 import os
 import webbrowser
-from command import OpenCommand
 from unittest import mock
-from open_ui import download_trace_processor, open_trace
+from src.command import OpenCommand
+from src.open_ui import download_trace_processor, open_trace
 
 ANDROID_BUILD_TOP = "/main"
 TEST_FILE = "file.pbtxt"

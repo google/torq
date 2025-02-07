@@ -17,9 +17,9 @@
 import unittest
 import subprocess
 import os
-from device import AdbDevice
 from unittest import mock
-from utils import convert_simpleperf_to_gecko
+from src.device import AdbDevice
+from src.utils import convert_simpleperf_to_gecko
 
 
 class UtilsUnitTest(unittest.TestCase):

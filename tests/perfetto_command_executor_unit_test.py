@@ -20,10 +20,10 @@ import subprocess
 import sys
 import io
 from unittest import mock
-from command import ProfilerCommand, ConfigCommand
-from device import AdbDevice
-from validation_error import ValidationError
-from torq import DEFAULT_DUR_MS, DEFAULT_OUT_DIR, PREDEFINED_PERFETTO_CONFIGS
+from src.command import ProfilerCommand, ConfigCommand
+from src.device import AdbDevice
+from src.validation_error import ValidationError
+from src.torq import DEFAULT_DUR_MS, DEFAULT_OUT_DIR, PREDEFINED_PERFETTO_CONFIGS
 
 PROFILER_COMMAND_TYPE = "profiler"
 TEST_ERROR_MSG = "test-error"
@@ -384,7 +384,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
 
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_execute_one_run_and_use_ui_success(self, mock_process):
-    with (mock.patch("command_executor.open_trace", autospec=True)
+    with (mock.patch("src.command_executor.open_trace", autospec=True)
           as mock_open_trace):
       mock_open_trace.return_value = None
       self.command.use_ui = True
@@ -400,7 +400,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
   @mock.patch.object(os.path, "exists", autospec=True)
   def test_execute_one_simpleperf_run_success(self,
       mock_exists, mock_process, mock_run):
-    with (mock.patch("command_executor.open_trace", autospec=True)
+    with (mock.patch("src.command_executor.open_trace", autospec=True)
           as mock_open_trace):
       mock_open_trace.return_value = None
       self.mock_device.start_simpleperf_trace.return_value = mock_process
@@ -422,7 +422,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
   @mock.patch.object(os.path, "exists", autospec=True)
   def test_execute_one_simpleperf_run_failure(self,
       mock_exists, mock_process, mock_run):
-    with mock.patch("command_executor.open_trace", autospec=True):
+    with mock.patch("src.command_executor.open_trace", autospec=True):
       self.mock_device.start_simpleperf_trace.return_value = mock_process
       mock_exists.return_value = False
       mock_run.return_value = None

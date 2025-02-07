@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-from validation_error import ValidationError
+from .validation_error import ValidationError
 
 class HandleInput:
   def __init__(self, input_msg, fail_suggestion, yes_callback_func,

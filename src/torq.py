@@ -16,12 +16,12 @@
 
 import argparse
 import os
-from command import ProfilerCommand, ConfigCommand, OpenCommand
-from device import AdbDevice
-from validation_error import ValidationError
-from config_builder import PREDEFINED_PERFETTO_CONFIGS
-from utils import path_exists
-from validate_simpleperf import verify_simpleperf_args
+from .command import ProfilerCommand, ConfigCommand, OpenCommand
+from .device import AdbDevice
+from .validation_error import ValidationError
+from .config_builder import PREDEFINED_PERFETTO_CONFIGS
+from .utils import path_exists
+from .validate_simpleperf import verify_simpleperf_args
 
 DEFAULT_DUR_MS = 10000
 MIN_DURATION_MS = 3000

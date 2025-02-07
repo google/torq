@@ -20,7 +20,7 @@ import sys
 import os
 import subprocess
 from unittest import mock
-from torq import create_parser, verify_args
+from src.torq import create_parser, verify_args
 
 TORQ_TEMP_DIR = "/tmp/.torq"
 ANDROID_BUILD_TOP = "/folder"

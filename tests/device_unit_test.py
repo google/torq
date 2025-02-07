@@ -18,8 +18,8 @@ import unittest
 import os
 import subprocess
 from unittest import mock
-from command import ProfilerCommand
-from device import AdbDevice
+from src.command import ProfilerCommand
+from src.device import AdbDevice
 
 TEST_DEVICE_SERIAL = "test-device-serial"
 TEST_DEVICE_SERIAL2 = "test-device-serial2"

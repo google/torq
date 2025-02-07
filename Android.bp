@@ -20,22 +20,13 @@ package {
 python_defaults {
     name: "torq_defaults",
     srcs: [
-        "torq.py",
-        "command.py",
-        "command_executor.py",
-        "validation_error.py",
-        "device.py",
-        "config_builder.py",
-        "open_ui.py",
-        "utils.py",
-        "validate_simpleperf.py",
-        "handle_input.py",
+        "src/**/*.py",
     ],
 }
 
 python_binary_host {
     name: "torq",
-    main: "torq.py",
+    main: "src/torq.py",
     defaults: ["torq_defaults"],
 }
 

@@ -18,7 +18,7 @@ import unittest
 import sys
 import os
 from unittest import mock
-from torq import create_parser, verify_args, get_command_type,\
+from src.torq import create_parser, verify_args, get_command_type,\
   DEFAULT_DUR_MS, DEFAULT_OUT_DIR
 
 TEST_USER_ID = 10
