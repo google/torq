@@ -22,6 +22,7 @@ from .validation_error import ValidationError
 from .config_builder import PREDEFINED_PERFETTO_CONFIGS
 from .utils import path_exists
 from .validate_simpleperf import verify_simpleperf_args
+from .vm import add_vm_parser, create_vm_command
 
 DEFAULT_DUR_MS = 10000
 MIN_DURATION_MS = 3000
@@ -115,6 +116,10 @@ def create_parser():
                            action='store_true',
                                   help=('Enables using trace_processor to open '
                                         'the trace regardless of its size.'))
+
+  # Configure perfetto in virtualized Android
+  add_vm_parser(subparsers)
+
   return parser
 
 
@@ -384,6 +389,8 @@ def get_command_type(args):
     command = create_config_command(args)
   if args.subcommands == "open":
     command = OpenCommand(args.file_path, args.use_trace_processor)
+  if args.subcommands == "vm":
+    command = create_vm_command(args)
   return command
 
 

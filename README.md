@@ -63,7 +63,7 @@ config.
 config, in which the ftrace event, power/cpu_idle, is not collected.
 
 
-## CLI Arguments
+## Main CLI Arguments
 
 | Argument                                   | Description                                                                                                                                                                                                                                                                        | Currently Supported Arguments                                                                | Default                              |
 |--------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|--------------------------------------|
@@ -87,3 +87,23 @@ config, in which the ftrace event, power/cpu_idle, is not collected.
 | `config show <config-name>`                | Subcommand to print the contents of a predefined Perfetto config to the terminal.                                                                                                                                                                                                  | `default`, `lightweight`, `memory`                                                           |                                      |
 | `config pull <config-name> [file-path]`    | Subcommand to download a predefined Perfetto config to a specified local file path.                                                                                                                                                                                                | <config-name>: `default`, `lightweight`, `memory`<br/> [file-path]: Any local file path      | [file-path]: `./<config-name>.pbtxt` |
 | `open <file-path> [--use_trace_processor]` | Subcommand to open a Perfetto or Simpleperf trace in the Perfetto UI. --use_trace_processor specifies that the trace should be opened with the trace_processor binary regardless of its size.                                                                                      | Any local path to a Perfetto or Simpleperf trace file                                        | [--use_trace_processor]: false       |
+
+## Configure perfetto in virtualized Android
+
+Working on a multi-VM environments has its challenges. In order to obtain a unified trace
+containing the trace data from multiple VMs you could leverage Perfetto's *traced* and *traced_relay*
+binaries. Torq provides commands to greatly simplify the configuration process.
+
+For example, to switch a VM from using `traced` to `traced_relay`, you could run:
+```console
+torq vm traced-relay enable vsock://3:30001
+```
+
+### CLI Arguments
+
+These are the arguments for the `torq vm` CLI subcommand.
+
+| Argument | Description | Currently Supported Arguments | Default |
+|----------|-------------|-------------------------------|---------|
+| `traced-relay enable <socket-address>` | Enables traced_relay and uses the *<socket-address>* as the relay socket to communicate with the central traced VM. |    |    |
+| `traced-relay disable` | Disables traced_relay and switches to traced. |    |    |
