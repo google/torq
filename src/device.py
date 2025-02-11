@@ -153,6 +153,9 @@ class AdbDevice:
   def set_prop(self, prop, value):
     subprocess.run(["adb", "-s", self.serial, "shell", "setprop", prop, value])
 
+  def clear_prop(self, prop):
+    subprocess.run(["adb", "-s", self.serial, "shell", "setprop", prop, "\"\""])
+
   def reboot(self):
     subprocess.run(["adb", "-s", self.serial, "reboot"])
     if not self.poll_is_task_completed(ADB_ROOT_TIMED_OUT_LIMIT_SECS,

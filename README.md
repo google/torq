@@ -98,6 +98,10 @@ For example, to switch a VM from using `traced` to `traced_relay`, you could run
 ```console
 torq vm traced-relay enable vsock://3:30001
 ```
+To enable the relay producer port in `traced`, you could run:
+```console
+torq vm relay-producer enable
+```
 
 ### CLI Arguments
 
@@ -107,3 +111,5 @@ These are the arguments for the `torq vm` CLI subcommand.
 |----------|-------------|-------------------------------|---------|
 | `traced-relay enable <socket-address>` | Enables traced_relay and uses the *<socket-address>* as the relay socket to communicate with the central traced VM. |    |    |
 | `traced-relay disable` | Disables traced_relay and switches to traced. |    |    |
+| `relay-producer enable [--address <relay_producer_socket>]` | Enables traced's relay producer support. The `--address` specifies the relay producer socket to use. |    | --address: `vsock://-1:30001`  |
+| `relay-producer disable` | Disables traced's relay producer support. |    |    |
