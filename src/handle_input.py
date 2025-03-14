@@ -25,19 +25,26 @@ class HandleInput:
     input_msg: A string containing a message that is displayed when requesting user input
     fail_suggestion: A string containing a suggestion displayed when the user exceeds max attempts
     choices: A dictionary mapping possible user inputs (key) to functions (value)
+    default_choice: A default choice from the choices dictionary if the user inputs nothing.
   """
-  def __init__(self, input_msg, fail_suggestion, choices):
+  def __init__(self, input_msg, fail_suggestion, choices,
+      default_choice = None):
     self.input_msg = input_msg
     self.fail_suggestion = fail_suggestion
     self.choices = choices
     self.max_attempts = 3
+    if default_choice is not None and default_choice not in choices:
+      raise Exception("Default choice is not in choices dictionary.")
+    self.default_choice = default_choice
 
   def handle_input(self):
     i = 0
     while i < self.max_attempts:
       response = input(self.input_msg).lower()
 
-      if response in self.choices:
+      if response == "" and self.default_choice is not None:
+        return self.choices[self.default_choice]()
+      elif response in self.choices:
         return self.choices[response]()
 
       i += 1
