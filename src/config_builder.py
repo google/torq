@@ -54,10 +54,6 @@ def create_ftrace_events_string(predefined_ftrace_events,
 
 
 def build_default_config(command, android_sdk_version):
-  if command.dur_ms is None:
-    # This is always defined because it has a default value that is always
-    # set in torq.py.
-    raise ValueError("Cannot create config because a valid dur_ms was not set.")
   predefined_ftrace_events = [
       "dmabuf_heap/dma_heap_stat",
       "ftrace/print",
@@ -96,6 +92,9 @@ def build_default_config(command, android_sdk_version):
   cpufreq_period_string = "cpufreq_period_ms: 500"
   if android_sdk_version < ANDROID_SDK_VERSION_T:
     cpufreq_period_string = ""
+  duration_string = ""
+  if command.dur_ms is not None:
+    duration_string = "duration_ms: %d" % command.dur_ms
   config = f'''\
     <<EOF
 
@@ -225,7 +224,7 @@ def build_default_config(command, android_sdk_version):
         }}
       }}
     }}
-    duration_ms: {command.dur_ms}
+    {duration_string}
     write_into_file: true
     file_write_period_ms: 5000
     max_file_size_bytes: 100000000000
@@ -256,7 +255,9 @@ PREDEFINED_PERFETTO_CONFIGS = {
 def build_custom_config(command):
   file_content = ""
   duration_prefix = "duration_ms:"
-  appended_duration = duration_prefix + " " + str(command.dur_ms)
+  appended_duration = ""
+  if command.dur_ms is not None:
+    appended_duration = duration_prefix + " " + str(command.dur_ms)
   try:
     with open(command.perfetto_config, "r") as file:
       for line in file:

@@ -56,7 +56,7 @@ def create_parser():
                       default='perfetto', help='The performance data source.')
   profiler_parser.add_argument('-o', '--out-dir', default=DEFAULT_OUT_DIR,
                       help='The path to the output directory.')
-  profiler_parser.add_argument('-d', '--dur-ms', type=int, default=DEFAULT_DUR_MS,
+  profiler_parser.add_argument('-d', '--dur-ms', type=int,
                       help=('The duration (ms) of the event. Determines when'
                             ' to stop collecting performance data.'))
   profiler_parser.add_argument('-a', '--app',
@@ -165,7 +165,7 @@ def user_changed_default_arguments(args):
   return any([args.event != "custom",
               args.profiler != "perfetto",
               args.out_dir != DEFAULT_OUT_DIR,
-              args.dur_ms != DEFAULT_DUR_MS,
+              args.dur_ms is not None,
               args.app is not None,
               args.runs != 1,
               args.simpleperf_event is not None,
@@ -183,7 +183,7 @@ def verify_profiler_args(args):
         ("Command is invalid because --out-dir is not a valid directory"
          " path: %s." % args.out_dir), None)
 
-  if args.dur_ms < MIN_DURATION_MS:
+  if args.dur_ms is not None and args.dur_ms < MIN_DURATION_MS:
     return None, ValidationError(
         ("Command is invalid because --dur-ms cannot be set to a value smaller"
          " than %d." % MIN_DURATION_MS),

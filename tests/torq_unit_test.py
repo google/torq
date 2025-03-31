@@ -18,7 +18,7 @@ import unittest
 import sys
 import os
 from unittest import mock
-from src.torq import create_parser, verify_args, get_command_type,\
+from src.torq import create_parser, verify_args, get_command_type, \
   DEFAULT_DUR_MS, DEFAULT_OUT_DIR
 
 TEST_USER_ID = 10
@@ -46,7 +46,7 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(args.out_dir, DEFAULT_OUT_DIR)
     self.assertEqual(args.runs, 1)
     self.assertEqual(args.perfetto_config, "default")
-    self.assertEqual(args.dur_ms, DEFAULT_DUR_MS)
+    self.assertEqual(args.dur_ms, None)
     self.assertEqual(args.between_dur_ms, DEFAULT_DUR_MS)
 
   def test_create_parser_valid_event_names(self):
@@ -645,7 +645,7 @@ class TorqUnitTest(unittest.TestCase):
 
     self.assertEqual(error, None)
     self.assertEqual(args.excluded_ftrace_events, ["power/cpu_idle",
-                                                 "ion/ion_stat"])
+                                                   "ion/ion_stat"])
 
   def test_verify_args_multiple_invalid_excluded_ftrace_events(self):
     parser = self.set_up_parser(("torq.py --excluded-ftrace-events"

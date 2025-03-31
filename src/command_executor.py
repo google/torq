@@ -15,12 +15,14 @@
 #
 
 import datetime
+import signal
 import subprocess
 import time
 from abc import ABC, abstractmethod
 from .config_builder import PREDEFINED_PERFETTO_CONFIGS, build_custom_config
+from .handle_input import HandleInput
 from .open_ui import open_trace
-from .device import SIMPLEPERF_TRACE_FILE
+from .device import SIMPLEPERF_TRACE_FILE, POLLING_INTERVAL_SECS
 from .utils import convert_simpleperf_to_gecko
 
 PERFETTO_TRACE_FILE = "/data/misc/perfetto-traces/trace.perfetto-trace"
@@ -29,6 +31,7 @@ WEB_UI_ADDRESS = "https://ui.perfetto.dev"
 TRACE_START_DELAY_SECS = 0.5
 MAX_WAIT_FOR_INIT_USER_SWITCH_SECS = 180
 ANDROID_SDK_VERSION_T = 33
+SIMPLEPERF_STOP_TIMEOUT_SECS = 60
 
 
 class CommandExecutor(ABC):
@@ -39,6 +42,8 @@ class CommandExecutor(ABC):
     pass
 
   def execute(self, command, device):
+    for sig in [signal.SIGINT, signal.SIGTERM]:
+      signal.signal(sig, lambda s, f: self.signal_handler(s,f))
     error = device.check_device_connection()
     if error is not None:
       return error
@@ -52,8 +57,13 @@ class CommandExecutor(ABC):
   def execute_command(self, command, device):
     raise NotImplementedError
 
+  def signal_handler(self, sig, frame):
+    pass
 
 class ProfilerCommandExecutor(CommandExecutor):
+
+  def __init__(self):
+    self.trace_cancelled = False
 
   def execute_command(self, command, device):
     config, error = self.create_config(command, device.get_android_sdk_version())
@@ -74,24 +84,38 @@ class ProfilerCommandExecutor(CommandExecutor):
       error = self.prepare_device_for_run(command, device)
       if error is not None:
         return error
+      start_time = time.time()
+      if self.trace_cancelled:
+        return self.cleanup(command, device)
       error = self.execute_run(command, device, config, run)
       if error is not None:
         return error
-      error = self.retrieve_perf_data(command, device, host_raw_trace_filename,
+      print("Run lasted for %.3f seconds." % (time.time() - start_time))
+      error = self.retrieve_perf_data(command, device,
+                                      host_raw_trace_filename,
                                       host_gecko_trace_filename)
       if error is not None:
         return error
       if command.runs != run:
+        if self.trace_cancelled:
+          if not HandleInput("Continue with remaining runs? [Y/n]: ",
+                             "",
+                             {"y": lambda: True,
+                              "n": lambda: False}, "y").handle_input():
+            return self.cleanup(command, device)
+          self.trace_cancelled = False
+        print("Waiting for %d seconds before next run."
+              % (command.between_dur_ms / 1000))
         time.sleep(command.between_dur_ms / 1000)
     error = self.cleanup(command, device)
     if error is not None:
       return error
     if command.use_ui:
-        error = open_trace(host_raw_trace_filename
-                           if command.profiler == "perfetto" else
-                           host_gecko_trace_filename, WEB_UI_ADDRESS, False)
-        if error is not None:
-          return error
+      error = open_trace(host_raw_trace_filename
+                         if command.profiler == "perfetto" else
+                         host_gecko_trace_filename, WEB_UI_ADDRESS, False)
+      if error is not None:
+        return error
     return None
 
   @staticmethod
@@ -112,7 +136,7 @@ class ProfilerCommandExecutor(CommandExecutor):
       device.remove_file(SIMPLEPERF_TRACE_FILE)
 
   def execute_run(self, command, device, config, run):
-    print("Performing run %s" % run)
+    print("Performing run %s. Press CTRL+C to end the trace." % run)
     if command.profiler == "perfetto":
       process = device.start_perfetto_trace(config)
     else:
@@ -120,9 +144,15 @@ class ProfilerCommandExecutor(CommandExecutor):
     time.sleep(TRACE_START_DELAY_SECS)
     error = self.trigger_system_event(command, device)
     if error is not None:
-      device.kill_pid(command.profiler)
+      print("Trace interrupted.")
+      self.stop_process(device, command.profiler)
       return error
-    process.wait()
+    while process.poll() is None and not self.trace_cancelled:
+      continue
+    if process.poll() is None:
+      print("Trace interrupted.")
+      self.stop_process(device, command.profiler)
+    return None
 
   def trigger_system_event(self, command, device):
     return None
@@ -139,21 +169,39 @@ class ProfilerCommandExecutor(CommandExecutor):
   def cleanup(self, command, device):
     return None
 
+  def signal_handler(self, sig, frame):
+    self.trace_cancelled = True
+
+  def stop_process(self, device, name):
+    if name == "simpleperf":
+      device.send_signal(name, "SIGINT")
+      # Simpleperf does post-processing, need to wait until the package stops
+      # running
+      print("Doing post-processing.")
+      if not device.poll_is_task_completed(SIMPLEPERF_STOP_TIMEOUT_SECS,
+                                           POLLING_INTERVAL_SECS,
+                                           lambda:
+                                           not device.is_package_running(name)):
+        raise Exception("Simpleperf post-processing took too long.")
+    else:
+      device.kill_process(name)
+
 
 class UserSwitchCommandExecutor(ProfilerCommandExecutor):
 
   def prepare_device_for_run(self, command, device):
     super().prepare_device_for_run(command, device)
     current_user = device.get_current_user()
+    if self.trace_cancelled:
+      return None
     if command.from_user != current_user:
-      dur_seconds = min(command.dur_ms / 1000,
-                        MAX_WAIT_FOR_INIT_USER_SWITCH_SECS)
-      print("Switching from the current user, %s, to the from-user, %s. Waiting"
-            " for %s seconds."
-            % (current_user, command.from_user, dur_seconds))
+      print("Switching from the current user, %s, to the from-user, %s."
+            % (current_user, command.from_user))
       device.perform_user_switch(command.from_user)
-      time.sleep(dur_seconds)
-      if device.get_current_user() != command.from_user:
+      if not device.poll_is_task_completed(MAX_WAIT_FOR_INIT_USER_SWITCH_SECS,
+                                           POLLING_INTERVAL_SECS,
+                                           lambda: device.get_current_user()
+                                                   == command.from_user):
         raise Exception(("Device with serial %s took more than %d secs to "
                          "switch to the initial user."
                          % (device.serial, dur_seconds)))
@@ -180,14 +228,23 @@ class BootCommandExecutor(ProfilerCommandExecutor):
     device.set_prop("persist.debug.perfetto.boottrace", "1")
 
   def execute_run(self, command, device, config, run):
-    print("Performing run %s" % run)
+    print("Performing run %s. Triggering reboot." % run)
     self.trigger_system_event(command, device)
     device.wait_for_device()
     device.root_device()
-    dur_seconds = command.dur_ms / 1000
-    print("Tracing for %s seconds." % dur_seconds)
-    time.sleep(dur_seconds)
+    if command.dur_ms is not None:
+      print("Tracing for %s seconds. Press CTRL+C to end early."
+            % (command.dur_ms / 1000))
+    else:
+      print("Tracing. Press CTRL+C to end.")
     device.wait_for_boot_to_complete()
+    while (device.is_package_running(command.profiler)
+           and not self.trace_cancelled):
+      continue
+    if device.is_package_running(command.profiler):
+      print("Trace interrupted.")
+      self.stop_process(device, command.profiler)
+    return None
 
   def trigger_system_event(self, command, device):
     device.reboot()

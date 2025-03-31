@@ -211,6 +211,15 @@ DEFAULT_CONFIG_9000_DUR_MS = f'''\
 duration_ms: {TEST_DUR_MS}
 {COMMON_CONFIG_ENDING_STRING}EOF'''
 
+DEFAULT_CONFIG_NO_DUR_MS = f'''\
+{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_1}
+{CPUFREQ_STRING_NEW_ANDROID}
+{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_2}
+{COMMON_DEFAULT_FTRACE_EVENTS}
+{COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
+
+{COMMON_CONFIG_ENDING_STRING}EOF'''
+
 DEFAULT_CONFIG_EXCLUDED_FTRACE_EVENTS = f'''\
 {COMMON_DEFAULT_CONFIG_BEGINNING_STRING_1}
 {CPUFREQ_STRING_NEW_ANDROID}
@@ -355,14 +364,13 @@ class ConfigBuilderUnitTest(unittest.TestCase):
     self.assertEqual(error, None)
     self.assertEqual(config, DEFAULT_CONFIG_OLD_ANDROID)
 
-  def test_build_default_config_setting_invalid_dur_ms(self):
+  def test_build_default_config_setting_no_dur_ms(self):
     self.command.dur_ms = None
 
-    with self.assertRaises(ValueError) as e:
-      build_default_config(self.command, ANDROID_SDK_VERSION_T)
+    config, error = build_default_config(self.command, ANDROID_SDK_VERSION_T)
 
-    self.assertEqual(str(e.exception), ("Cannot create config because a valid"
-                                        " dur_ms was not set."))
+    self.assertEqual(error, None)
+    self.assertEqual(config, DEFAULT_CONFIG_NO_DUR_MS)
 
   def test_build_default_config_removing_valid_excluded_ftrace_events(self):
     self.command.excluded_ftrace_events = ["power/suspend_resume",

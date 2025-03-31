@@ -16,6 +16,7 @@
 
 import os
 import unittest
+import signal
 import subprocess
 import sys
 import io
@@ -395,6 +396,25 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       self.assertEqual(error, None)
       self.assertEqual(self.mock_device.pull_file.call_count, 1)
 
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_one_run_no_dur_ms_success(self, mock_process):
+    def poll():
+      # Send the SIGINT signal to the process to simulate a user pressing CTRL+C
+      os.kill(os.getpid(), signal.SIGINT)
+      return None
+
+    with (mock.patch("src.command_executor.open_trace", autospec=True)
+          as mock_open_trace):
+      self.command.dur_ms = None
+      mock_open_trace.return_value = None
+      mock_process.poll = poll
+      self.mock_device.start_perfetto_trace.return_value = mock_process
+
+      error = self.command.execute(self.mock_device)
+
+      self.assertEqual(error, None)
+      self.assertEqual(self.mock_device.pull_file.call_count, 1)
+
   @mock.patch.object(subprocess, "run", autospec=True)
   @mock.patch.object(subprocess, "Popen", autospec=True)
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -462,16 +482,6 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       self.command.execute(self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
-    self.assertEqual(self.mock_device.pull_file.call_count, 0)
-
-  def test_execute_create_default_config_no_dur_ms_error(self):
-    self.command.dur_ms = None
-
-    with self.assertRaises(ValueError) as e:
-      self.command.execute(self.mock_device)
-
-    self.assertEqual(str(e.exception),
-                     "Cannot create config because a valid dur_ms was not set.")
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
   def test_execute_create_default_config_bad_excluded_ftrace_event_error(self):
@@ -578,9 +588,9 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
   @mock.patch.object(subprocess, "Popen", autospec=True)
-  def test_execute_process_wait_failure(self, mock_process):
+  def test_execute_process_poll_failure(self, mock_process):
     self.mock_device.start_perfetto_trace.return_value = mock_process
-    mock_process.wait.side_effect = TEST_EXCEPTION
+    mock_process.poll.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
       self.command.execute(self.mock_device)
@@ -737,6 +747,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device = mock.create_autospec(AdbDevice, instance=True,
                                             serial=TEST_SERIAL)
     self.mock_device.check_device_connection.return_value = None
+    self.mock_device.is_package_running.return_value = False
     self.mock_device.get_android_sdk_version.return_value = ANDROID_SDK_VERSION_T
 
   def test_execute_reboot_success(self):
@@ -931,7 +942,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.mock_device.start_package.call_count, 1)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
-  def test_kill_pid_success(self):
+  def test_kill_process_success(self):
     self.mock_device.start_package.return_value = TEST_VALIDATION_ERROR
 
     error = self.command.execute(self.mock_device)
@@ -940,19 +951,19 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.assertEqual(error.message, TEST_ERROR_MSG)
     self.assertEqual(error.suggestion, None)
     self.assertEqual(self.mock_device.start_package.call_count, 1)
-    self.assertEqual(self.mock_device.kill_pid.call_count, 1)
+    self.assertEqual(self.mock_device.kill_process.call_count, 1)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
-  def test_kill_pid_failure(self):
+  def test_kill_process_failure(self):
     self.mock_device.start_package.return_value = TEST_VALIDATION_ERROR
-    self.mock_device.kill_pid.side_effect = TEST_EXCEPTION
+    self.mock_device.kill_process.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
       self.command.execute(self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.start_package.call_count, 1)
-    self.assertEqual(self.mock_device.kill_pid.call_count, 1)
+    self.assertEqual(self.mock_device.kill_process.call_count, 1)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
 
