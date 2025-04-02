@@ -196,6 +196,15 @@ data_sources: {{
     }}
   }}
 }}
+
+data_sources {{
+  config {{
+    name: "perfetto.metatrace"
+    target_buffer: 4
+  }}
+  producer_name_filter: "perfetto.traced_probes"
+}}
+
 duration_ms: 10000
 write_into_file: true
 file_write_period_ms: 5000
@@ -360,6 +369,15 @@ data_sources: {{
     }}
   }}
 }}
+
+data_sources {{
+  config {{
+    name: "perfetto.metatrace"
+    target_buffer: 4
+  }}
+  producer_name_filter: "perfetto.traced_probes"
+}}
+
 duration_ms: 10000
 write_into_file: true
 file_write_period_ms: 5000

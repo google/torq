@@ -17,7 +17,7 @@
 import unittest
 import builtins
 from unittest import mock
-from src.config_builder import build_default_config, build_custom_config
+from src.config_builder import build_default_config, build_custom_config, build_lightweight_config
 from src.command import ProfilerCommand
 from src.torq import DEFAULT_DUR_MS
 
@@ -27,50 +27,7 @@ INVALID_DUR_MS = "invalid-dur-ms"
 ANDROID_SDK_VERSION_T = 33
 ANDROID_SDK_VERSION_S_V2 = 32
 
-COMMON_DEFAULT_CONFIG_BEGINNING_STRING_1 = f'''\
-<<EOF
-
-buffers: {{
-  size_kb: 4096
-  fill_policy: RING_BUFFER
-}}
-buffers {{
-  size_kb: 4096
-  fill_policy: RING_BUFFER
-}}
-buffers: {{
-  size_kb: 260096
-  fill_policy: RING_BUFFER
-}}
-
-data_sources: {{
-  config {{
-    name: "linux.process_stats"
-    process_stats_config {{
-      scan_all_processes_on_start: true
-    }}
-  }}
-}}
-
-data_sources: {{
-  config {{
-    name: "android.log"
-    android_log_config {{
-    }}
-  }}
-}}
-
-data_sources {{
-  config {{
-    name: "android.packages_list"
-  }}
-}}
-
-data_sources: {{
-  config {{
-    name: "linux.sys_stats"
-    target_buffer: 1
-    sys_stats_config {{
+COMMON_DEFAULT_SYS_EVENTS = f'''\
       stat_period_ms: 500
       stat_counters: STAT_CPU_TIMES
       stat_counters: STAT_FORK_COUNT
@@ -100,77 +57,6 @@ data_sources: {{
       vmstat_counters: VMSTAT_PGSCAN_KSWAPD
       vmstat_counters: VMSTAT_PGSTEAL_KSWAPD
       vmstat_counters: VMSTAT_WORKINGSET_REFAULT'''
-
-CPUFREQ_STRING_NEW_ANDROID = f'      cpufreq_period_ms: 500'
-
-COMMON_DEFAULT_CONFIG_BEGINNING_STRING_2 = f'''\
-    }}
-  }}
-}}
-
-data_sources: {{
-  config {{
-    name: "android.surfaceflinger.frametimeline"
-    target_buffer: 2
-  }}
-}}
-
-data_sources: {{
-  config {{
-    name: "linux.ftrace"
-    target_buffer: 2
-    ftrace_config {{'''
-
-COMMON_DEFAULT_CONFIG_MIDDLE_STRING = f'''\
-      atrace_categories: "aidl"
-      atrace_categories: "am"
-      atrace_categories: "dalvik"
-      atrace_categories: "binder_lock"
-      atrace_categories: "binder_driver"
-      atrace_categories: "bionic"
-      atrace_categories: "camera"
-      atrace_categories: "disk"
-      atrace_categories: "freq"
-      atrace_categories: "idle"
-      atrace_categories: "gfx"
-      atrace_categories: "hal"
-      atrace_categories: "input"
-      atrace_categories: "pm"
-      atrace_categories: "power"
-      atrace_categories: "res"
-      atrace_categories: "rro"
-      atrace_categories: "sched"
-      atrace_categories: "sm"
-      atrace_categories: "ss"
-      atrace_categories: "thermal"
-      atrace_categories: "video"
-      atrace_categories: "view"
-      atrace_categories: "wm"
-      atrace_apps: "lmkd"
-      atrace_apps: "system_server"
-      atrace_apps: "com.android.systemui"
-      atrace_apps: "com.google.android.gms"
-      atrace_apps: "com.google.android.gms.persistent"
-      atrace_apps: "android:ui"
-      atrace_apps: "com.google.android.apps.maps"
-      atrace_apps: "*"
-      buffer_size_kb: 16384
-      drain_period_ms: 150
-      symbolize_ksyms: true
-    }}
-  }}
-}}'''
-
-COMMON_CONFIG_ENDING_STRING = f'''\
-write_into_file: true
-file_write_period_ms: 5000
-max_file_size_bytes: 100000000000
-flush_period_ms: 5000
-incremental_state_config {{
-  clear_period_ms: 5000
-}}
-
-'''
 
 COMMON_DEFAULT_FTRACE_EVENTS = f'''\
       ftrace_events: "dmabuf_heap/dma_heap_stat"
@@ -202,28 +88,208 @@ COMMON_DEFAULT_FTRACE_EVENTS = f'''\
       ftrace_events: "vmscan/*"
       ftrace_events: "workqueue/*"'''
 
+COMMON_DEFAULT_ATRACE_EVENTS = f'''\
+      atrace_categories: "aidl"
+      atrace_categories: "am"
+      atrace_categories: "dalvik"
+      atrace_categories: "binder_lock"
+      atrace_categories: "binder_driver"
+      atrace_categories: "bionic"
+      atrace_categories: "camera"
+      atrace_categories: "disk"
+      atrace_categories: "freq"
+      atrace_categories: "idle"
+      atrace_categories: "gfx"
+      atrace_categories: "hal"
+      atrace_categories: "input"
+      atrace_categories: "pm"
+      atrace_categories: "power"
+      atrace_categories: "res"
+      atrace_categories: "rro"
+      atrace_categories: "sched"
+      atrace_categories: "sm"
+      atrace_categories: "ss"
+      atrace_categories: "thermal"
+      atrace_categories: "video"
+      atrace_categories: "view"
+      atrace_categories: "wm"
+      atrace_apps: "lmkd"
+      atrace_apps: "system_server"
+      atrace_apps: "com.android.systemui"
+      atrace_apps: "com.google.android.gms"
+      atrace_apps: "com.google.android.gms.persistent"
+      atrace_apps: "android:ui"
+      atrace_apps: "com.google.android.apps.maps"
+      atrace_apps: "*"'''
+
+COMMON_DEFAULT_CONFIG_BEGINNING_STRING = f'''\
+<<EOF
+
+buffers: {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+buffers {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+buffers: {{
+  size_kb: 260096
+  fill_policy: RING_BUFFER
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.process_stats"
+    process_stats_config {{
+      scan_all_processes_on_start: true
+    }}
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "android.log"
+    android_log_config {{'''
+
+COMMON_DEFAULT_CONFIG_SYS_STATS_BEGINNING = f'''\
+    }}
+  }}
+}}
+
+data_sources {{
+  config {{
+    name: "android.packages_list"
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.sys_stats"
+    target_buffer: 1
+    sys_stats_config {{'''
+
+CPUFREQ_STRING_NEW_ANDROID = f'      cpufreq_period_ms: 500'
+
+COMMON_DEFAULT_CONFIG_FTRACE_BEGINNING = f'''\
+    }}
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "android.surfaceflinger.frametimeline"
+    target_buffer: 2
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.ftrace"
+    target_buffer: 2
+    ftrace_config {{'''
+
+COMMON_DEFAULT_CONFIG_MIDDLE_STRING = f'''\
+      buffer_size_kb: 16384
+      drain_period_ms: 150
+      symbolize_ksyms: true
+    }}
+  }}
+}}
+
+data_sources {{
+  config {{
+    name: "perfetto.metatrace"
+    target_buffer: 4
+  }}
+  producer_name_filter: "perfetto.traced_probes"
+}}
+'''
+
+COMMON_CONFIG_ENDING_STRING = f'''\
+write_into_file: true
+file_write_period_ms: 5000
+max_file_size_bytes: 100000000000
+flush_period_ms: 5000
+incremental_state_config {{
+  clear_period_ms: 5000
+}}
+
+'''
+
 DEFAULT_CONFIG_9000_DUR_MS = f'''\
-{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_1}
+{COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
+{COMMON_DEFAULT_CONFIG_SYS_STATS_BEGINNING}
+{COMMON_DEFAULT_SYS_EVENTS}
 {CPUFREQ_STRING_NEW_ANDROID}
-{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_2}
+{COMMON_DEFAULT_CONFIG_FTRACE_BEGINNING}
 {COMMON_DEFAULT_FTRACE_EVENTS}
+{COMMON_DEFAULT_ATRACE_EVENTS}
 {COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 duration_ms: {TEST_DUR_MS}
 {COMMON_CONFIG_ENDING_STRING}EOF'''
 
-DEFAULT_CONFIG_NO_DUR_MS = f'''\
-{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_1}
-{CPUFREQ_STRING_NEW_ANDROID}
-{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_2}
-{COMMON_DEFAULT_FTRACE_EVENTS}
-{COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 
+LIGHTWEIGHT_CONFIG_9000_DUR_MS = f'''\
+{COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
+      min_prio: PRIO_ERROR
+{COMMON_DEFAULT_CONFIG_SYS_STATS_BEGINNING}
+      stat_period_ms: 500
+      stat_counters: STAT_CPU_TIMES
+      meminfo_period_ms: 1000
+      meminfo_counters: MEMINFO_MEM_FREE
+{CPUFREQ_STRING_NEW_ANDROID}
+    }}
+  }}
+}}
+
+data_sources: {{
+  config {{
+    name: "linux.ftrace"
+    target_buffer: 2
+    ftrace_config {{
+      ftrace_events: "power/cpu_idle"
+      ftrace_events: "sched/sched_blocked_reason"
+      ftrace_events: "sched/sched_switch"
+      ftrace_events: "sched/sched_wakeup"
+      ftrace_events: "sched/sched_wakeup_new"
+      ftrace_events: "sched/sched_waking"
+      atrace_categories: "aidl"
+      atrace_categories: "am"
+      atrace_categories: "binder_lock"
+      atrace_categories: "binder_driver"
+      atrace_categories: "dalvik"
+      atrace_categories: "disk"
+      atrace_categories: "freq"
+      atrace_categories: "idle"
+      atrace_categories: "gfx"
+      atrace_categories: "hal"
+      atrace_categories: "input"
+      atrace_categories: "pm"
+      atrace_categories: "power"
+      atrace_categories: "res"
+      atrace_categories: "rro"
+      atrace_categories: "sched"
+      atrace_categories: "sm"
+      atrace_categories: "ss"
+      atrace_categories: "view"
+      atrace_categories: "wm"
+      atrace_apps: "lmkd"
+      atrace_apps: "system_server"
+      atrace_apps: "com.android.systemui"
+      atrace_apps: "com.google.android.gms"
+      atrace_apps: "com.google.android.gms.persistent"
+      atrace_apps: "android:ui"
+{COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
+duration_ms: {TEST_DUR_MS}
 {COMMON_CONFIG_ENDING_STRING}EOF'''
 
 DEFAULT_CONFIG_EXCLUDED_FTRACE_EVENTS = f'''\
-{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_1}
+{COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
+{COMMON_DEFAULT_CONFIG_SYS_STATS_BEGINNING}
+{COMMON_DEFAULT_SYS_EVENTS}
 {CPUFREQ_STRING_NEW_ANDROID}
-{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_2}
+{COMMON_DEFAULT_CONFIG_FTRACE_BEGINNING}
       ftrace_events: "dmabuf_heap/dma_heap_stat"
       ftrace_events: "ftrace/print"
       ftrace_events: "gpu_mem/gpu_mem_total"
@@ -250,14 +316,17 @@ DEFAULT_CONFIG_EXCLUDED_FTRACE_EVENTS = f'''\
       ftrace_events: "task/task_rename"
       ftrace_events: "vmscan/*"
       ftrace_events: "workqueue/*"
+{COMMON_DEFAULT_ATRACE_EVENTS}
 {COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 duration_ms: {DEFAULT_DUR_MS}
 {COMMON_CONFIG_ENDING_STRING}EOF'''
 
 DEFAULT_CONFIG_INCLUDED_FTRACE_EVENTS = f'''\
-{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_1}
+{COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
+{COMMON_DEFAULT_CONFIG_SYS_STATS_BEGINNING}
+{COMMON_DEFAULT_SYS_EVENTS}
 {CPUFREQ_STRING_NEW_ANDROID}
-{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_2}
+{COMMON_DEFAULT_CONFIG_FTRACE_BEGINNING}
       ftrace_events: "dmabuf_heap/dma_heap_stat"
       ftrace_events: "ftrace/print"
       ftrace_events: "gpu_mem/gpu_mem_total"
@@ -288,15 +357,19 @@ DEFAULT_CONFIG_INCLUDED_FTRACE_EVENTS = f'''\
       ftrace_events: "workqueue/*"
       ftrace_events: "mock_ftrace_event1"
       ftrace_events: "mock_ftrace_event2"
+{COMMON_DEFAULT_ATRACE_EVENTS}
 {COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 duration_ms: {DEFAULT_DUR_MS}
 {COMMON_CONFIG_ENDING_STRING}EOF'''
 
 DEFAULT_CONFIG_OLD_ANDROID = f'''\
-{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_1}
+{COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
+{COMMON_DEFAULT_CONFIG_SYS_STATS_BEGINNING}
+{COMMON_DEFAULT_SYS_EVENTS}
 
-{COMMON_DEFAULT_CONFIG_BEGINNING_STRING_2}
+{COMMON_DEFAULT_CONFIG_FTRACE_BEGINNING}
 {COMMON_DEFAULT_FTRACE_EVENTS}
+{COMMON_DEFAULT_ATRACE_EVENTS}
 {COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 duration_ms: {DEFAULT_DUR_MS}
 {COMMON_CONFIG_ENDING_STRING}EOF'''
@@ -342,6 +415,18 @@ CUSTOM_CONFIG_NO_DUR_MS = f'''\
 {COMMON_CUSTOM_CONFIG_BEGINNING_STRING}
 {COMMON_CONFIG_ENDING_STRING}'''
 
+DEFAULT_CONFIG_NO_DUR_MS = f'''\
+{COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
+{COMMON_DEFAULT_CONFIG_SYS_STATS_BEGINNING}
+{COMMON_DEFAULT_SYS_EVENTS}
+{CPUFREQ_STRING_NEW_ANDROID}
+{COMMON_DEFAULT_CONFIG_FTRACE_BEGINNING}
+{COMMON_DEFAULT_FTRACE_EVENTS}
+{COMMON_DEFAULT_ATRACE_EVENTS}
+{COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
+
+{COMMON_CONFIG_ENDING_STRING}EOF'''
+
 
 class ConfigBuilderUnitTest(unittest.TestCase):
 
@@ -357,6 +442,14 @@ class ConfigBuilderUnitTest(unittest.TestCase):
 
     self.assertEqual(error, None)
     self.assertEqual(config, DEFAULT_CONFIG_9000_DUR_MS)
+
+  def test_build_lightweight_config_setting_valid_dur_ms(self):
+    self.command.dur_ms = TEST_DUR_MS
+
+    config, error = build_lightweight_config(self.command, ANDROID_SDK_VERSION_T)
+
+    self.assertEqual(error, None)
+    self.assertEqual(config, LIGHTWEIGHT_CONFIG_9000_DUR_MS)
 
   def test_build_default_config_on_old_android_version(self):
     config, error = build_default_config(self.command, ANDROID_SDK_VERSION_S_V2)
