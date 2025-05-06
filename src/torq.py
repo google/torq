@@ -160,23 +160,6 @@ def create_parser():
 
   return parser
 
-
-def user_changed_default_arguments(args):
-  return any([args.event != "custom",
-              args.profiler != "perfetto",
-              args.out_dir != DEFAULT_OUT_DIR,
-              args.dur_ms is not None,
-              args.app is not None,
-              args.runs != 1,
-              args.simpleperf_event is not None,
-              args.perfetto_config != "default",
-              args.between_dur_ms != DEFAULT_DUR_MS,
-              args.ui is not None,
-              args.excluded_ftrace_events is not None,
-              args.included_ftrace_events is not None,
-              args.from_user is not None,
-              args.to_user is not None])
-
 def verify_profiler_args(args):
   if args.out_dir != DEFAULT_OUT_DIR and not os.path.isdir(args.out_dir):
     return None, ValidationError(
