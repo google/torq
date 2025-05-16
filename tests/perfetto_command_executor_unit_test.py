@@ -200,7 +200,7 @@ data_sources: {{
 data_sources {{
   config {{
     name: "perfetto.metatrace"
-    target_buffer: 4
+    target_buffer: 2
   }}
   producer_name_filter: "perfetto.traced_probes"
 }}
@@ -373,7 +373,7 @@ data_sources: {{
 data_sources {{
   config {{
     name: "perfetto.metatrace"
-    target_buffer: 4
+    target_buffer: 2
   }}
   producer_name_filter: "perfetto.traced_probes"
 }}

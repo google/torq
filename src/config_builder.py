@@ -228,7 +228,7 @@ def build_default_config(command, android_sdk_version):
     data_sources {{
       config {{
         name: "perfetto.metatrace"
-        target_buffer: 4
+        target_buffer: 2
       }}
       producer_name_filter: "perfetto.traced_probes"
     }}
@@ -362,7 +362,7 @@ def build_lightweight_config(command, android_sdk_version):
     data_sources {{
       config {{
         name: "perfetto.metatrace"
-        target_buffer: 4
+        target_buffer: 2
       }}
       producer_name_filter: "perfetto.traced_probes"
     }}

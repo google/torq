@@ -200,7 +200,7 @@ COMMON_DEFAULT_CONFIG_MIDDLE_STRING = f'''\
 data_sources {{
   config {{
     name: "perfetto.metatrace"
-    target_buffer: 4
+    target_buffer: 2
   }}
   producer_name_filter: "perfetto.traced_probes"
 }}
