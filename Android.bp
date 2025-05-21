@@ -75,6 +75,17 @@ python_test_host {
 }
 
 python_test_host {
+    name: "config_command_executor_unit_test",
+    main: "tests/config_command_executor_unit_test.py",
+    srcs: ["tests/config_command_executor_unit_test.py"],
+    defaults: ["torq_defaults"],
+    embedded_launcher: false,
+    test_options: {
+        unit_test: true,
+    },
+}
+
+python_test_host {
     name: "validate_simpleperf_unit_test",
     main: "tests/validate_simpleperf_unit_test.py",
     srcs: ["tests/validate_simpleperf_unit_test.py"],
