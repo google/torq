@@ -431,7 +431,7 @@ def print_error(error):
     print("Suggestion:\n\t", error.suggestion)
 
 
-def main():
+def run():
   parser = create_parser()
   args = parser.parse_args()
   args, error = verify_args(args)
@@ -445,7 +445,3 @@ def main():
   if error is not None:
     print_error(error)
     return
-
-
-if __name__ == '__main__':
-  main()

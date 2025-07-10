@@ -1,4 +1,4 @@
-# **torq: AAOS Performance CLI**
+# torq: AAOS Performance CLI
 
 **torq** is a command-line tool designed to streamline and standardize OS
 performance profiling across Android Automotive devices. By providing a flexible
@@ -13,10 +13,36 @@ tooling solutions.
 
 ## Getting Started
 
-- **torq** is an open source Android tool. Run the following commands to get
-started:
+To start using **torq** follow these steps:
 
+- Go to *torq*'s directory and build it:
+
+```bash
+bazel build //:torq
+export PATH="$(pwd)/bazel-bin:$PATH"
 ```
+
+- Connect to an Android device or start an emulator.
+- Ensure the connected device appears in `adb devices`.
+- Capture a perfetto trace using *torq*:
+
+```bash
+torq -d 7000
+```
+
+## Building Torq
+
+**torq** has support for two build systems: [Bazel](https://bazel.build)
+and *Android's Soong*.
+
+To build and use torq using [Bazel](https://bazel.build/), run:
+```bash
+bazel build //:torq
+./bazel-bin/torq --help
+```
+
+To build with *Android's Soong*, run:
+```bash
 cd $ANDROID_ROOT
 source build/envsetup.sh
 lunch <target-name> (e.g., lunch sdk_gcar_x86_64-next-userdebug)
@@ -24,46 +50,32 @@ cd $ANDROID_ROOT/system/extras/torq
 m torq
 ```
 
-- Connect to an Android Automotive device or start an emulator.
-- Ensure the connected device appears in `adb devices`.
-- You can now run `torq` anywhere, followed by any necessary arguments
-(e.g., `torq -d 7000`).
+## Quick one-line commands
 
+**torq**'s main goal is to allow developers to quickly trace and profile Android
+in the least amount of steps while being flexible enough to cover many different
+use cases. This list of commands demonstrates just that.
 
-## Example Usages
+| Command | Description  |
+|----------|-------------|
+| `torq -d 7000` | Run a custom event for 7 seconds. |
+| `torq -e user-switch --from-user 10 --to-user 11` | Run a user-switch event, switching from user 10 to user 11. |
+| `torq -e boot --perfetto-config ./config` | Run a boot event, using the user's local Perfetto config specified in the ./config file path. |
+| `torq -e boot -r 5 --between-dur-ms 3000` | Run a boot event 5 times, waiting 3 seconds between each boot run. |
+| `torq -e app-startup -a android.google.kitchensink` | Run an app-startup event, starting the android.google.kitchensink package. |
+| `torq -e user-switch --to-user 9 --serial emulator-5554` | Run a user-switch event, switching to user 9 on the connected device with serial, emulator-5554. |
+| `torq -p simpleperf -d 10000` | Run a custom event using the Simpleperf profiler for 10 seconds. |
+| `torq -p simpleperf -s cpu-cycles -s instructions` | Run a custom event using the Simpleperf profiler, in which the stats, cpu-cycles and instructions, are collected. |
+| `torq -d 10000 --perfetto-config lightweight` | Run a custom event for 10 seconds using the "lightweight" predefined Perfetto config. |
+| `torq config show memory` | Print the contents of the memory predefined Perfetto config to the terminal. |
+| `torq open trace.perfetto-trace` | Open a trace in the perfetto UI. |
+| `torq -d 10000 --exclude-ftrace-event power/cpu_idle` | Run a custom event for 10 seconds, using the "default" predefined Perfetto config, in which the ftrace event, power/cpu_idle, is not collected. |
 
-### ./torq -d 7000
-- Run a custom event for 7 seconds.
-### ./torq -e user-switch --from-user 10 --to-user 11
-- Run a user-switch event, switching from user 10 to user 11.
-### ./torq -e boot --perfetto-config ./config
-- Run a boot event, using the user's local Perfetto config specified in the
-./config file path.
-### ./torq -e boot -r 5 --between-dur-ms 3000
-- Run a boot event 5 times, waiting 3 seconds between each boot run.
-### ./torq -e app-startup -a android.google.kitchensink
-- Run an app-startup event, starting the android.google.kitchensink package.
-### ./torq -e user-switch --to-user 9 --serial emulator-5554
-- Run a user-switch event, switching to user 9 on the connected device with
-serial, emulator-5554.
-### ./torq -p simpleperf -d 10000
-- Run a custom event using the Simpleperf profiler for 10 seconds.
-### ./torq -p simpleperf -s cpu-cycles -s instructions
-- Run a custom event using the Simpleperf profiler, in which the stats,
-cpu-cycles and instructions, are collected.
-### ./torq -d 10000 --perfetto-config lightweight
-- Run a custom event for 10 seconds using the "lightweight" predefined Perfetto
-config.
-### ./torq config show memory
-- Print the contents of the memory predefined Perfetto config to the terminal.
-### ./torq open trace.perfetto-trace
-- Open a trace in the perfetto UI.
-### ./torq -d 10000 --exclude-ftrace-event power/cpu_idle
-- Run a custom event for 10 seconds, using the "default" predefined Perfetto
-config, in which the ftrace event, power/cpu_idle, is not collected.
+## Profiling with Torq
 
-
-## Main CLI Arguments
+This is the command-line interface for *torq*'s profiler subcommand. This is
+the default subcommand in the case where no subcommand is provided. The same
+data outlined in the table can viewed via the `torq profiler --help` command.
 
 | Argument                                   | Description                                                                                                                                                                                                                                                                        | Currently Supported Arguments                                                                | Default                              |
 |--------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|--------------------------------------|
@@ -113,3 +125,16 @@ These are the arguments for the `torq vm` CLI subcommand.
 | `traced-relay disable` | Disables traced_relay and switches to traced. |    |    |
 | `relay-producer enable [--address <relay_producer_socket>]` | Enables traced's relay producer support. The `--address` specifies the relay producer socket to use. |    | --address: `vsock://-1:30001`  |
 | `relay-producer disable` | Disables traced's relay producer support. |    |    |
+
+## Testing Torq
+
+To run **torq**'s test, do:
+```bash
+./tools/torq_test
+```
+
+This will use Bazel as the default build system. If you want to use *Soong*,
+you can do:
+```bash
+./tools/torq_test --android
+```

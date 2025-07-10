@@ -23,7 +23,7 @@ from src.command import ProfilerCommand
 from src.device import AdbDevice
 from src.validation_error import ValidationError
 from src.torq import DEFAULT_DUR_MS, DEFAULT_OUT_DIR
-from .test_utils import parameterized_profiler
+from tests.test_utils import parameterized_profiler
 
 PROFILER_COMMAND_TYPE = "profiler"
 TEST_ERROR_MSG = "test-error"

@@ -19,16 +19,19 @@ package {
 
 python_defaults {
     name: "torq_defaults",
-    srcs: [
-        "src/**/*.py",
-        "tests/**/*utils.py",
-    ],
+    srcs: ["src/**/*.py"],
 }
 
 python_binary_host {
     name: "torq",
-    main: "src/torq.py",
+    main: "main.py",
+    srcs: ["main.py"],
     defaults: ["torq_defaults"],
+}
+
+python_library_host {
+    name: "torq_test_lib",
+    srcs: ["tests/test_utils.py"],
 }
 
 python_test_host {
@@ -69,6 +72,7 @@ python_test_host {
     main: "tests/profiler_command_executor_unit_test.py",
     srcs: ["tests/profiler_command_executor_unit_test.py"],
     defaults: ["torq_defaults"],
+    libs: ["torq_test_lib"],
     embedded_launcher: false,
     test_options: {
         unit_test: true,
