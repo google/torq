@@ -18,6 +18,7 @@ import os
 import unittest
 import signal
 import subprocess
+import time
 from unittest import mock
 from src.command import ProfilerCommand
 from src.device import AdbDevice
@@ -58,6 +59,11 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.create_directory.return_value = None
+    self.mock_sleep_patcher = mock.patch.object(time, 'sleep', return_value=None)
+    self.mock_sleep_patcher.start()
+
+  def tearDown(self):
+    self.mock_sleep_patcher.stop()
 
   @parameterized_profiler(setup_func=setUpSubtest)
   @mock.patch.object(subprocess, "run", autospec=True)
@@ -624,6 +630,11 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.create_directory.return_value = None
+    self.mock_sleep_patcher = mock.patch.object(time, 'sleep', return_value=None)
+    self.mock_sleep_patcher.start()
+
+  def tearDown(self):
+    self.mock_sleep_patcher.stop()
 
   @parameterized_profiler(setup_func=setUpSubtest)
   @mock.patch.object(subprocess, "run", autospec=True)
