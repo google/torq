@@ -19,8 +19,7 @@ import builtins
 from unittest import mock
 from src.config_builder import (build_default_config, build_custom_config,
                                 build_lightweight_config, build_memory_config)
-from src.command import ProfilerCommand
-from src.torq import DEFAULT_DUR_MS
+from src.profiler import DEFAULT_DUR_MS, ProfilerCommand
 
 TEST_FAILURE_MSG = "Test failure."
 TEST_DUR_MS = 9000

@@ -19,10 +19,13 @@ import unittest
 import signal
 import subprocess
 from unittest import mock
-from src.command import ProfilerCommand
 from src.device import AdbDevice
+from src.profiler import (
+    DEFAULT_DUR_MS,
+    DEFAULT_OUT_DIR,
+    ProfilerCommand
+)
 from src.validation_error import ValidationError
-from src.torq import DEFAULT_DUR_MS, DEFAULT_OUT_DIR
 from tests.test_utils import parameterized_profiler
 
 PROFILER_COMMAND_TYPE = "profiler"
@@ -65,7 +68,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
   @mock.patch.object(os.path, "exists", autospec=True)
   def test_execute_one_profiler_run_and_use_ui_success(self, profiler,
       mock_exists, mock_process, mock_run):
-    with (mock.patch("src.command_executor.open_trace", autospec=True)
+    with (mock.patch("src.profiler.open_trace", autospec=True)
           as mock_open_trace):
       mock_open_trace.return_value = None
       self.command.use_ui = True
@@ -92,7 +95,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       os.kill(os.getpid(), signal.SIGINT)
       return None
 
-    with (mock.patch("src.command_executor.open_trace", autospec=True)
+    with (mock.patch("src.profiler.open_trace", autospec=True)
           as mock_open_trace):
       self.command.dur_ms = None
       mock_open_trace.return_value = None
@@ -115,7 +118,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
   def test_execute_one_simpleperf_run_failure(self, mock_exists, mock_process,
       mock_run):
     self.setUpSubtest("simpleperf")
-    with (mock.patch("src.command_executor.open_trace", autospec=True)
+    with (mock.patch("src.profiler.open_trace", autospec=True)
           as mock_open_trace):
       mock_open_trace.return_value = None
       self.mock_device.start_simpleperf_trace.return_value = mock_process

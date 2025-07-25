@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 The Android Open Source Project
+# Copyright (C) 2025 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,23 +14,4 @@
 # limitations under the License.
 #
 
-from abc import ABC, abstractmethod
-
-class Command(ABC):
-  """
-  Abstract base class representing a command.
-  """
-  def __init__(self, type):
-    self.type = type
-    self.command_executor = None
-
-  def get_type(self):
-    return self.type
-
-  def execute(self, device):
-    return self.command_executor.execute(self, device)
-
-  @abstractmethod
-  def validate(self, device):
-    raise NotImplementedError
-
+ANDROID_SDK_VERSION_T = 33

@@ -13,12 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Original implementation taken from:
-#   external/perfetto/tools/record_android_trace
-#
 
 from .command import Command
-from .open_ui_utils import open_trace
+from .open_ui_utils import open_trace, WEB_UI_ADDRESS
 from .utils import path_exists
 from .validation_error import ValidationError
 

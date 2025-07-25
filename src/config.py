@@ -17,8 +17,9 @@
 import os
 import subprocess
 
+from .base import ANDROID_SDK_VERSION_T
 from .command import Command
-from .command_executor import CommandExecutor, ANDROID_SDK_VERSION_T
+from .command_executor import CommandExecutor
 from .config_builder import PREDEFINED_PERFETTO_CONFIGS
 from .validation_error import ValidationError
 

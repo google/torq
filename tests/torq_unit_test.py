@@ -18,8 +18,8 @@ import unittest
 import sys
 import os
 from unittest import mock
-from src.torq import create_parser, verify_args, get_command, \
-  DEFAULT_DUR_MS, DEFAULT_OUT_DIR
+from src.profiler import DEFAULT_DUR_MS, DEFAULT_OUT_DIR
+from src.torq import create_parser, verify_args, get_command
 
 TEST_USER_ID = 10
 TEST_PACKAGE = "com.android.contacts"
