@@ -17,7 +17,7 @@
 import os
 import subprocess
 
-from .base import ANDROID_SDK_VERSION_T, Command, CommandExecutor, ValidationError
+from .base import ANDROID_SDK_VERSION_T, Command, ValidationError
 from .config_builder import PREDEFINED_PERFETTO_CONFIGS
 
 
@@ -138,9 +138,36 @@ def create_config_command(args):
   return command
 
 
+def execute_show_or_pull_command(command, device):
+  android_sdk_version = ANDROID_SDK_VERSION_T
+  error = device.check_device_connection()
+  if error is None:
+    device.root_device()
+    android_sdk_version = device.get_android_sdk_version()
+
+  config, error = PREDEFINED_PERFETTO_CONFIGS[command.config_name](
+      command, android_sdk_version)
+
+  if error is not None:
+    return error
+
+  if command.get_type() == "config pull":
+    subprocess.run(("cat > %s %s" % (command.file_path, config)), shell=True)
+  else:
+    print("\n".join(config.strip().split("\n")[2:-2]))
+  return None
+
+
 def execute_config_command(args, device):
   command = create_config_command(args)
-  return command.execute(device)
+  match command.get_type():
+    case "config list":
+      print("\n".join(list(PREDEFINED_PERFETTO_CONFIGS.keys())))
+      return None
+    case "config show" | "config pull":
+      return execute_show_or_pull_command(command, device)
+    case _:
+      raise ValueError("Invalid config subcommand was used.")
 
 
 class ConfigCommand(Command):
@@ -156,43 +183,6 @@ class ConfigCommand(Command):
     self.dur_ms = dur_ms
     self.excluded_ftrace_events = excluded_ftrace_events
     self.included_ftrace_events = included_ftrace_events
-    self.command_executor = ConfigCommandExecutor()
 
   def validate(self, device):
     raise NotImplementedError
-
-
-class ConfigCommandExecutor(CommandExecutor):
-
-  def execute(self, command, device):
-    return self.execute_command(command, device)
-
-  def execute_command(self, command, device):
-    match command.get_type():
-      case "config list":
-        print("\n".join(list(PREDEFINED_PERFETTO_CONFIGS.keys())))
-        return None
-      case "config show" | "config pull":
-        return self.execute_config_command(command, device)
-      case _:
-        raise ValueError("Invalid config subcommand was used.")
-
-  def execute_config_command(self, command, device):
-    android_sdk_version = ANDROID_SDK_VERSION_T
-    error = device.check_device_connection()
-    if error is None:
-      device.root_device()
-      android_sdk_version = device.get_android_sdk_version()
-
-    config, error = PREDEFINED_PERFETTO_CONFIGS[command.config_name](
-        command, android_sdk_version)
-
-    if error is not None:
-      return error
-
-    if command.get_type() == "config pull":
-      subprocess.run(("cat > %s %s" % (command.file_path, config)), shell=True)
-    else:
-      print("\n".join(config.strip().split("\n")[2:-2]))
-
-    return None

@@ -44,22 +44,4 @@ def verify_open_args(args):
 
 
 def execute_open_command(args, device):
-  command = OpenCommand(args.file_path, args.use_trace_processor)
-  return command.execute(device)
-
-
-class OpenCommand(Command):
-  """
-  Represents commands which open traces.
-  """
-
-  def __init__(self, file_path, use_trace_processor):
-    super().__init__(type)
-    self.file_path = file_path
-    self.use_trace_processor = use_trace_processor
-
-  def validate(self, device):
-    raise NotImplementedError
-
-  def execute(self, device):
-    return open_trace(self.file_path, WEB_UI_ADDRESS, self.use_trace_processor)
+  return open_trace(args.file_path, WEB_UI_ADDRESS, args.use_trace_processor)

@@ -297,6 +297,20 @@ def verify_profiler_args(args):
   return args, None
 
 
+def get_executor(event):
+  match event:
+    case "custom":
+      return ProfilerCommandExecutor()
+    case "user-switch":
+      return UserSwitchCommandExecutor()
+    case "boot":
+      return BootCommandExecutor()
+    case "app-startup":
+      return AppStartupCommandExecutor()
+    case _:
+      raise ValueError("Invalid event name was used.")
+
+
 def execute_profiler_command(args, device):
   command = ProfilerCommand("profiler", args.event, args.profiler, args.out_dir,
                             args.dur_ms, args.app, args.runs,
@@ -305,7 +319,10 @@ def execute_profiler_command(args, device):
                             args.excluded_ftrace_events,
                             args.included_ftrace_events, args.from_user,
                             args.to_user, args.scripts_path, args.symbols)
-  return command.execute(device)
+
+  executor = get_executor(command.event)
+
+  return executor.execute(command, device)
 
 
 class ProfilerCommand(Command):
@@ -334,18 +351,9 @@ class ProfilerCommand(Command):
     self.to_user = to_user
     self.scripts_path = scripts_path
     self.symbols = symbols
-    match event:
-      case "custom":
-        self.command_executor = ProfilerCommandExecutor()
-      case "user-switch":
-        self.original_user = None
-        self.command_executor = UserSwitchCommandExecutor()
-      case "boot":
-        self.command_executor = BootCommandExecutor()
-      case "app-startup":
-        self.command_executor = AppStartupCommandExecutor()
-      case _:
-        raise ValueError("Invalid event name was used.")
+
+    if self.event == "user-switch":
+      self.original_user = None
 
   def validate(self, device):
     print("Further validating arguments of ProfilerCommand.")

@@ -22,7 +22,8 @@ import time
 from unittest import mock
 from src.base import ValidationError
 from src.device import AdbDevice
-from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR, ProfilerCommand)
+from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR, get_executor,
+                          ProfilerCommand)
 from tests.test_utils import parameterized_profiler
 
 PROFILER_COMMAND_TYPE = "profiler"
@@ -49,6 +50,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
                                    DEFAULT_OUT_DIR, DEFAULT_DUR_MS, None, 1,
                                    None, DEFAULT_PERFETTO_CONFIG, None, False,
                                    None, None, None, None, None, None)
+    self.executor = get_executor("custom")
     if profiler == "simpleperf":
       self.command.symbols = "/"
       self.command.scripts_path = "/"
@@ -83,7 +85,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       mock_exists.return_value = True
       mock_run.return_value = None
 
-      error = self.command.execute(self.mock_device)
+      error = self.executor.execute(self.command, self.mock_device)
 
       self.assertEqual(error, None)
       self.assertEqual(self.mock_device.pull_file.call_count, 1)
@@ -113,7 +115,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       mock_exists.return_value = True
       mock_run.return_value = None
 
-      error = self.command.execute(self.mock_device)
+      error = self.executor.execute(self.command, self.mock_device)
 
       self.assertEqual(error, None)
       self.assertEqual(self.mock_device.pull_file.call_count, 1)
@@ -133,7 +135,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       self.command.use_ui = True
 
       with self.assertRaises(Exception) as e:
-        self.command.execute(self.mock_device)
+        self.executor.execute(self.command, self.mock_device)
 
       self.assertEqual(str(e.exception), "Gecko file was not created.")
 
@@ -151,7 +153,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     mock_exists.return_value = True
     mock_run.return_value = None
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(self.mock_device.pull_file.call_count, 1)
@@ -166,7 +168,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     mock_run.return_value = None
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
@@ -176,7 +178,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.root_device.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
@@ -186,7 +188,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       self, profiler):
     self.command.excluded_ftrace_events = ["mock-ftrace-event"]
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertNotEqual(error, None)
     self.assertEqual(error.message,
@@ -230,7 +232,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       self, profiler):
     self.command.included_ftrace_events = ["power/cpu_idle"]
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertNotEqual(error, None)
     self.assertEqual(error.message,
@@ -275,7 +277,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.remove_file.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
@@ -288,7 +290,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       self.mock_device.start_simpleperf_trace.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
@@ -303,7 +305,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     mock_process.poll.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
@@ -318,7 +320,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.pull_file.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.pull_file.call_count, 1)
@@ -334,6 +336,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
                                    profiler, DEFAULT_OUT_DIR, DEFAULT_DUR_MS,
                                    None, 1, None, DEFAULT_PERFETTO_CONFIG, None,
                                    False, None, None, None, None, None, None)
+    self.executor = get_executor("user-switch")
     self.current_user = TEST_USER_ID_3
     if profiler == "simpleperf":
       self.command.symbols = "/"
@@ -364,7 +367,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     mock_exists.return_value = True
     mock_run.return_value = None
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(self.current_user, TEST_USER_ID_3)
@@ -383,7 +386,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.perform_user_switch.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.perform_user_switch.call_count, 1)
@@ -394,7 +397,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.command.from_user = TEST_USER_ID_1
     self.command.to_user = TEST_USER_ID_1
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertNotEqual(error, None)
     self.assertEqual(error.message,
@@ -421,7 +424,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     mock_exists.return_value = True
     mock_run.return_value = None
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(self.current_user, TEST_USER_ID_3)
@@ -434,7 +437,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.command.from_user = None
     self.command.to_user = self.current_user
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertNotEqual(error, None)
     self.assertEqual(error.message,
@@ -465,7 +468,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     mock_exists.return_value = True
     mock_run.return_value = None
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(self.current_user, TEST_USER_ID_3)
@@ -489,7 +492,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     mock_exists.return_value = True
     mock_run.return_value = None
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(self.current_user, TEST_USER_ID_3)
@@ -504,6 +507,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
                                    DEFAULT_OUT_DIR, TEST_DURATION, None, 1,
                                    None, DEFAULT_PERFETTO_CONFIG, TEST_DURATION,
                                    False, None, None, None, None, None, None)
+    self.executor = get_executor("boot")
     self.mock_device = mock.create_autospec(
         AdbDevice, instance=True, serial=TEST_SERIAL)
     self.mock_device.check_device_connection.return_value = None
@@ -512,7 +516,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
         ANDROID_SDK_VERSION_T)
 
   def test_execute_reboot_success(self):
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(self.mock_device.reboot.call_count, 1)
@@ -521,7 +525,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
   def test_execute_reboot_multiple_runs_success(self):
     self.command.runs = 5
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(self.mock_device.reboot.call_count, 5)
@@ -531,7 +535,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.reboot.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.reboot.call_count, 1)
@@ -541,7 +545,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_S)
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertNotEqual(error, None)
     self.assertEqual(
@@ -560,7 +564,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.write_to_file.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.reboot.call_count, 0)
@@ -570,7 +574,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.remove_file.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.reboot.call_count, 0)
@@ -580,7 +584,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.set_prop.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.reboot.call_count, 0)
@@ -590,7 +594,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.wait_for_device.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.reboot.call_count, 1)
@@ -600,7 +604,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.root_device.side_effect = [None, TEST_EXCEPTION]
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.reboot.call_count, 1)
@@ -610,7 +614,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.wait_for_boot_to_complete.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.reboot.call_count, 1)
@@ -625,6 +629,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
                                    TEST_PACKAGE_1, 1, None,
                                    DEFAULT_PERFETTO_CONFIG, None, False, None,
                                    None, None, None, None, None)
+    self.executor = get_executor("app-startup")
     if profiler == "simpleperf":
       self.command.symbols = "/"
       self.command.scripts_path = "/"
@@ -653,7 +658,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     mock_run.return_value = None
     self.mock_device.start_package.return_value = None
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(self.mock_device.start_package.call_count, 1)
@@ -665,7 +670,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.mock_device.start_package.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.start_package.call_count, 1)
@@ -677,7 +682,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_packages.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.start_package.call_count, 0)
@@ -689,7 +694,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
         TEST_PACKAGE_2, TEST_PACKAGE_3
     ]
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertNotEqual(error, None)
     self.assertEqual(error.message,
@@ -707,7 +712,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
   def test_package_is_running_failure(self, profiler):
     self.mock_device.is_package_running.return_value = True
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertNotEqual(error, None)
     self.assertEqual(
@@ -728,7 +733,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.mock_device.force_stop_package.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.start_package.call_count, 1)
@@ -738,7 +743,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
   def test_kill_process_success(self, profiler):
     self.mock_device.start_package.return_value = TEST_VALIDATION_ERROR
 
-    error = self.command.execute(self.mock_device)
+    error = self.executor.execute(self.command, self.mock_device)
 
     self.assertNotEqual(error, None)
     self.assertEqual(error.message, TEST_ERROR_MSG)
@@ -759,7 +764,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
       self.mock_device.send_signal.side_effect = TEST_EXCEPTION
 
     with self.assertRaises(Exception) as e:
-      self.command.execute(self.mock_device)
+      self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.start_package.call_count, 1)

@@ -19,10 +19,9 @@ import argparse
 from .config import (add_config_parser, execute_config_command,
                      verify_config_args, PREDEFINED_PERFETTO_CONFIGS)
 from .device import AdbDevice
-from .open import (add_open_parser, execute_open_command, OpenCommand,
-                   verify_open_args)
+from .open import (add_open_parser, execute_open_command, verify_open_args)
 from .profiler import (add_profiler_parser, execute_profiler_command,
-                       verify_profiler_args, ProfilerCommand)
+                       verify_profiler_args)
 from .utils import set_default_subparser
 from .vm import add_vm_parser, execute_vm_command, verify_vm_args
 

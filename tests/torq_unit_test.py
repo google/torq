@@ -30,6 +30,7 @@ SYMBOLS_PATH = "/folder/symbols"
 
 class TorqUnitTest(unittest.TestCase):
 
+  # TODO(b/433995149): Use the parse_cli method instead.
   def set_up_parser(self, command_string):
     sys.argv = command_string.split()
     return create_parser()

@@ -28,19 +28,16 @@ class Command(ABC):
 
   def __init__(self, type):
     self.type = type
-    self.command_executor = None
 
   def get_type(self):
     return self.type
-
-  def execute(self, device):
-    return self.command_executor.execute(self, device)
 
   @abstractmethod
   def validate(self, device):
     raise NotImplementedError
 
 
+# TODO(b/433995149): Remove, only used by profiler subcommand
 class CommandExecutor(ABC):
   """
   Abstract base class representing a command executor.

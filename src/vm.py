@@ -84,9 +84,43 @@ def create_vm_command(args):
                    relay_prod_port)
 
 
+def traced_relay_execute(command, device):
+  if command.subcommand == 'enable':
+    if (len(device.get_prop(TRACED_HYPERVISOR_PROP)) == 0):
+      # Traced_relay can only be used in virtualized environments,
+      # therefore set the |TRACED_HYPERVISOR_PROP| to true if
+      # enabling traced_relay.
+      print(f"Setting sysprop \"{TRACED_HYPERVISOR_PROP}\" to \"true\"")
+      device.set_prop(TRACED_HYPERVISOR_PROP, "true")
+    device.set_prop(TRACED_RELAY_PORT_PROP, command.relay_port)
+    device.set_prop(TRACED_ENABLE_PROP, "2")
+  else:  # disable
+    device.set_prop(TRACED_ENABLE_PROP, "1")
+  return None
+
+
+def relay_producer_execute(command, device):
+  if command.subcommand == 'enable':
+    device.set_prop(TRACED_ENABLE_PROP, "0")
+    device.set_prop(TRACED_RELAY_PRODUCER_PORT_PROP, command.relay_prod_port)
+    device.set_prop(TRACED_ENABLE_PROP, "1")
+  else:  #disable
+    device.set_prop(TRACED_ENABLE_PROP, "0")
+    device.clear_prop(TRACED_RELAY_PRODUCER_PORT_PROP)
+    device.set_prop(TRACED_ENABLE_PROP, "1")
+  return None
+
+
 def execute_vm_command(args, device):
   command = create_vm_command(args)
-  return command.execute(device)
+  error = device.check_device_connection()
+  if error is not None:
+    return error
+  device.root_device()
+  if command.type == 'traced-relay':
+    return traced_relay_execute(command, device)
+  # else it's a relay-producer command
+  return relay_producer_execute(command, device)
 
 
 class VmCommand(Command):
@@ -103,38 +137,3 @@ class VmCommand(Command):
 
   def validate(self, device):
     raise NotImplementedError
-
-  def execute(self, device):
-    error = device.check_device_connection()
-    if error is not None:
-      return error
-    device.root_device()
-    if self.type == 'traced-relay':
-      return self.traced_relay_execute(device)
-    # else it's a relay-producer command
-    return self.relay_producer_execute(device)
-
-  def traced_relay_execute(self, device):
-    if self.subcommand == 'enable':
-      if (len(device.get_prop(TRACED_HYPERVISOR_PROP)) == 0):
-        # Traced_relay can only be used in virtualized environments,
-        # therefore set the |TRACED_HYPERVISOR_PROP| to true if
-        # enabling traced_relay.
-        print(f"Setting sysprop \"{TRACED_HYPERVISOR_PROP}\" to \"true\"")
-        device.set_prop(TRACED_HYPERVISOR_PROP, "true")
-      device.set_prop(TRACED_RELAY_PORT_PROP, self.relay_port)
-      device.set_prop(TRACED_ENABLE_PROP, "2")
-    else:  # disable
-      device.set_prop(TRACED_ENABLE_PROP, "1")
-    return None
-
-  def relay_producer_execute(self, device):
-    if self.subcommand == 'enable':
-      device.set_prop(TRACED_ENABLE_PROP, "0")
-      device.set_prop(TRACED_RELAY_PRODUCER_PORT_PROP, self.relay_prod_port)
-      device.set_prop(TRACED_ENABLE_PROP, "1")
-    else:  #disable
-      device.set_prop(TRACED_ENABLE_PROP, "0")
-      device.clear_prop(TRACED_RELAY_PRODUCER_PORT_PROP)
-      device.set_prop(TRACED_ENABLE_PROP, "1")
-    return None
