@@ -34,6 +34,26 @@ def dir_exists(path: str):
   return os.path.isdir(os.path.expanduser(path))
 
 
+def extract_port(address):
+  """
+  Extracts the port number from a TCP/IP or VSOCK address.
+  """
+  colon_idx = address.rfind(':')
+  if colon_idx == -1:
+    return None
+  return address[colon_idx + 1:]
+
+
+def are_mutually_exclusive(*args):
+  """
+  Returns true only if none or at most one of the args is not None.
+
+  Used for guaranteeing mutual exclusivety of CLI arguments.
+  """
+  cnt = sum(arg is not None for arg in args)
+  return cnt == 0 or cnt == 1
+
+
 def convert_simpleperf_to_gecko(scripts_path, host_raw_trace_filename,
                                 host_gecko_trace_filename, symbols):
   expanded_symbols = os.path.expanduser(symbols)
@@ -109,3 +129,14 @@ def set_default_subparser(self, name):
     if not subparser_found:
       # insert default subparser
       sys.argv.insert(insertion_idx, name)
+
+
+class UniqueStore(argparse.Action):
+  """
+  Ensure a flag is specified no more than once.
+  """
+
+  def __call__(self, parser, namespace, values, option_string):
+    if getattr(namespace, self.dest, self.default) is not self.default:
+      parser.error(option_string + " can only be specified once")
+    setattr(namespace, self.dest, values)

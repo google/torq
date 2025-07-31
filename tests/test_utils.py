@@ -15,7 +15,7 @@
 #
 
 import sys
-from src.torq import create_parser
+from src.torq import create_parser, run
 
 
 def parameterized(items, setup_func):
@@ -56,3 +56,8 @@ def create_parser_from_cli(command_string):
 def parse_cli(command_string):
   parser = create_parser_from_cli(command_string)
   return parser.parse_args()
+
+
+def run_cli(command_string):
+  sys.argv = command_string.split()
+  run()

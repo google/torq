@@ -15,6 +15,7 @@
 #
 
 import argparse
+import sys
 
 from .config import (add_config_parser, execute_config_command,
                      verify_config_args, PREDEFINED_PERFETTO_CONFIGS)
@@ -89,9 +90,9 @@ def execute_command(args, device):
 
 
 def print_error(error):
-  print(error.message)
+  print(error.message, file=sys.stderr)
   if error.suggestion is not None:
-    print("Suggestion:\n\t", error.suggestion)
+    print(f"Suggestion:\n\t{error.suggestion}", file=sys.stderr)
 
 
 def run():
