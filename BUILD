@@ -92,3 +92,12 @@ py_test(
     srcs = ["tests/open_ui_unit_test.py"],
     deps = [":torq_lib"],
 )
+
+py_test(
+    name = "vm_unit_test",
+    srcs = ["tests/vm_unit_test.py"],
+    deps = [
+        ":torq_lib",
+        ":torq_test_lib",
+    ],
+)
