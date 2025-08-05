@@ -18,9 +18,8 @@ import os
 import subprocess
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import path_exists, dir_exists
+from .utils import path_exists, dir_exists, TORQ_TEMP_DIR
 
-TORQ_TEMP_DIR = "/tmp/.torq"
 TEMP_CACHE_BUILDER_SCRIPT = TORQ_TEMP_DIR + "/binary_cache_builder.py"
 SIMPLEPERF_SCRIPTS_DIR = "/system/extras/simpleperf/scripts"
 BUILDER_SCRIPT = SIMPLEPERF_SCRIPTS_DIR + "/binary_cache_builder.py"

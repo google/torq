@@ -201,8 +201,7 @@ def configure_execute(args):
       relay_prod_port = relay_prod_port.replace(DEFAULT_COMMS_PORT,
                                                 extract_port(net_addr))
     command = VmCommand('relay-producer', 'enable', None, relay_prod_port)
-    if (error := relay_producer_execute(command, primary_device,
-                                        machine_name)):
+    if (error := relay_producer_execute(command, primary_device, machine_name)):
       return error
 
   for secondary in args.secondary:

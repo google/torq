@@ -21,6 +21,8 @@ import subprocess
 import sys
 import time
 
+TORQ_TEMP_DIR = "/tmp/.torq"
+
 
 def path_exists(path: str):
   if path is None:
@@ -60,13 +62,15 @@ def convert_simpleperf_to_gecko(scripts_path, host_raw_trace_filename,
   expanded_scripts_path = os.path.expanduser(scripts_path)
   print("Building binary cache, please wait. If no samples were recorded,"
         " the trace will be empty.")
-  subprocess.run(
-      ("%s/binary_cache_builder.py -i %s -lib %s" %
-       (expanded_scripts_path, host_raw_trace_filename, expanded_symbols)),
-      shell=True)
-  subprocess.run(("%s/gecko_profile_generator.py -i %s > %s" %
-                  (expanded_scripts_path, host_raw_trace_filename,
-                   host_gecko_trace_filename)),
+  subprocess.run((
+      "export PYTHONPATH=$PYTHONPATH:%s && %s/binary_cache_builder.py -i %s -lib %s"
+      % (TORQ_TEMP_DIR, expanded_scripts_path, host_raw_trace_filename,
+         expanded_symbols)),
+                 shell=True)
+  subprocess.run((
+      "export PYTHONPATH=$PYTHONPATH:%s && %s/gecko_profile_generator.py -i %s > %s"
+      % (TORQ_TEMP_DIR, expanded_scripts_path, host_raw_trace_filename,
+         host_gecko_trace_filename)),
                  shell=True)
   if not path_exists(host_gecko_trace_filename):
     raise Exception("Gecko file was not created.")

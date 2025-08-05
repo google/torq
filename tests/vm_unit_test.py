@@ -26,6 +26,7 @@ from unittest import mock
 
 TEST_SERIAL = "test-serial"
 
+
 class VmUnitTest(unittest.TestCase):
 
   def tearDown(self):
@@ -40,8 +41,8 @@ class VmUnitTest(unittest.TestCase):
 
     MockAdbDevice.assert_called_once_with(TEST_SERIAL)
 
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_RELAY_PRODUCER_PORT_PROP, DEFAULT_VSOCK_ADDR)
+    self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
+                                              DEFAULT_VSOCK_ADDR)
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
@@ -50,15 +51,14 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device = MockAdbDevice.return_value
     self.mock_device.check_device_connection.return_value = None
 
-    run_cli(
-        f"torq vm configure --primary machine_name={TEST_SERIAL}")
+    run_cli(f"torq vm configure --primary machine_name={TEST_SERIAL}")
 
     MockAdbDevice.assert_called_once_with(TEST_SERIAL)
 
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_MACHINE_NAME_PROP, "machine_name")
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_RELAY_PRODUCER_PORT_PROP, DEFAULT_VSOCK_ADDR)
+    self.mock_device.set_prop.assert_any_call(TRACED_MACHINE_NAME_PROP,
+                                              "machine_name")
+    self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
+                                              DEFAULT_VSOCK_ADDR)
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
@@ -71,8 +71,8 @@ class VmUnitTest(unittest.TestCase):
 
     MockAdbDevice.assert_called_once_with(TEST_SERIAL)
 
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_RELAY_PRODUCER_PORT_PROP, DEFAULT_IP_ADDR)
+    self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
+                                              DEFAULT_IP_ADDR)
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
@@ -82,12 +82,13 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device.check_device_connection.return_value = None
 
     run_cli(
-        f"torq vm configure --primary {TEST_SERIAL} --primary-addr vsock://5:4000")
+        f"torq vm configure --primary {TEST_SERIAL} --primary-addr vsock://5:4000"
+    )
 
     MockAdbDevice.assert_called_once_with(TEST_SERIAL)
 
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_RELAY_PRODUCER_PORT_PROP, "vsock://-1:4000")
+    self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
+                                              "vsock://-1:4000")
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
@@ -97,12 +98,13 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device.check_device_connection.return_value = None
 
     run_cli(
-        f"torq vm configure --primary {TEST_SERIAL} --primary-addr 0.0.0.1:4000")
+        f"torq vm configure --primary {TEST_SERIAL} --primary-addr 0.0.0.1:4000"
+    )
 
     MockAdbDevice.assert_called_once_with(TEST_SERIAL)
 
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_RELAY_PRODUCER_PORT_PROP, "0.0.0.0:4000")
+    self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
+                                              "0.0.0.0:4000")
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
@@ -110,11 +112,12 @@ class VmUnitTest(unittest.TestCase):
     tmp_stderr = io.StringIO()
 
     with redirect_stderr(tmp_stderr):
-        run_cli("torq vm configure --primary p1=hello=bye")
+      run_cli("torq vm configure --primary p1=hello=bye")
 
     output = tmp_stderr.getvalue()
-    self.assertIn("Invalid format used in either "
-                  "--primary or --secondary argument: 'p1=hello=bye'", output)
+    self.assertIn(
+        "Invalid format used in either "
+        "--primary or --secondary argument: 'p1=hello=bye'", output)
 
   def test_multiple_primaries_error(self):
     tmp_stderr = io.StringIO()
@@ -134,8 +137,8 @@ class VmUnitTest(unittest.TestCase):
 
     MockAdbDevice.assert_called_once_with(TEST_SERIAL)
 
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_RELAY_PORT_PROP, "vsock://4:30001")
+    self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PORT_PROP,
+                                              "vsock://4:30001")
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "2")
 
@@ -144,14 +147,16 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device = MockAdbDevice.return_value
     self.mock_device.check_device_connection.return_value = None
 
-    run_cli(f"torq vm configure --primary-cid 4 --secondary guest_name={TEST_SERIAL}")
+    run_cli(
+        f"torq vm configure --primary-cid 4 --secondary guest_name={TEST_SERIAL}"
+    )
 
     MockAdbDevice.assert_called_once_with(TEST_SERIAL)
 
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_MACHINE_NAME_PROP, "guest_name")
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_RELAY_PORT_PROP, "vsock://4:30001")
+    self.mock_device.set_prop.assert_any_call(TRACED_MACHINE_NAME_PROP,
+                                              "guest_name")
+    self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PORT_PROP,
+                                              "vsock://4:30001")
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "2")
 
@@ -164,8 +169,8 @@ class VmUnitTest(unittest.TestCase):
 
     MockAdbDevice.assert_called_once_with(TEST_SERIAL)
 
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_RELAY_PORT_PROP, "0.0.0.0:30001")
+    self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PORT_PROP,
+                                              "0.0.0.0:30001")
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "2")
 
@@ -176,7 +181,8 @@ class VmUnitTest(unittest.TestCase):
       run_cli("torq vm configure --secondary machine2")
 
     output = tmp_stderr.getvalue()
-    self.assertIn("Unable to resolve the network address of the primary machine", output)
+    self.assertIn(
+        "Unable to resolve the network address of the primary machine", output)
 
   def test_multiple_primary_cid_error(self):
     tmp_stderr = io.StringIO()
@@ -200,7 +206,9 @@ class VmUnitTest(unittest.TestCase):
     tmp_stderr = io.StringIO()
 
     with self.assertRaises(SystemExit), redirect_stderr(tmp_stderr):
-        run_cli("torq vm configure --primary-addr 0.0.0.0:3000 --primary-addr 0.0.0.1:4000")
+      run_cli(
+          "torq vm configure --primary-addr 0.0.0.0:3000 --primary-addr 0.0.0.1:4000"
+      )
 
     output = tmp_stderr.getvalue()
     self.assertIn("--primary-addr can only be specified once", output)
@@ -218,18 +226,17 @@ class VmUnitTest(unittest.TestCase):
     MockAdbDevice.assert_any_call("test-serial2")
 
     # Assert the primary machine
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_MACHINE_NAME_PROP, "main")
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_RELAY_PRODUCER_PORT_PROP, "vsock://-1:30001")
+    self.mock_device.set_prop.assert_any_call(TRACED_MACHINE_NAME_PROP, "main")
+    self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
+                                              "vsock://-1:30001")
 
     # Assert the secondary machine
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_MACHINE_NAME_PROP, "guest")
-    self.mock_device.set_prop.assert_any_call(
-            TRACED_RELAY_PORT_PROP, "vsock://4:30001")
+    self.mock_device.set_prop.assert_any_call(TRACED_MACHINE_NAME_PROP, "guest")
+    self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PORT_PROP,
+                                              "vsock://4:30001")
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "2")
 
+
 if __name__ == "__main__":
-    unittest.main()
+  unittest.main()
