@@ -128,6 +128,9 @@ def is_name_format_valid(value):
 
 
 def verify_vm_args(args):
+  if args.vm_subcommand != "configure":
+    return args, None
+
   if args.primary is not None and not is_name_format_valid(args.primary):
     return None, name_format_error(args.primary)
 
