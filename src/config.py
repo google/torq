@@ -15,10 +15,10 @@
 #
 
 import os
-import subprocess
 
 from .base import ANDROID_SDK_VERSION_T, Command, ValidationError
 from .config_builder import PREDEFINED_PERFETTO_CONFIGS
+from .utils import run_subprocess
 
 
 def add_config_parser(subparsers):
@@ -152,7 +152,7 @@ def execute_show_or_pull_command(command, device):
     return error
 
   if command.get_type() == "config pull":
-    subprocess.run(("cat > %s %s" % (command.file_path, config)), shell=True)
+    run_subprocess(("cat > %s %s" % (command.file_path, config)), shell=True)
   else:
     print("\n".join(config.strip().split("\n")[2:-2]))
   return None

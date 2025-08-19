@@ -15,12 +15,11 @@
 #
 
 import unittest
-import sys
 import os
 from unittest import mock
 from src.config import create_config_command
 from src.profiler import DEFAULT_DUR_MS, DEFAULT_OUT_DIR
-from src.torq import create_parser, verify_args
+from src.torq import verify_args
 from tests.test_utils import create_parser_from_cli, parse_cli
 
 TEST_USER_ID = 10

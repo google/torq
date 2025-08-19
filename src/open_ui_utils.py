@@ -24,7 +24,7 @@ import subprocess
 import types
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import path_exists, wait_for_process_or_ctrl_c, wait_for_output
+from .utils import path_exists, wait_for_process_or_ctrl_c, wait_for_output, run_subprocess
 
 TORQ_TEMP_DIR = "/tmp/.torq"
 TRACE_PROCESSOR_BINARY = "/trace_processor"
@@ -66,7 +66,7 @@ def download_trace_processor(path):
     return TORQ_TEMP_TRACE_PROCESSOR
 
   def download_accepted_callback():
-    subprocess.run(
+    run_subprocess(
         ("mkdir -p %s && wget -P %s "
          "https://get.perfetto.dev/trace_processor && chmod +x "
          "%s/trace_processor" % (TORQ_TEMP_DIR, TORQ_TEMP_DIR, TORQ_TEMP_DIR)),

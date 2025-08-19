@@ -18,7 +18,7 @@ import io
 import unittest
 from contextlib import redirect_stderr
 from src.device import AdbDevice
-from src.vm import (execute_vm_command, DEFAULT_IP_ADDR, TRACED_ENABLE_PROP,
+from src.vm import (DEFAULT_IP_ADDR, TRACED_ENABLE_PROP,
                     TRACED_MACHINE_NAME_PROP, TRACED_RELAY_PORT_PROP,
                     TRACED_RELAY_PRODUCER_PORT_PROP, DEFAULT_VSOCK_ADDR)
 from tests.test_utils import run_cli

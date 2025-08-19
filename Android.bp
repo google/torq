@@ -51,6 +51,7 @@ python_test_host {
     main: "tests/device_unit_test.py",
     srcs: ["tests/device_unit_test.py"],
     defaults: ["torq_defaults"],
+    libs: ["torq_test_lib"],
     embedded_launcher: false,
     test_options: {
         unit_test: true,
@@ -109,6 +110,7 @@ python_test_host {
     main: "tests/utils_unit_test.py",
     srcs: ["tests/utils_unit_test.py"],
     defaults: ["torq_defaults"],
+    libs: ["torq_test_lib"],
     embedded_launcher: false,
     test_options: {
         unit_test: true,
@@ -120,6 +122,7 @@ python_test_host {
     main: "tests/open_ui_unit_test.py",
     srcs: ["tests/open_ui_unit_test.py"],
     defaults: ["torq_defaults"],
+    libs: ["torq_test_lib"],
     embedded_launcher: false,
     test_options: {
         unit_test: true,

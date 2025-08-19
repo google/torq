@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 
-import argparse
 from .base import Command, ValidationError
 from .device import AdbDevice
 from .utils import are_mutually_exclusive, extract_port, UniqueStore

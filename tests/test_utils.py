@@ -14,8 +14,10 @@
 # limitations under the License.
 #
 
+import subprocess
 import sys
 from src.torq import create_parser, run
+from unittest import mock
 
 
 def parameterized(items, setup_func):
@@ -61,3 +63,21 @@ def parse_cli(command_string):
 def run_cli(command_string):
   sys.argv = command_string.split()
   run()
+
+
+def generate_mock_completed_process(stdout_string=b'\n',
+                                    stderr_string=b'\n',
+                                    returncode=0):
+
+  def check_returncode():
+    if returncode != 0:
+      raise Exception()
+
+  mock_completed_process = mock.create_autospec(
+      subprocess.CompletedProcess,
+      instance=True,
+      stdout=stdout_string,
+      stderr=stderr_string,
+      returncode=returncode)
+  mock_completed_process.check_returncode = check_returncode
+  return mock_completed_process

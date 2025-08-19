@@ -21,7 +21,7 @@ import os
 import subprocess
 from unittest import mock
 from src.torq import create_parser, verify_args
-from tests.test_utils import parse_cli
+from tests.test_utils import generate_mock_completed_process, parse_cli
 
 TORQ_TEMP_DIR = "/tmp/.torq"
 ANDROID_BUILD_TOP = "/folder"
@@ -146,7 +146,7 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
     mock_isdir.return_value = True
     mock_input.return_value = "y"
     mock_exists.side_effect = [False, True, True, True, True]
-    mock_subprocess_run.return_value = None
+    mock_subprocess_run.return_value = generate_mock_completed_process()
     args = parse_cli("torq -p simpleperf")
 
     args, error = verify_args(args)
@@ -167,7 +167,7 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
     mock_isdir.return_value = True
     mock_input.return_value = "y"
     mock_exists.side_effect = [False, False, False]
-    mock_subprocess_run.return_value = None
+    mock_subprocess_run.return_value = generate_mock_completed_process()
     args = parse_cli("torq -p simpleperf --symbols %s" % SYMBOLS_PATH)
 
     with self.assertRaises(Exception) as e:

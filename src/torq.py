@@ -18,7 +18,7 @@ import argparse
 import sys
 
 from .config import (add_config_parser, execute_config_command,
-                     verify_config_args, PREDEFINED_PERFETTO_CONFIGS)
+                     verify_config_args)
 from .device import AdbDevice
 from .open import (add_open_parser, execute_open_command, verify_open_args)
 from .profiler import (add_profiler_parser, execute_profiler_command,

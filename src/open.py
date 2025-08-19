@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-from .base import Command, ValidationError
+from .base import ValidationError
 from .open_ui_utils import open_trace, WEB_UI_ADDRESS
 from .utils import path_exists
 

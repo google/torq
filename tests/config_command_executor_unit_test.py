@@ -22,8 +22,7 @@ from unittest import mock
 from src.base import ValidationError
 from src.config import ConfigCommand, execute_config_command, PREDEFINED_PERFETTO_CONFIGS
 from src.device import AdbDevice
-from src.profiler import DEFAULT_DUR_MS
-from tests.test_utils import parse_cli
+from tests.test_utils import generate_mock_completed_process, parse_cli
 
 TEST_ERROR_MSG = "test-error"
 TEST_VALIDATION_ERROR = ValidationError(TEST_ERROR_MSG, None)
@@ -362,14 +361,6 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
 
-  @staticmethod
-  def generate_mock_completed_process(stdout_string=b'\n', stderr_string=b'\n'):
-    return mock.create_autospec(
-        subprocess.CompletedProcess,
-        instance=True,
-        stdout=stdout_string,
-        stderr=stderr_string)
-
   def test_config_list(self):
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
@@ -420,7 +411,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
 
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull(self, mock_subprocess_run):
-    mock_subprocess_run.return_value = self.generate_mock_completed_process()
+    mock_subprocess_run.return_value = generate_mock_completed_process()
 
     args = parse_cli("torq config pull default")
     error = execute_config_command(args, self.mock_device)
@@ -431,7 +422,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
   def test_config_pull_no_device_connection(self, mock_subprocess_run):
     self.mock_device.check_device_connection.return_value = (
         TEST_VALIDATION_ERROR)
-    mock_subprocess_run.return_value = self.generate_mock_completed_process()
+    mock_subprocess_run.return_value = generate_mock_completed_process()
 
     args = parse_cli("torq config pull default")
     error = execute_config_command(args, self.mock_device)
@@ -442,7 +433,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
   def test_config_pull_old_android_version(self, mock_subprocess_run):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_S)
-    mock_subprocess_run.return_value = self.generate_mock_completed_process()
+    mock_subprocess_run.return_value = generate_mock_completed_process()
 
     args = parse_cli("torq config pull default")
     error = execute_config_command(args, self.mock_device)

@@ -24,7 +24,7 @@ from src.base import ValidationError
 from src.device import AdbDevice
 from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR, get_executor,
                           ProfilerCommand)
-from tests.test_utils import parameterized_profiler
+from tests.test_utils import generate_mock_completed_process, parameterized_profiler
 
 PROFILER_COMMAND_TYPE = "profiler"
 TEST_ERROR_MSG = "test-error"
@@ -83,7 +83,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       else:
         self.mock_device.start_simpleperf_trace.side_effect = mock_process
       mock_exists.return_value = True
-      mock_run.return_value = None
+      mock_run.return_value = generate_mock_completed_process()
 
       error = self.executor.execute(self.command, self.mock_device)
 
@@ -113,7 +113,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       else:
         self.mock_device.start_simpleperf_trace.side_effect = mock_process
       mock_exists.return_value = True
-      mock_run.return_value = None
+      mock_run.return_value = generate_mock_completed_process()
 
       error = self.executor.execute(self.command, self.mock_device)
 
@@ -131,7 +131,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       mock_open_trace.return_value = None
       self.mock_device.start_simpleperf_trace.return_value = mock_process
       mock_exists.return_value = False
-      mock_run.return_value = None
+      mock_run.return_value = generate_mock_completed_process()
       self.command.use_ui = True
 
       with self.assertRaises(Exception) as e:
@@ -151,7 +151,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     else:
       self.mock_device.start_simpleperf_trace.side_effect = mock_process
     mock_exists.return_value = True
-    mock_run.return_value = None
+    mock_run.return_value = generate_mock_completed_process()
 
     error = self.executor.execute(self.command, self.mock_device)
 
@@ -165,7 +165,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
                                                    mock_run):
     self.mock_device.check_device_connection.side_effect = TEST_EXCEPTION
     mock_exists.return_value = True
-    mock_run.return_value = None
+    mock_run.return_value = generate_mock_completed_process()
 
     with self.assertRaises(Exception) as e:
       self.executor.execute(self.command, self.mock_device)
@@ -365,7 +365,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.perform_user_switch.side_effect = (
         lambda user: self.simulate_user_switch(user))
     mock_exists.return_value = True
-    mock_run.return_value = None
+    mock_run.return_value = generate_mock_completed_process()
 
     error = self.executor.execute(self.command, self.mock_device)
 
@@ -422,7 +422,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.perform_user_switch.side_effect = (
         lambda user: self.simulate_user_switch(user))
     mock_exists.return_value = True
-    mock_run.return_value = None
+    mock_run.return_value = generate_mock_completed_process()
 
     error = self.executor.execute(self.command, self.mock_device)
 
@@ -466,7 +466,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.perform_user_switch.side_effect = (
         lambda user: self.simulate_user_switch(user))
     mock_exists.return_value = True
-    mock_run.return_value = None
+    mock_run.return_value = generate_mock_completed_process()
 
     error = self.executor.execute(self.command, self.mock_device)
 
@@ -490,7 +490,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.perform_user_switch.side_effect = (
         lambda user: self.simulate_user_switch(user))
     mock_exists.return_value = True
-    mock_run.return_value = None
+    mock_run.return_value = generate_mock_completed_process()
 
     error = self.executor.execute(self.command, self.mock_device)
 
@@ -655,7 +655,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
   @mock.patch.object(os.path, "exists", autospec=True)
   def test_app_startup_command_success(self, profiler, mock_exists, mock_run):
     mock_exists.return_value = True
-    mock_run.return_value = None
+    mock_run.return_value = generate_mock_completed_process()
     self.mock_device.start_package.return_value = None
 
     error = self.executor.execute(self.command, self.mock_device)

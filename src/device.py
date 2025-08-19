@@ -21,6 +21,7 @@ import sys
 import time
 from .base import ValidationError
 from .handle_input import HandleInput
+from .utils import run_subprocess, ShellExitCodes
 
 ADB_ROOT_TIMED_OUT_LIMIT_SECS = 5
 ADB_BOOT_COMPLETED_TIMED_OUT_LIMIT_SECS = 30
@@ -46,7 +47,7 @@ class AdbDevice:
     SOMEDEVICE1234    device
     device2:5678    device
     """
-    command_output = subprocess.run(["adb", "devices"], capture_output=True)
+    command_output = run_subprocess(["adb", "devices"], capture_output=True)
     output_lines = command_output.stdout.decode("utf-8").split("\n")
     devices = []
     for line in output_lines[:-2]:
@@ -110,7 +111,7 @@ class AdbDevice:
         return False
 
   def root_device(self):
-    subprocess.run(["adb", "-s", self.serial, "root"])
+    run_subprocess(["adb", "-s", self.serial, "root"])
     if not self.poll_is_task_completed(
         ADB_ROOT_TIMED_OUT_LIMIT_SECS, POLLING_INTERVAL_SECS,
         lambda: self.serial in self.get_adb_devices()):
@@ -118,12 +119,17 @@ class AdbDevice:
                        " being rooted." % self.serial))
 
   def remove_file(self, file_path):
-    subprocess.run(["adb", "-s", self.serial, "shell", "rm", "-f", file_path])
+    output = run_subprocess(
+        ["adb", "-s", self.serial, "shell", "rm", "-f", file_path],
+        capture_output=True,
+        ignore_returncodes=[ShellExitCodes.EX_NOTFOUND])
+    return output.returncode == 0
 
   def file_exists(self, file):
-    process = subprocess.run(["adb", "-s", self.serial, "shell", "ls", file],
-                             capture_output=True)
-    return not "No such file or directory" in process.stderr.decode("utf-8")
+    output = run_subprocess(["adb", "-s", self.serial, "shell", "ls", file],
+                            capture_output=True,
+                            ignore_returncodes=[ShellExitCodes.EX_FAILURE])
+    return output.returncode == 0
 
   def start_perfetto_trace(self, config):
     return subprocess.Popen(("adb -s %s shell perfetto -c - --txt -o"
@@ -132,7 +138,7 @@ class AdbDevice:
                             shell=True)
 
   def trigger_perfetto(self, trigger_name):
-    subprocess.run(
+    run_subprocess(
         ("adb -s %s shell trigger_perfetto %s" % (self.serial, trigger_name)),
         shell=True)
 
@@ -149,10 +155,10 @@ class AdbDevice:
         shell=True)
 
   def pull_file(self, file_path, host_file):
-    subprocess.run(["adb", "-s", self.serial, "pull", file_path, host_file])
+    run_subprocess(["adb", "-s", self.serial, "pull", file_path, host_file])
 
   def get_all_users(self):
-    command_output = subprocess.run(
+    command_output = run_subprocess(
         ["adb", "-s", self.serial, "shell", "pm", "list", "users"],
         capture_output=True)
     output_lines = command_output.stdout.decode("utf-8").split("\n")[1:-1]
@@ -171,29 +177,29 @@ class AdbDevice:
     return None
 
   def get_current_user(self):
-    command_output = subprocess.run(
+    command_output = run_subprocess(
         ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
         capture_output=True)
     return int(command_output.stdout.decode("utf-8").split()[0])
 
   def perform_user_switch(self, user):
-    subprocess.run(
+    run_subprocess(
         ["adb", "-s", self.serial, "shell", "am", "switch-user",
          str(user)])
 
   def write_to_file(self, file_path, host_file_string):
-    subprocess.run(("adb -s %s shell 'cat > %s %s'" %
+    run_subprocess(("adb -s %s shell 'cat > %s %s'" %
                     (self.serial, file_path, host_file_string)),
                    shell=True)
 
   def set_prop(self, prop, value):
-    subprocess.run(["adb", "-s", self.serial, "shell", "setprop", prop, value])
+    run_subprocess(["adb", "-s", self.serial, "shell", "setprop", prop, value])
 
   def clear_prop(self, prop):
-    subprocess.run(["adb", "-s", self.serial, "shell", "setprop", prop, "\"\""])
+    run_subprocess(["adb", "-s", self.serial, "shell", "setprop", prop, "\"\""])
 
   def reboot(self):
-    subprocess.run(["adb", "-s", self.serial, "reboot"])
+    run_subprocess(["adb", "-s", self.serial, "reboot"])
     if not self.poll_is_task_completed(
         ADB_ROOT_TIMED_OUT_LIMIT_SECS, POLLING_INTERVAL_SECS,
         lambda: self.serial not in self.get_adb_devices()):
@@ -201,10 +207,10 @@ class AdbDevice:
                        " rebooting." % self.serial))
 
   def wait_for_device(self):
-    subprocess.run(["adb", "-s", self.serial, "wait-for-device"])
+    run_subprocess(["adb", "-s", self.serial, "wait-for-device"])
 
   def is_boot_completed(self):
-    command_output = subprocess.run(
+    command_output = run_subprocess(
         ["adb", "-s", self.serial, "shell", "getprop", "sys.boot_completed"],
         capture_output=True)
     return command_output.stdout.decode("utf-8").strip() == "1"
@@ -218,24 +224,28 @@ class AdbDevice:
 
   def get_packages(self):
     return [
-        package.removeprefix("package:") for package in subprocess.run(
+        package.removeprefix("package:") for package in run_subprocess(
             ["adb", "-s", self.serial, "shell", "pm", "list", "packages"],
             capture_output=True).stdout.decode("utf-8").splitlines()
     ]
 
   def get_pid(self, package):
-    return subprocess.run(
+    return run_subprocess(
         "adb -s %s shell pidof %s" % (self.serial, package),
         shell=True,
-        capture_output=True).stdout.decode("utf-8").split("\n")[0]
+        capture_output=True,
+        ignore_returncodes=[ShellExitCodes.EX_FAILURE
+                           ]).stdout.decode("utf-8").split("\n")[0]
 
   def is_package_running(self, package):
     return self.get_pid(package) != ""
 
   def start_package(self, package):
-    if subprocess.run(
+    if run_subprocess(
         ["adb", "-s", self.serial, "shell", "am", "start", package],
-        capture_output=True).stderr.decode("utf-8").split("\n")[0] != "":
+        capture_output=True,
+        ignore_returncodes=[ShellExitCodes.EX_FAILURE
+                           ]).stderr.decode("utf-8").split("\n")[0] != "":
       return ValidationError(("Cannot start package %s on device with"
                               " serial %s because %s is a service package,"
                               " which doesn't implement a MAIN activity." %
@@ -245,19 +255,19 @@ class AdbDevice:
   def kill_process(self, name):
     pid = self.get_pid(name)
     if pid != "":
-      subprocess.run(["adb", "-s", self.serial, "shell", "kill", "-9", pid])
+      run_subprocess(["adb", "-s", self.serial, "shell", "kill", "-9", pid])
 
   def send_signal(self, process_name, signal):
-    subprocess.run([
+    run_subprocess([
         "adb", "-s", self.serial, "shell", "pkill", "-l", signal, process_name
     ])
 
   def force_stop_package(self, package):
-    subprocess.run(
+    run_subprocess(
         ["adb", "-s", self.serial, "shell", "am", "force-stop", package])
 
   def get_prop(self, prop):
-    return subprocess.run(
+    return run_subprocess(
         ["adb", "-s", self.serial, "shell", "getprop", prop],
         capture_output=True).stdout.decode("utf-8").split("\n")[0]
 
@@ -265,12 +275,9 @@ class AdbDevice:
     return int(self.get_prop("ro.build.version.sdk"))
 
   def create_directory(self, directory):
-    process = subprocess.run(
+    run_subprocess(
         ["adb", "-s", self.serial, "shell", "mkdir", "-p", directory],
         capture_output=True)
-    if len(process.stderr.decode("utf-8")) != 0:
-      return ValidationError("Unable to create directory on device.",
-                             "Check device configuration.")
     return None
 
   def simpleperf_event_exists(self, simpleperf_events):
@@ -279,17 +286,17 @@ class AdbDevice:
     for event in simpleperf_events:
       grep_command += " -e " + event.lower()
 
-    output = subprocess.run([
+    if not self.file_exists("/system/bin/simpleperf"):
+      return ValidationError("Simpleperf was not found in the device.",
+                             "Push the simpleperf binary to the device.")
+
+    output = run_subprocess([
         "adb", "-s", self.serial, "shell", "simpleperf", "list", "|",
         grep_command
     ],
-                            capture_output=True)
+                            capture_output=True,
+                            ignore_returncodes=[ShellExitCodes.EX_FAILURE])
 
-    if output is None or len(output.stdout) == 0:
-      if "not found" in output.stderr.decode("utf-8"):
-        return ValidationError("Simpleperf was not found in the device",
-                               "Push the simpleperf binary to the device")
-      raise Exception("Error while validating simpleperf events.")
     lines = output.stdout.decode("utf-8").split("\n")
 
     # Anything that does not start with two spaces is not a command.

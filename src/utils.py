@@ -15,11 +15,19 @@
 #
 
 import argparse
+import enum
 import os
 import signal
 import subprocess
 import sys
 import time
+
+
+class ShellExitCodes(enum.IntEnum):
+  EX_SUCCESS = 0
+  EX_FAILURE = 1
+  EX_NOEXEC = 126
+  EX_NOTFOUND = 127
 
 
 def path_exists(path: str):
@@ -60,12 +68,12 @@ def convert_simpleperf_to_gecko(scripts_path, host_raw_trace_filename,
   expanded_scripts_path = os.path.expanduser(scripts_path)
   print("Building binary cache, please wait. If no samples were recorded,"
         " the trace will be empty.")
-  subprocess.run((
+  run_subprocess((
       "export PYTHONPATH=$PYTHONPATH:%s && %s/binary_cache_builder.py -i %s -lib %s"
       % (expanded_scripts_path, expanded_scripts_path, host_raw_trace_filename,
          expanded_symbols)),
                  shell=True)
-  subprocess.run((
+  run_subprocess((
       "export PYTHONPATH=$PYTHONPATH:%s && %s/gecko_profile_generator.py -i %s > %s"
       % (expanded_scripts_path, expanded_scripts_path, host_raw_trace_filename,
          host_gecko_trace_filename)),
@@ -135,6 +143,49 @@ def set_default_subparser(self, name):
 
 def is_bazel():
   return any("bazel-bin/torq.runfiles" in path for path in sys.path)
+
+
+def run_subprocess(args,
+                   ignore_returncodes=[],
+                   stdin=None,
+                   input=None,
+                   stdout=None,
+                   stderr=None,
+                   capture_output=False,
+                   shell=False,
+                   cwd=None,
+                   timeout=None,
+                   encoding=None,
+                   errors=None,
+                   text=None,
+                   env=None,
+                   universal_newlines=None):
+  """
+  Function to check for errors when calling subprocess.run. Will throw on all
+  non-zero return codes except those included in ignore_returncodes. Check is
+  always set to False because check_returncode() is manually called.
+  """
+  output = subprocess.run(
+      args,
+      shell=shell,
+      capture_output=capture_output,
+      stdin=stdin,
+      input=input,
+      stdout=stdout,
+      stderr=stderr,
+      cwd=cwd,
+      timeout=timeout,
+      check=False,
+      encoding=encoding,
+      errors=errors,
+      text=text,
+      env=env,
+      universal_newlines=universal_newlines)
+  if output.returncode and output.returncode not in ignore_returncodes:
+    output.check_returncode()
+  if capture_output:
+    return output
+  return None
 
 
 class UniqueStore(argparse.Action):

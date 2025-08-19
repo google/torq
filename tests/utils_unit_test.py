@@ -18,8 +18,8 @@ import unittest
 import subprocess
 import os
 from unittest import mock
-from src.device import AdbDevice
 from src.utils import convert_simpleperf_to_gecko
+from tests.test_utils import generate_mock_completed_process
 
 
 class UtilsUnitTest(unittest.TestCase):
@@ -29,7 +29,7 @@ class UtilsUnitTest(unittest.TestCase):
   def test_convert_simpleperf_to_gecko_success(self, mock_exists,
                                                mock_subprocess_run):
     mock_exists.return_value = True
-    mock_subprocess_run.return_value = None
+    mock_subprocess_run.return_value = generate_mock_completed_process()
 
     # No exception is expected to be thrown
     convert_simpleperf_to_gecko("/scripts", "/path/file.data",
@@ -40,7 +40,7 @@ class UtilsUnitTest(unittest.TestCase):
   def test_convert_simpleperf_to_gecko_failure(self, mock_exists,
                                                mock_subprocess_run):
     mock_exists.return_value = False
-    mock_subprocess_run.return_value = None
+    mock_subprocess_run.return_value = generate_mock_completed_process()
 
     with self.assertRaises(Exception) as e:
       convert_simpleperf_to_gecko("/scripts", "/path/file.data",

@@ -25,6 +25,7 @@ import os
 import webbrowser
 from unittest import mock
 from src.open_ui_utils import download_trace_processor, open_trace
+from tests.test_utils import generate_mock_completed_process
 
 ANDROID_BUILD_TOP = "/main"
 TEST_FILE = "file.pbtxt"
@@ -51,7 +52,7 @@ class OpenUiUnitTest(unittest.TestCase):
     mock_getsize.return_value = LARGE_FILE_SIZE
     mock_input.return_value = "y"
     mock_exists.side_effect = [False, False, True]
-    mock_subprocess_run.return_value = None
+    mock_subprocess_run.return_value = generate_mock_completed_process()
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
@@ -72,7 +73,7 @@ class OpenUiUnitTest(unittest.TestCase):
     mock_getsize.return_value = LARGE_FILE_SIZE
     mock_input.return_value = "y"
     mock_exists.side_effect = [False, False, False]
-    mock_subprocess_run.return_value = None
+    mock_subprocess_run.return_value = generate_mock_completed_process()
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
@@ -137,7 +138,7 @@ class OpenUiUnitTest(unittest.TestCase):
                                          mock_open_new_tab, mock_abspath,
                                          mock_getsize):
     mock_expanduser.return_value = ""
-    mock_subprocess_run.return_value = None
+    mock_subprocess_run.return_value = generate_mock_completed_process()
     mock_open_new_tab.return_value = None
     mock_getsize.return_value = LARGE_FILE_SIZE
     mock_abspath.return_value = TEST_FILE
@@ -168,7 +169,7 @@ class OpenUiUnitTest(unittest.TestCase):
   def test_open_trace_scripts_large_file_use_trace_processor_enabled(
       self, mock_popen, mock_subprocess_run, mock_open_new_tab, mock_getsize,
       mock_exists):
-    mock_subprocess_run.return_value = None
+    mock_subprocess_run.return_value = generate_mock_completed_process()
     mock_open_new_tab.return_value = None
     mock_getsize.return_value = LARGE_FILE_SIZE
     mock_exists.return_value = True
@@ -222,7 +223,7 @@ class OpenUiUnitTest(unittest.TestCase):
   def test_download_trace_processor_small_file_use_trace_processor_enabled(
       self, mock_popen, mock_subprocess_run, mock_open_new_tab, mock_getsize,
       mock_exists):
-    mock_subprocess_run.return_value = None
+    mock_subprocess_run.return_value = generate_mock_completed_process()
     mock_open_new_tab.return_value = None
     mock_getsize.return_value = 0
     mock_exists.return_value = True

@@ -18,7 +18,7 @@ import os
 import subprocess
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import path_exists, dir_exists, is_bazel
+from .utils import path_exists, dir_exists, is_bazel, run_subprocess
 
 TORQ_TEMP_DIR = "/tmp/.torq"
 SIMPLEPERF_SCRIPTS_DIR = "/system/extras/simpleperf/scripts"
@@ -73,7 +73,7 @@ def download_simpleperf_scripts():
                      "downloaded.")
 
   def download_accepted_callback():
-    subprocess.run(
+    run_subprocess(
         ("mkdir -p %s && wget -P %s "
          "https://android.googlesource.com/platform/system/extras"
          "/+archive/refs/heads/main/simpleperf/scripts.tar.gz "
