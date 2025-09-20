@@ -14,14 +14,24 @@
 # limitations under the License.
 #
 
+import argparse
 import os
 
 from .base import ANDROID_SDK_VERSION_T, Command, ValidationError
-from .config_builder import PREDEFINED_PERFETTO_CONFIGS
+from .config_builder import create_common_config_parser, PREDEFINED_PERFETTO_CONFIGS
+from .profiler import verify_trigger_args
 from .utils import run_subprocess
 
 
 def add_config_parser(subparsers):
+  common_config_args = argparse.ArgumentParser(add_help=False)
+  common_config_args.add_argument(
+      'config_name',
+      choices=['lightweight', 'default', 'memory'],
+      help='Name of the predefined config to copy')
+
+  common_profiler_args = create_common_config_parser()
+
   config_parser = subparsers.add_parser(
       'config',
       help=('The config subcommand used'
@@ -33,65 +43,26 @@ def add_config_parser(subparsers):
   config_subparsers.add_parser(
       'list', help=('Command to list the predefined'
                     ' perfetto configs'))
-  config_show_parser = config_subparsers.add_parser(
+  config_subparsers.add_parser(
       'show',
       help=('Command to print'
             ' the '
             ' perfetto config'
-            ' in the terminal.'))
-  config_show_parser.add_argument(
-      'config_name',
-      choices=['lightweight', 'default', 'memory'],
-      help=('Name of the predefined perfetto'
-            ' config to print.'))
-  config_show_parser.add_argument(
-      '-d',
-      '--dur-ms',
-      type=int,
-      help=('The duration (ms) of the event. Determines when'
-            ' to stop collecting performance data.'))
-  config_show_parser.add_argument(
-      '--excluded-ftrace-events',
-      action='append',
-      help=('Excludes specified ftrace event from the perfetto'
-            ' config events.'))
-  config_show_parser.add_argument(
-      '--included-ftrace-events',
-      action='append',
-      help=('Includes specified ftrace event in the perfetto'
-            ' config events.'))
+            ' in the terminal.'),
+      parents=[common_profiler_args, common_config_args])
 
   config_pull_parser = config_subparsers.add_parser(
       'pull',
       help=('Command to copy'
             ' a predefined config'
             ' to the specified'
-            ' file path.'))
-  config_pull_parser.add_argument(
-      'config_name',
-      choices=['lightweight', 'default', 'memory'],
-      help='Name of the predefined config to copy')
+            ' file path.'),
+      parents=[common_profiler_args, common_config_args])
   config_pull_parser.add_argument(
       'file_path',
       nargs='?',
       help=('File path to copy the predefined'
             ' config to'))
-  config_pull_parser.add_argument(
-      '-d',
-      '--dur-ms',
-      type=int,
-      help=('The duration (ms) of the event. Determines when'
-            ' to stop collecting performance data.'))
-  config_pull_parser.add_argument(
-      '--excluded-ftrace-events',
-      action='append',
-      help=('Excludes specified ftrace event from the perfetto'
-            ' config events.'))
-  config_pull_parser.add_argument(
-      '--included-ftrace-events',
-      action='append',
-      help=('Includes specified ftrace event in the perfetto'
-            ' config events.'))
 
 
 def verify_config_args(args):
@@ -115,6 +86,11 @@ def verify_config_args(args):
            "\t torq pull lightweight to copy to ./lightweight.pbtxt\n"
            "\t torq pull memory to copy to ./memory.pbtxt"))
 
+  if args.config_subcommand != "list":
+    args.runs = 1
+    args.profiler = "perfetto"
+    return verify_trigger_args(args)
+
   return args, None
 
 
@@ -125,16 +101,26 @@ def create_config_command(args):
   dur_ms = None
   excluded_ftrace_events = None
   included_ftrace_events = None
+  trigger_names = None
+  trigger_stop_delay_ms = None
+  trigger_timeout_ms = None
+  trigger_mode = None
   if args.config_subcommand == "pull" or args.config_subcommand == "show":
     config_name = args.config_name
     dur_ms = args.dur_ms
     excluded_ftrace_events = args.excluded_ftrace_events
     included_ftrace_events = args.included_ftrace_events
+    trigger_names = args.trigger_names
+    trigger_stop_delay_ms = args.trigger_stop_delay_ms
+    trigger_timeout_ms = args.trigger_timeout_ms
+    trigger_mode = args.trigger_mode
     if args.config_subcommand == "pull":
       file_path = args.file_path
 
   command = ConfigCommand(type, config_name, file_path, dur_ms,
-                          excluded_ftrace_events, included_ftrace_events)
+                          excluded_ftrace_events, included_ftrace_events,
+                          trigger_names, trigger_stop_delay_ms,
+                          trigger_timeout_ms, trigger_mode)
   return command
 
 
@@ -176,13 +162,18 @@ class ConfigCommand(Command):
   """
 
   def __init__(self, type, config_name, file_path, dur_ms,
-               excluded_ftrace_events, included_ftrace_events):
+               excluded_ftrace_events, included_ftrace_events, trigger_names,
+               trigger_stop_delay_ms, trigger_timeout_ms, trigger_mode):
     super().__init__(type)
     self.config_name = config_name
     self.file_path = file_path
     self.dur_ms = dur_ms
     self.excluded_ftrace_events = excluded_ftrace_events
     self.included_ftrace_events = included_ftrace_events
+    self.trigger_names = trigger_names
+    self.trigger_stop_delay_ms = trigger_stop_delay_ms
+    self.trigger_timeout_ms = trigger_timeout_ms
+    self.trigger_mode = trigger_mode
 
   def validate(self, device):
     raise NotImplementedError

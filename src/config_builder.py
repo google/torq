@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import argparse
 import textwrap
 from .base import ANDROID_SDK_VERSION_T, ValidationError
 
@@ -49,6 +50,64 @@ def create_ftrace_events_string(predefined_ftrace_events,
   ftrace_events_string = ("ftrace_events: \"%s\"" % ("""\"
           ftrace_events: \"""".join(predefined_ftrace_events)))
   return ftrace_events_string, None
+
+
+def create_common_config_parser():
+  common_config_args = argparse.ArgumentParser(add_help=False)
+  common_config_args.add_argument(
+      '-d',
+      '--dur-ms',
+      type=int,
+      help=('The duration (ms) of the event. Determines when'
+            ' to stop collecting performance data.'))
+  common_config_args.add_argument(
+      '--excluded-ftrace-events',
+      action='append',
+      help=('Excludes specified ftrace event from the perfetto'
+            ' config events.'))
+  common_config_args.add_argument(
+      '--included-ftrace-events',
+      action='append',
+      help=('Includes specified ftrace event in the perfetto'
+            ' config events.'))
+  common_config_args.add_argument(
+      '--trigger-names',
+      action='extend',
+      default=[],
+      nargs="+",
+      help='Specifies the names of triggers for perfetto'
+      ' background tracing.')
+  common_config_args.add_argument(
+      '--trigger-timeout-ms',
+      type=int,
+      help='Specifies the time in milliseconds for Perfetto to'
+      ' wait for a trigger before ending.')
+  common_config_args.add_argument(
+      '--trigger-stop-delay-ms',
+      type=int,
+      action='extend',
+      default=[],
+      nargs="+",
+      help='Specifies the time in milliseconds to extend trace'
+      ' collection past a trigger event. If you have'
+      ' multiple triggers, you can include a different'
+      ' stop-delay-ms for each or include one to use for'
+      ' them all.')
+  common_config_args.add_argument(
+      '--trigger-mode',
+      choices=[
+          'stop', 'start', 'clone', 'STOP_TRACING', 'START_TRACING',
+          'CLONE_SNAPSHOT'
+      ],
+      help='Specifies the trigger config mode. stop'
+      ' will stop tracing when a trigger is'
+      ' received. start will start tracing when a'
+      ' trigger is received until stop-delay-ms.'
+      ' clone will return tracing data when a'
+      ' trigger is received and continue tracing'
+      ' until the timeout.')
+
+  return common_config_args
 
 
 def create_trigger_config(trigger_names, trigger_mode, trigger_timeout_ms,
@@ -205,8 +264,7 @@ def build_predefined_config(command,
     cpufreq_period_string = ""
 
   trigger_config = ""
-  # TODO(b/415117982): Remove call to hasattr when trigger support is added to config subcommand
-  if hasattr(command, "trigger_names") and command.trigger_names:
+  if command.trigger_names:
     trigger_config = create_trigger_config(command.trigger_names,
                                            command.trigger_mode,
                                            command.trigger_timeout_ms,

@@ -63,6 +63,7 @@ python_test_host {
     main: "tests/config_builder_unit_test.py",
     srcs: ["tests/config_builder_unit_test.py"],
     defaults: ["torq_defaults"],
+    libs: ["torq_test_lib"],
     embedded_launcher: false,
     test_options: {
         unit_test: true,

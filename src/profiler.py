@@ -19,9 +19,10 @@ import datetime
 import os
 import time
 
-from .base import ANDROID_SDK_VERSION_T, Command, CommandExecutor, ValidationError
-from .config import PREDEFINED_PERFETTO_CONFIGS
-from .config_builder import build_custom_config
+from .base import (ANDROID_SDK_VERSION_T, Command, CommandExecutor,
+                   ValidationError)
+from .config_builder import (build_custom_config, create_common_config_parser,
+                             PREDEFINED_PERFETTO_CONFIGS)
 from .device import SIMPLEPERF_TRACE_FILE, POLLING_INTERVAL_SECS
 from .handle_input import HandleInput
 from .open_ui_utils import open_trace, WEB_UI_ADDRESS
@@ -49,7 +50,8 @@ def add_profiler_parser(subparsers):
       'profiler',
       help=('Profiler subcommand'
             ' used to trace and'
-            ' profile Android'))
+            ' profile Android'),
+      parents=[create_common_config_parser()])
   profiler_parser.add_argument(
       '-e',
       '--event',
@@ -67,12 +69,6 @@ def add_profiler_parser(subparsers):
       '--out-dir',
       default=DEFAULT_OUT_DIR,
       help='The path to the output directory.')
-  profiler_parser.add_argument(
-      '-d',
-      '--dur-ms',
-      type=int,
-      help=('The duration (ms) of the event. Determines when'
-            ' to stop collecting performance data.'))
   profiler_parser.add_argument(
       '-a', '--app', help='The package name of the app we want to start.')
   profiler_parser.add_argument(
@@ -106,16 +102,6 @@ def add_profiler_parser(subparsers):
       help=('Specifies opening of UI visualization tool'
             ' after profiling is complete.'))
   profiler_parser.add_argument(
-      '--excluded-ftrace-events',
-      action='append',
-      help=('Excludes specified ftrace event from the perfetto'
-            ' config events.'))
-  profiler_parser.add_argument(
-      '--included-ftrace-events',
-      action='append',
-      help=('Includes specified ftrace event in the perfetto'
-            ' config events.'))
-  profiler_parser.add_argument(
       '--from-user',
       type=int,
       help='The user id from which to start the user switch')
@@ -125,42 +111,6 @@ def add_profiler_parser(subparsers):
       help='The user id of user that system is switching to.')
   profiler_parser.add_argument(
       '--symbols', help='Specifies path to symbols library.')
-  profiler_parser.add_argument(
-      '--trigger-names',
-      action='extend',
-      default=[],
-      nargs="+",
-      help='Specifies the names of triggers for perfetto'
-      ' background tracing.')
-  profiler_parser.add_argument(
-      '--trigger-timeout-ms',
-      type=int,
-      help='Specifies the time in milliseconds for Perfetto to'
-      ' wait for a trigger before ending.')
-  profiler_parser.add_argument(
-      '--trigger-stop-delay-ms',
-      type=int,
-      action='extend',
-      default=[],
-      nargs="+",
-      help='Specifies the time in milliseconds to extend trace'
-      ' collection past a trigger event. If you have'
-      ' multiple triggers, you can include a different'
-      ' stop-delay-ms for each or include one to use for'
-      ' them all.')
-  profiler_parser.add_argument(
-      '--trigger-mode',
-      choices=[
-          'stop', 'start', 'clone', 'STOP_TRACING', 'START_TRACING',
-          'CLONE_SNAPSHOT'
-      ],
-      help='Specifies the trigger config mode. stop'
-      ' will stop tracing when a trigger is'
-      ' received. start will start tracing when a'
-      ' trigger is received until stop-delay-ms.'
-      ' clone will return tracing data when a'
-      ' trigger is received and continue tracing'
-      ' until the timeout.')
 
 
 def verify_profiler_args(args):
@@ -334,6 +284,10 @@ def verify_profiler_args(args):
   else:
     args.scripts_path = None
 
+  return verify_trigger_args(args)
+
+
+def verify_trigger_args(args):
   if args.trigger_names and args.profiler != "perfetto":
     return None, ValidationError(
         ("Command is invalid because --trigger-names cannot be passed"

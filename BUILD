@@ -54,7 +54,10 @@ py_test(
 py_test(
     name = "config_builder_unit_test",
     srcs = ["tests/config_builder_unit_test.py"],
-    deps = [":torq_lib"],
+    deps = [
+        ":torq_lib",
+        ":torq_test_lib",
+    ],
 )
 
 py_test(

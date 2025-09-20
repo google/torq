@@ -14,12 +14,15 @@
 # limitations under the License.
 #
 
-import unittest
 import builtins
+import io
+import sys
+import unittest
 from unittest import mock
 from src.config_builder import (build_default_config, build_custom_config,
                                 build_lightweight_config, build_memory_config)
 from src.profiler import DEFAULT_DUR_MS, ProfilerCommand
+from tests.test_utils import run_cli
 
 TEST_FAILURE_MSG = "Test failure."
 TEST_DUR_MS = 9000
@@ -537,6 +540,71 @@ DEFAULT_CONFIG_NO_DUR_MS = f'''\
 {COMMON_CONFIG_ENDING_STRING}
 EOF'''
 
+DEFAULT_TRIGGER_CONFIG_TERMINAL_OUTPUT = f'''\
+buffers: {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+buffers {{
+  size_kb: 4096
+  fill_policy: RING_BUFFER
+}}
+buffers: {{
+  size_kb: 260096
+  fill_policy: RING_BUFFER
+}}
+data_sources: {{
+  config {{
+    name: "linux.process_stats"
+    process_stats_config {{
+      scan_all_processes_on_start: true
+    }}
+  }}
+}}
+data_sources: {{
+  config {{
+    name: "android.log"
+    android_log_config {{
+      min_prio: PRIO_VERBOSE
+{COMMON_DEFAULT_CONFIG_SYS_STATS_BEGINNING}
+{COMMON_DEFAULT_SYS_EVENTS}
+{CPUFREQ_STRING_NEW_ANDROID}
+{COMMON_DEFAULT_CONFIG_FTRACE_BEGINNING}
+{COMMON_DEFAULT_FTRACE_EVENTS}
+{COMMON_DEFAULT_ATRACE_EVENTS}
+{COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
+
+write_into_file: false
+file_write_period_ms: 5000
+max_file_size_bytes: 100000000000
+flush_period_ms: 5000
+incremental_state_config {{
+  clear_period_ms: 5000
+}}
+trigger_config: {{
+  trigger_mode: STOP_TRACING
+
+  trigger_timeout_ms: 604800000
+
+  use_clone_snapshot_if_available: true
+  triggers {{
+      name: "trigger1"
+
+      stop_delay_ms: 1000
+  }}
+  triggers {{
+      name: "trigger2"
+
+      stop_delay_ms: 2000
+  }}
+}}
+'''
+
+DEFAULT_TRIGGER_CONFIG = f'''<<EOF
+
+{DEFAULT_TRIGGER_CONFIG_TERMINAL_OUTPUT}
+EOF'''
+
 
 class ConfigBuilderUnitTest(unittest.TestCase):
 
@@ -693,6 +761,18 @@ class ConfigBuilderUnitTest(unittest.TestCase):
                                         " vmscan/*\n\t"
                                         " workqueue/*"))
 
+  def test_build_default_trigger_config(self):
+    self.command.dur_ms = None
+    self.command.trigger_names = ["trigger1", "trigger2"]
+    self.command.trigger_stop_delay_ms = [1000, 2000]
+    self.command.trigger_mode = "CLONE_SNAPSHOT"
+    self.command.trigger_timeout_ms = 604800000
+
+    config, error = build_default_config(self.command, ANDROID_SDK_VERSION_T)
+
+    self.assertEqual(error, None)
+    self.assertEqual(config, DEFAULT_TRIGGER_CONFIG)
+
   @mock.patch("builtins.open",
               mock.mock_open(read_data=CUSTOM_CONFIG_9000_DUR_MS))
   def test_build_custom_config_extracting_valid_dur_ms(self):
@@ -755,6 +835,16 @@ class ConfigBuilderUnitTest(unittest.TestCase):
                       " local file path: %s. %s" %
                       (self.command.perfetto_config, TEST_FAILURE_MSG)))
     self.assertEqual(error.suggestion, None)
+
+  def test_config_show_trigger_config(self):
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    run_cli("torq config show default --trigger-names trigger1 trigger2"
+            " --trigger-stop-delay-ms 1000 2000 --trigger-mode clone")
+
+    self.assertEqual(terminal_output.getvalue(),
+                     DEFAULT_TRIGGER_CONFIG_TERMINAL_OUTPUT)
 
 
 if __name__ == '__main__':

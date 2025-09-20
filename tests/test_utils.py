@@ -20,7 +20,7 @@ from src.torq import create_parser, run
 from unittest import mock
 
 
-def parameterized(items, setup_func):
+def parameterized(items, setup_func=None):
   """
   Function to create a decorator function that parameterizes a test method using
   unittest.subTest given a setup function and a list of items.
@@ -38,7 +38,8 @@ def parameterized(items, setup_func):
     def decorated_test(self, *args, **kwargs):
       for item in items:
         with self.subTest(item=item):
-          setup_func(self, item)
+          if setup_func:
+            setup_func(self, item)
           test_method(self, item, *args, **kwargs)
 
     return decorated_test
@@ -48,6 +49,10 @@ def parameterized(items, setup_func):
 
 def parameterized_profiler(setup_func):
   return parameterized(["perfetto", "simpleperf"], setup_func)
+
+
+def parameterized_config_builder():
+  return parameterized(["pull", "show"])
 
 
 def create_parser_from_cli(command_string):

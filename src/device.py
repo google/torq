@@ -119,9 +119,10 @@ class AdbDevice:
                        " being rooted." % self.serial))
 
   def remove_file(self, file_path):
-    output = run_subprocess(["adb", "-s", self.serial, "shell", "rm", file_path],
-                            capture_output=True,
-                            ignore_returncodes=[ShellExitCodes.EX_FAILURE])
+    output = run_subprocess(
+        ["adb", "-s", self.serial, "shell", "rm", file_path],
+        capture_output=True,
+        ignore_returncodes=[ShellExitCodes.EX_FAILURE])
     return not output.returncode
 
   def file_exists(self, file):
