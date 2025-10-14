@@ -20,9 +20,9 @@ import sys
 import io
 from unittest import mock
 from src.base import ValidationError
-from src.config import ConfigCommand, execute_config_command, PREDEFINED_PERFETTO_CONFIGS
+from src.config import execute_config_command, PREDEFINED_PERFETTO_CONFIGS
 from src.device import AdbDevice
-from tests.test_utils import generate_mock_completed_process, parse_cli
+from tests.test_utils import generate_mock_completed_process, parameterized, parameterized_config_builder, parse_cli
 
 TEST_ERROR_MSG = "test-error"
 TEST_VALIDATION_ERROR = ValidationError(TEST_ERROR_MSG, None)
@@ -363,84 +363,61 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
 
-  def test_config_list(self):
-    terminal_output = io.StringIO()
-    sys.stdout = terminal_output
-
-    args = parse_cli("torq config list")
-    error = execute_config_command(args, self.mock_device)
-
-    self.assertEqual(error, None)
-    self.assertEqual(
-        terminal_output.getvalue(),
-        ("%s\n" % "\n".join(list(PREDEFINED_PERFETTO_CONFIGS.keys()))))
-
-  def test_config_show(self):
-    terminal_output = io.StringIO()
-    sys.stdout = terminal_output
-
-    args = parse_cli("torq config show default")
-    error = execute_config_command(args, self.mock_device)
-
-    self.assertEqual(error, None)
-    self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
-
-  def test_config_show_no_device_connection(self):
-    self.mock_device.check_device_connection.return_value = (
-        TEST_VALIDATION_ERROR)
-
-    terminal_output = io.StringIO()
-    sys.stdout = terminal_output
-
-    args = parse_cli("torq config show default")
-    error = execute_config_command(args, self.mock_device)
-
-    self.assertEqual(error, None)
-    self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
-
-  def test_config_show_old_android_version(self):
-    self.mock_device.get_android_sdk_version.return_value = (
-        ANDROID_SDK_VERSION_S)
-    terminal_output = io.StringIO()
-    sys.stdout = terminal_output
-
-    args = parse_cli("torq config show default")
-    error = execute_config_command(args, self.mock_device)
-
-    self.assertEqual(error, None)
-    self.assertEqual(terminal_output.getvalue(),
-                     TEST_DEFAULT_CONFIG_OLD_ANDROID)
-
+  @parameterized(["list", "pull", "show"])
   @mock.patch.object(subprocess, "run", autospec=True)
-  def test_config_pull(self, mock_subprocess_run):
+  def test_config_builder(self, config_subcommand, mock_subprocess_run):
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    args = parse_cli("torq config pull default")
+    args = parse_cli(
+        f"torq config {config_subcommand if config_subcommand == 'list' else f'{config_subcommand} default'}"
+    )
     error = execute_config_command(args, self.mock_device)
 
     self.assertEqual(error, None)
+    if config_subcommand == "show":
+      self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
+    if config_subcommand == "list":
+      self.assertEqual(
+          terminal_output.getvalue(),
+          ("%s\n" % "\n".join(list(PREDEFINED_PERFETTO_CONFIGS.keys()))))
 
+  @parameterized_config_builder()
   @mock.patch.object(subprocess, "run", autospec=True)
-  def test_config_pull_no_device_connection(self, mock_subprocess_run):
+  def test_config_builder_no_device_connection(self, config_subcommand,
+                                               mock_subprocess_run):
     self.mock_device.check_device_connection.return_value = (
         TEST_VALIDATION_ERROR)
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    args = parse_cli("torq config pull default")
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    args = parse_cli(f"torq config {config_subcommand} default")
     error = execute_config_command(args, self.mock_device)
 
     self.assertEqual(error, None)
+    if config_subcommand == "show":
+      self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
 
+  @parameterized_config_builder()
   @mock.patch.object(subprocess, "run", autospec=True)
-  def test_config_pull_old_android_version(self, mock_subprocess_run):
+  def test_config_builder_old_android_version(self, config_subcommand,
+                                              mock_subprocess_run):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_S)
     mock_subprocess_run.return_value = generate_mock_completed_process()
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
 
-    args = parse_cli("torq config pull default")
+    args = parse_cli(f"torq config {config_subcommand} default")
     error = execute_config_command(args, self.mock_device)
 
     self.assertEqual(error, None)
+    if config_subcommand == "show":
+      self.assertEqual(terminal_output.getvalue(),
+                       TEST_DEFAULT_CONFIG_OLD_ANDROID)
 
 
 if __name__ == '__main__':

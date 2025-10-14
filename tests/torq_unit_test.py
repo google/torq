@@ -22,8 +22,9 @@ from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR,
                           DEFAULT_TRIGGER_DUR_MS, DEFAULT_TRIGGER_MODE,
                           DEFAULT_TRIGGER_STOP_DELAY_MS, MIN_STOP_DELAY_MS,
                           MIN_DURATION_MS)
-from src.torq import create_parser, verify_args
-from tests.test_utils import create_parser_from_cli, parse_cli, parameterized_config_builder
+from src.torq import verify_args
+from tests.test_utils import (create_parser_from_cli, parameterized, parse_cli,
+                              parameterized_config_builder)
 
 TEST_USER_ID = 10
 TEST_PACKAGE = "com.android.contacts"
@@ -956,32 +957,17 @@ class TorqUnitTest(unittest.TestCase):
          " torq pull lightweight to copy to ./lightweight.pbtxt\n\t "
          "torq pull memory to copy to ./memory.pbtxt"))
 
-  def test_get_command_config_list(self):
-    args = parse_cli("torq config list")
+  @parameterized(["list", "pull", "show"])
+  def test_get_command_config_builder(self, config_subcommand):
+    args = parse_cli(
+        f'torq config {config_subcommand if config_subcommand == "list" else f"{config_subcommand} default"}'
+    )
 
     args, error = verify_args(args)
     command = create_config_command(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(command.get_type(), "config list")
-
-  def test_get_command_config_show(self):
-    args = parse_cli("torq config show default")
-
-    args, error = verify_args(args)
-    command = create_config_command(args)
-
-    self.assertEqual(error, None)
-    self.assertEqual(command.get_type(), "config show")
-
-  def test_get_command_config_pull(self):
-    args = parse_cli("torq config pull default")
-
-    args, error = verify_args(args)
-    command = create_config_command(args)
-
-    self.assertEqual(error, None)
-    self.assertEqual(command.get_type(), "config pull")
+    self.assertEqual(command.get_type(), f'config {config_subcommand}')
 
   @parameterized_config_builder()
   def test_verify_args_config_trigger_names(self, config_subcommand):
