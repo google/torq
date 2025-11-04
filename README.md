@@ -32,22 +32,12 @@ torq -d 7000
 
 ## Building Torq
 
-**torq** has support for two build systems: [Bazel](https://bazel.build)
-and *Android's Soong*.
+**torq** supports [Bazel](https://bazel.build).
 
 To build and use torq using [Bazel](https://bazel.build/), run:
 ```bash
 bazel build //:torq
 ./bazel-bin/torq --help
-```
-
-To build with *Android's Soong*, run:
-```bash
-cd $ANDROID_ROOT
-source build/envsetup.sh
-lunch <target-name> (e.g., lunch sdk_gcar_x86_64-next-userdebug)
-cd $ANDROID_ROOT/system/extras/torq
-m torq
 ```
 
 ## Quick one-line commands
@@ -182,12 +172,6 @@ These are the arguments `torq trigger` subcommand.
 To run **torq**'s test, do:
 ```bash
 ./tools/torq_test
-```
-
-This will use Bazel as the default build system. If you want to use *Soong*,
-you can do:
-```bash
-./tools/torq_test --android
 ```
 
 ## Contributing to Torq
