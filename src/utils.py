@@ -22,6 +22,8 @@ import subprocess
 import sys
 import time
 
+from .base import ValidationError
+
 
 class ShellExitCodes(enum.IntEnum):
   EX_SUCCESS = 0
@@ -117,6 +119,7 @@ def set_default_subparser(self, name):
   """
   subparser_found = False
   insertion_idx = 1
+  is_non_global_option_found = False
 
   # Get all global options
   global_opts = {}
@@ -125,20 +128,31 @@ def set_default_subparser(self, name):
       global_opts[opt] = action.nargs
 
   for idx, arg in enumerate(sys.argv[1:]):
-    if arg in ['-h', '--help']:
-      break
     if arg in global_opts:
+      if is_non_global_option_found and arg not in ["-h", "--help"]:
+        return ValidationError(
+            ("Global options like %s must come before subcommand arguments." %
+             arg), "Place global options at the beginning of the command.")
+      # Current index + number of arguments + 1 gives the insertion index.
+      # We iterate over the array offset by 1 (for the obligatory torq command),
+      # so add 1 more.
       insertion_idx = idx + global_opts[arg] + 2
-  else:
-    for action in self._subparsers._actions:
-      if not isinstance(action, argparse._SubParsersAction):
-        continue
-      for sp_name in action._name_parser_map.keys():
-        if sp_name in sys.argv[1:]:
-          subparser_found = True
-    if not subparser_found:
-      # insert default subparser
-      sys.argv.insert(insertion_idx, name)
+    elif idx >= insertion_idx - 1:
+      # idx >= insertion_idx - 1 is false when parsing the arguments
+      # of a global option, but true when parsing non-global options.
+      is_non_global_option_found = True
+
+  for action in self._subparsers._actions:
+    if not isinstance(action, argparse._SubParsersAction):
+      continue
+    for sp_name in action._name_parser_map.keys():
+      if sp_name in sys.argv[1:]:
+        subparser_found = True
+  if not subparser_found:
+    # insert default subparser
+    sys.argv.insert(insertion_idx, name)
+
+  return None
 
 
 def is_bazel():

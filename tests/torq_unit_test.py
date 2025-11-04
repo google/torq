@@ -84,8 +84,9 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(args.event, "app-startup")
 
   def test_create_parser_invalid_event_names(self):
-    parser = create_parser_from_cli("torq -e fake-event")
+    parser, error = create_parser_from_cli("torq -e fake-event")
 
+    self.assertEqual(error, None)
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
@@ -109,8 +110,9 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(args.profiler, "simpleperf")
 
   def test_create_parser_invalid_profiler_names(self):
-    parser = create_parser_from_cli("torq -p fake-profiler")
+    parser, error = create_parser_from_cli("torq -p fake-profiler")
 
+    self.assertEqual(error, None)
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
@@ -821,14 +823,17 @@ class TorqUnitTest(unittest.TestCase):
          (MIN_DURATION_MS, (MIN_DURATION_MS / 1000))))
 
   def test_create_parser_invalid_perfetto_config_command(self):
-    parser = create_parser_from_cli("torq --perfetto-config")
+    parser, error = create_parser_from_cli("torq --perfetto-config")
 
+    self.assertEqual(error, None)
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
   def test_verify_args_invalid_mixing_of_profiler_and_config_subcommand(self):
-    parser = create_parser_from_cli("torq -d 20000 config pull lightweight")
+    parser, error = create_parser_from_cli(
+        "torq -d 20000 config pull lightweight")
 
+    self.assertEqual(error, None)
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
@@ -863,8 +868,9 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(args.config_name, "memory")
 
   def test_create_parser_invalid_config_show_values(self):
-    parser = create_parser_from_cli("torq config show fake-config")
+    parser, error = create_parser_from_cli("torq config show fake-config")
 
+    self.assertEqual(error, None)
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
@@ -891,8 +897,9 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(args.config_name, "memory")
 
   def test_create_parser_invalid_config_pull_values(self):
-    parser = create_parser_from_cli("torq config pull fake-config")
+    parser, error = create_parser_from_cli("torq config pull fake-config")
 
+    self.assertEqual(error, None)
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
@@ -911,8 +918,9 @@ class TorqUnitTest(unittest.TestCase):
                                         "\t torq config pull\n"))
 
   def test_create_parser_invalid_config_subcommands(self):
-    parser = create_parser_from_cli("torq config get")
+    parser, error = create_parser_from_cli("torq config get")
 
+    self.assertEqual(error, None)
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
@@ -1144,8 +1152,9 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(args.file_path, TEST_FILE)
 
   def test_create_parser_open_subcommand_no_file(self):
-    parser = create_parser_from_cli("torq open")
+    parser, error = create_parser_from_cli("torq open")
 
+    self.assertEqual(error, None)
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
