@@ -16,13 +16,14 @@
 
 import builtins
 import io
+import subprocess
 import sys
 import unittest
 from unittest import mock
 from src.config_builder import (build_default_config, build_custom_config,
                                 build_lightweight_config, build_memory_config)
 from src.profiler import DEFAULT_DUR_MS, ProfilerCommand
-from tests.test_utils import run_cli
+from tests.test_utils import generate_mock_completed_process, run_cli
 
 TEST_FAILURE_MSG = "Test failure."
 TEST_DUR_MS = 9000
@@ -836,7 +837,9 @@ class ConfigBuilderUnitTest(unittest.TestCase):
                       (self.command.perfetto_config, TEST_FAILURE_MSG)))
     self.assertEqual(error.suggestion, None)
 
-  def test_config_show_trigger_config(self):
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_config_show_trigger_config(self, mock_subprocess_run):
+    mock_subprocess_run.return_value = generate_mock_completed_process()
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
