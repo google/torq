@@ -1,0 +1,17 @@
+#!/bin/sh
+
+./tools/format_sources --check_format
+
+if [ $? -ne 0 ]; then
+    echo -e "\033[1m\nSource files are not formatted. Please run ./tools/format_sources before committing.\033[0m"
+    exit 1
+fi
+
+./tools/torq_test
+
+if [ $? -ne 0 ]; then
+    echo -e "\033[1m\nTorq unit tests failed. Please fix tests before committing.\033[0m"
+    exit 1
+fi
+
+exit 0

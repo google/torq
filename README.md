@@ -201,3 +201,9 @@ Also, before submitting code remember to format the code. Run:
 ```bash
 ./tools/format_sources
 ```
+
+Additionally, ensure that you add the pre-commit hooks to your local .git
+directory. Run:
+```bash
+./tools/install_hooks.sh
+```

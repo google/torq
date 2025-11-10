@@ -32,15 +32,19 @@ def get_python_files():
     return [f for f in files if f.endswith('.py')]
 
 if __name__ == '__main__':
+    check_format = '--check_format' in sys.argv
+
     if not os.path.exists(YAPF_BIN):
         err = f'Cannot find {YAPF_BIN}\nRun tools/build_deps'
         print(err, file=sys.stderr)
         exit(127)
 
-    cmd = [YAPF_BIN, '--parallel', '-i'] + get_python_files()
+    if check_format:
+      cmd = [YAPF_BIN, '--diff'] + get_python_files()
+    else:
+      cmd = [YAPF_BIN, '--parallel', '-i'] + get_python_files()
     try:
       subprocess.check_call(cmd)
     except subprocess.CalledProcessError as ex:
       print('`%s` returned %d' % (' '.join(cmd)[:128], ex.returncode))
       exit(ex.returncode)
-
