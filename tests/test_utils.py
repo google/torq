@@ -63,7 +63,7 @@ def create_parser_from_cli(command_string):
 def parse_cli(command_string):
   parser, error = create_parser_from_cli(command_string)
   if error is not None:
-    return None
+    raise Exception(error.message)
   return parser.parse_args()
 
 
