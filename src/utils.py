@@ -132,6 +132,8 @@ def set_default_subparser(self, name):
     arg = sys.argv[idx]
     if arg in global_opts:
       if is_non_global_option_found:
+        # Because help is a global and non-global option, don't throw
+        # when it is passed.
         if arg in ["-h", "--help"]:
           idx += global_opts[arg] + 1
           continue
