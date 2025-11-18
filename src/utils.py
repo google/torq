@@ -127,20 +127,23 @@ def set_default_subparser(self, name):
     for opt in action.option_strings:
       global_opts[opt] = action.nargs
 
-  for idx, arg in enumerate(sys.argv[1:]):
+  idx = 1
+  while idx < len(sys.argv):
+    arg = sys.argv[idx]
     if arg in global_opts:
-      if is_non_global_option_found and arg not in ["-h", "--help"]:
+      if is_non_global_option_found:
+        if arg in ["-h", "--help"]:
+          idx += global_opts[arg] + 1
+          continue
         return ValidationError(
             ("Global options like %s must come before subcommand arguments." %
              arg), "Place global options at the beginning of the command.")
       # Current index + number of arguments + 1 gives the insertion index.
-      # We iterate over the array offset by 1 (for the obligatory torq command),
-      # so add 1 more.
-      insertion_idx = idx + global_opts[arg] + 2
-    elif idx >= insertion_idx - 1:
-      # idx >= insertion_idx - 1 is false when parsing the arguments
-      # of a global option, but true when parsing non-global options.
+      insertion_idx = idx + global_opts[arg] + 1
+      idx += global_opts[arg]
+    else:
       is_non_global_option_found = True
+    idx += 1
 
   for action in self._subparsers._actions:
     if not isinstance(action, argparse._SubParsersAction):
