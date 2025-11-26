@@ -35,8 +35,6 @@ jobs:
       with:
         python-version: "3.10"
     - name: Install and build dependencies
-      run: |
-        tools/build_deps
+      run: tools/build_deps
     - name: Run file formatting check
-      run: |
-        tools/format_sources --check_format
+      run: tools/format_sources --check_format
