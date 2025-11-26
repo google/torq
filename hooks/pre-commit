@@ -10,7 +10,7 @@ fi
 ./tools/torq_test
 
 if [ $? -ne 0 ]; then
-    echo -e "\033[1m\nTorq unit tests failed. Please fix tests before committing.\033[0m"
+    echo -e "\033[1m\nTorq unit tests failed. Please fix tests before committing. Run tests with './tools/torq_test'.\033[0m"
     exit 1
 fi
 
