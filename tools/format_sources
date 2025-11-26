@@ -48,4 +48,3 @@ if __name__ == '__main__':
     except subprocess.CalledProcessError as ex:
       print('`%s` returned %d' % (' '.join(cmd)[:128], ex.returncode))
       exit(ex.returncode)
-

@@ -83,9 +83,12 @@ def create_parser():
     TORQ_COMMANDS[command]['parse'](subparsers)
 
   # Set 'profiler' as the default parser
-  parser.set_default_subparser('profiler')
+  error = parser.set_default_subparser('profiler')
 
-  return parser
+  if error is not None:
+    return None, error
+
+  return parser, None
 
 
 def verify_args(args):
@@ -103,7 +106,10 @@ def print_error(error):
 
 
 def run():
-  parser = create_parser()
+  parser, error = create_parser()
+  if error is not None:
+    print_error(error)
+    return
   args = parser.parse_args()
   if args.subcommands not in TORQ_COMMANDS:
     raise ValueError('Invalid command type used')

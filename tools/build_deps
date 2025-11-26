@@ -31,6 +31,7 @@ PYTHON_VENV_BIN_DIR = os.path.join(
     PYTHON_VENV_DIR, 'bin') if sys.platform != 'win32' else os.path.join(
         PYTHON_VENV_DIR, 'Scripts')
 PYTHON_STATUS_FILE = os.path.join(PYTHON_VENV_DIR, '.last_install')
+INSTALL_HOOKS_FILE = os.path.join(ROOT_DIR, 'tools', 'install_hooks.sh')
 
 def file_hash(path):
   if not os.path.exists(path):
@@ -61,7 +62,12 @@ def create_venv():
   with open(PYTHON_STATUS_FILE, 'w') as f:
     f.write(file_hash(PYTHON_REQUIREMENTS))
 
+def install_precommit_hooks():
+    print("Installing precommit hooks")
+    subprocess.check_call(INSTALL_HOOKS_FILE)
+
 if __name__ == "__main__":
+    install_precommit_hooks()
     if is_venv_updated():
         print("Torq virtual env is up-to-date")
         exit()
