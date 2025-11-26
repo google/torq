@@ -91,7 +91,7 @@ class UtilsUnitTest(unittest.TestCase):
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
-  def test_set_default_subparser_with_global_help(self):
+  def test_global_help(self):
     parser, error = create_parser_from_cli("torq --help")
 
     self.assertNotEqual(parser, None)
