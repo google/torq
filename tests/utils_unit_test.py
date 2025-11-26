@@ -17,9 +17,10 @@
 import unittest
 import subprocess
 import os
+
 from unittest import mock
 from src.utils import convert_simpleperf_to_gecko
-from tests.test_utils import generate_mock_completed_process
+from tests.test_utils import create_parser_from_cli, generate_mock_completed_process
 
 
 class UtilsUnitTest(unittest.TestCase):
@@ -47,6 +48,66 @@ class UtilsUnitTest(unittest.TestCase):
                                   "/path/file.json", "/symbols")
 
       self.assertEqual(str(e.exception), "Gecko file was not created.")
+
+  def test_set_default_subparser(self):
+    parser, error = create_parser_from_cli("torq --serial 0.0.0.0 -d 3000")
+
+    self.assertNotEqual(parser, None)
+    self.assertEqual(error, None)
+
+    parser_args = vars(parser.parse_args())
+
+    self.assertEqual(parser_args["serial"], ["0.0.0.0"])
+    self.assertEqual(parser_args["subcommands"], "profiler")
+    self.assertEqual(parser_args["dur_ms"], 3000)
+
+  def test_set_default_subparser_with_global_option_after_non_global_option(
+      self):
+    parser, error = create_parser_from_cli("torq -d 3000 --serial 0.0.0.0")
+
+    self.assertEqual(parser, None)
+    self.assertNotEqual(error, None)
+    self.assertEqual(
+        error.message,
+        ("Global options like --serial must come before subcommand arguments."))
+    self.assertEqual(error.suggestion,
+                     ("Place global options at the beginning of the command."))
+
+  def test_set_default_subparser_with_help_after_non_global_option(self):
+    parser, error = create_parser_from_cli("torq profiler -d 3000 --help")
+
+    self.assertNotEqual(parser, None)
+    self.assertEqual(error, None)
+
+    with self.assertRaises(SystemExit):
+      parser.parse_args()
+
+  def test_set_non_default_subparser_with_help_after_non_global_option(self):
+    parser, error = create_parser_from_cli("torq vm --help")
+
+    self.assertNotEqual(parser, None)
+    self.assertEqual(error, None)
+
+    with self.assertRaises(SystemExit):
+      parser.parse_args()
+
+  def test_global_help(self):
+    parser, error = create_parser_from_cli("torq --help")
+
+    self.assertNotEqual(parser, None)
+    self.assertEqual(error, None)
+
+    with self.assertRaises(SystemExit):
+      parser.parse_args()
+
+  def test_set_default_subparser_with_subcommand_help(self):
+    parser, error = create_parser_from_cli("torq profiler --help")
+
+    self.assertNotEqual(parser, None)
+    self.assertEqual(error, None)
+
+    with self.assertRaises(SystemExit):
+      parser.parse_args()
 
 
 if __name__ == '__main__':

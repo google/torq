@@ -22,6 +22,8 @@ import subprocess
 import sys
 import time
 
+from .base import ValidationError
+
 
 class ShellExitCodes(enum.IntEnum):
   EX_SUCCESS = 0
@@ -117,6 +119,7 @@ def set_default_subparser(self, name):
   """
   subparser_found = False
   insertion_idx = 1
+  is_non_global_option_found = False
 
   # Get all global options
   global_opts = {}
@@ -124,21 +127,37 @@ def set_default_subparser(self, name):
     for opt in action.option_strings:
       global_opts[opt] = action.nargs
 
-  for idx, arg in enumerate(sys.argv[1:]):
-    if arg in ['-h', '--help']:
-      break
+  idx = 1
+  while idx < len(sys.argv):
+    arg = sys.argv[idx]
     if arg in global_opts:
-      insertion_idx = idx + global_opts[arg] + 2
-  else:
-    for action in self._subparsers._actions:
-      if not isinstance(action, argparse._SubParsersAction):
-        continue
-      for sp_name in action._name_parser_map.keys():
-        if sp_name in sys.argv[1:]:
-          subparser_found = True
-    if not subparser_found:
-      # insert default subparser
-      sys.argv.insert(insertion_idx, name)
+      if is_non_global_option_found:
+        # Because help is a global and non-global option, don't throw
+        # when it is passed.
+        if arg in ["-h", "--help"]:
+          idx += global_opts[arg] + 1
+          continue
+        return ValidationError(
+            ("Global options like %s must come before subcommand arguments." %
+             arg), "Place global options at the beginning of the command.")
+      # Current index + number of arguments + 1 gives the insertion index.
+      insertion_idx = idx + global_opts[arg] + 1
+      idx += global_opts[arg]
+    else:
+      is_non_global_option_found = True
+    idx += 1
+
+  for action in self._subparsers._actions:
+    if not isinstance(action, argparse._SubParsersAction):
+      continue
+    for sp_name in action._name_parser_map.keys():
+      if sp_name in sys.argv[1:]:
+        subparser_found = True
+  if not subparser_found:
+    # insert default subparser
+    sys.argv.insert(insertion_idx, name)
+
+  return None
 
 
 def is_bazel():
