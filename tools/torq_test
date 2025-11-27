@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
   # Apply filters or run all tests
   if len(filter_tests) > 0:
-      cmd += [f"//:{test}" for test in filter_tests]
+      cmd += [f'//:{test}' for test in filter_tests]
   else:
       cmd.append(':all')
 
