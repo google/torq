@@ -43,5 +43,5 @@ if __name__ == "__main__":
       cmd.append(':all')
 
   print(f"Command: {" ".join(cmd)}")
-  output = subprocess.run(cmd, capture_output=True)
+  output = subprocess.run(cmd)
   sys.exit(output.returncode)
