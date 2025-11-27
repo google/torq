@@ -21,71 +21,27 @@ import sys
 
 """
 This script runs all of Torq's unit tests specified in
-either the BUILD or Android.bp file.
+the BUILD file.
 
 All tests can be run with:
     ./torq_test
-
-By default the Bazel build system is used. To use
-Android's Soong build system use '--android' flag:
-    ./torq_test --android
 
 You can filter to only run specific tests with:
     ./torq_test torq_unit_test device_unit_test
 """
 if __name__ == "__main__":
-  # Determine which build system to use
-  use_android = '--android' in sys.argv
-
-  # Get test filters, excluding the script name and the --android flag
+  # Get test filters, excluding the script name
   args = sys.argv[1:]
-  if use_android:
-      args.remove('--android')
   filter_tests = args
 
-  if not use_android:
-    # Default to using the Bazel build system
-    cmd = ['bazel', 'test', '--test_output=errors']
+  cmd = ['bazel', 'test', '--test_output=errors']
 
-    # Apply filters or run all tests
-    if len(filter_tests) > 0:
-        cmd += [f"//:{test}" for test in filter_tests]
-    else:
-        cmd.append(':all')
-
-    print(f'Command: {" ".join(cmd)}')
-    output = subprocess.run(cmd)
-    sys.exit(output.returncode)
-
-  # Find the Android.bp file
-  script_dir = os.path.dirname(os.path.abspath(__file__))
-  android_bp_path = os.path.join(script_dir, '..', 'Android.bp')
-
-  # Get all test names
-  tests = []
-  has_pending_test = False
-  try:
-    with open(android_bp_path, 'r') as f:
-      for line in f:
-        text = line.strip()
-        if 'python_test_host' in text:
-            has_pending_test = True
-        elif has_pending_test and 'name' in text:
-            # parse the test host name
-            tests.append(text.split(':')[-1].strip()[1:-2])
-            has_pending_test = False
-  except FileNotFoundError:
-    print(f"Error: Android.bp file not found at: {android_bp_path}")
-    sys.exit(1)
-  except Exception as e:
-    print(f"Error reading Android.bp: {e}")
-    sys.exit(1)
-
-  # Filter out unwanted tests
+  # Apply filters or run all tests
   if len(filter_tests) > 0:
-    tests = list(filter(lambda e: e in filter_tests, tests))
+      cmd += [f'//:{test}' for test in filter_tests]
+  else:
+      cmd.append(':all')
 
-  cmd = ['atest'] + tests
-  # Run atest for all the tests
+  print(f'Command: {" ".join(cmd)}')
   output = subprocess.run(cmd)
   sys.exit(output.returncode)
