@@ -32,7 +32,7 @@ torq -d 7000
 
 ## Building Torq
 
-**torq** supports [Bazel](https://bazel.build).
+**torq** uses [Bazel](https://bazel.build) as its build system.
 
 To build and use torq using [Bazel](https://bazel.build/), run:
 ```bash

@@ -26,8 +26,6 @@ the BUILD file.
 All tests can be run with:
     ./torq_test
 
-The Bazel build system is used.
-
 You can filter to only run specific tests with:
     ./torq_test torq_unit_test device_unit_test
 """
