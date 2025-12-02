@@ -375,7 +375,8 @@ def build_predefined_config(command,
     write_into_file: {write_into_file}
     file_write_period_ms: 5000
     max_file_size_bytes: 100000000000
-    flush_period_ms: 5000'''
+    flush_period_ms: 5000
+    trace_all_machines: true'''
 
   if incremental_state is None:
     incremental_state = f'''

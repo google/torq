@@ -201,6 +201,7 @@ write_into_file: true
 file_write_period_ms: 5000
 max_file_size_bytes: 100000000000
 flush_period_ms: 5000
+trace_all_machines: true
 incremental_state_config {{
   clear_period_ms: 5000
 }}
@@ -579,6 +580,7 @@ write_into_file: false
 file_write_period_ms: 5000
 max_file_size_bytes: 100000000000
 flush_period_ms: 5000
+trace_all_machines: true
 incremental_state_config {{
   clear_period_ms: 5000
 }}
