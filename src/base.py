@@ -18,7 +18,9 @@ import signal
 
 from abc import ABC, abstractmethod
 
+ANDROID_SDK_VERSION_S = 32
 ANDROID_SDK_VERSION_T = 33
+PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT = 54
 
 
 class Command(ABC):
