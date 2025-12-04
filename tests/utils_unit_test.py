@@ -109,6 +109,18 @@ class UtilsUnitTest(unittest.TestCase):
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
+  def test_set_default_subparser_with_subcommand_as_argument(self):
+    parser, error = create_parser_from_cli(
+        "torq --included-ftrace-events trigger")
+
+    self.assertNotEqual(parser, None)
+    self.assertEqual(error, None)
+
+    parser_args = vars(parser.parse_args())
+
+    self.assertEqual(parser_args["subcommands"], "profiler")
+    self.assertEqual(parser_args["included_ftrace_events"], ["trigger"])
+
 
 if __name__ == '__main__':
   unittest.main()
