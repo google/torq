@@ -150,9 +150,10 @@ def set_default_subparser(self, name):
   for action in self._subparsers._actions:
     if not isinstance(action, argparse._SubParsersAction):
       continue
-    for sp_name in action._name_parser_map.keys():
-      if sp_name in sys.argv[1:]:
-        subparser_found = True
+    if (insertion_idx < len(sys.argv) and
+        sys.argv[insertion_idx] in action._name_parser_map.keys()):
+      subparser_found = True
+      break
   if not subparser_found:
     # insert default subparser
     sys.argv.insert(insertion_idx, name)
