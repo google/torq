@@ -19,6 +19,8 @@ import unittest
 import os
 import subprocess
 from unittest import mock
+
+from src.base import ANDROID_SDK_VERSION_T, PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT
 from src.device import AdbDevice
 from src.profiler import ProfilerCommand
 from src.utils import ShellExitCodes
@@ -39,7 +41,6 @@ TEST_PROP = "test-prop"
 TEST_PROP_VALUE = "test-prop-value"
 TEST_PID_OUTPUT = b"8241\n"
 BOOT_COMPLETE_OUTPUT = b"1\n"
-ANDROID_SDK_VERSION_T = 33
 
 
 class DeviceUnitTest(unittest.TestCase):
@@ -844,6 +845,27 @@ class DeviceUnitTest(unittest.TestCase):
 
     with self.assertRaises(Exception) as e:
       adbDevice.get_android_sdk_version()
+
+    self.assertEqual(str(e.exception), TEST_FAILURE_MSG)
+
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_perfetto_version_success(self, mock_subprocess_run):
+    mock_subprocess_run.return_value = generate_mock_completed_process(
+        stdout_string=b'Perfetto v%d (N/A)\n' %
+        PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
+    adbDevice = AdbDevice(TEST_DEVICE_SERIAL)
+
+    perfetto_version = adbDevice.get_perfetto_version()
+
+    self.assertEqual(perfetto_version, PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
+
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_perfetto_version_failure(self, mock_subprocess_run):
+    mock_subprocess_run.side_effect = TEST_EXCEPTION
+    adbDevice = AdbDevice(TEST_DEVICE_SERIAL)
+
+    with self.assertRaises(Exception) as e:
+      adbDevice.get_perfetto_version()
 
     self.assertEqual(str(e.exception), TEST_FAILURE_MSG)
 

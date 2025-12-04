@@ -284,6 +284,12 @@ class AdbDevice:
         capture_output=True)
     return None
 
+  def get_perfetto_version(self):
+    output = run_subprocess(
+        ["adb", "-s", self.serial, "shell", "perfetto", "--version"],
+        capture_output=True)
+    return float(output.stdout.decode("utf-8").split(" ")[1][1:])
+
   def simpleperf_event_exists(self, simpleperf_events):
     events_copy = simpleperf_events.copy()
     grep_command = "grep"

@@ -20,7 +20,7 @@ import signal
 import subprocess
 import time
 from unittest import mock
-from src.base import ValidationError
+from src.base import ANDROID_SDK_VERSION_S, ANDROID_SDK_VERSION_T, PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT, ValidationError
 from src.device import AdbDevice
 from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR, get_executor,
                           ProfilerCommand)
@@ -39,8 +39,6 @@ TEST_PACKAGE_1 = "test-package-1"
 TEST_PACKAGE_2 = "test-package-2"
 TEST_PACKAGE_3 = "test-package-3"
 TEST_DURATION = 0
-ANDROID_SDK_VERSION_S = 32
-ANDROID_SDK_VERSION_T = 33
 
 
 class ProfilerCommandExecutorUnitTest(unittest.TestCase):
@@ -60,6 +58,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.check_device_connection.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
+    self.mock_device.get_perfetto_version.return_value = PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT
     self.mock_device.create_directory.return_value = None
     self.mock_sleep_patcher = mock.patch.object(
         time, 'sleep', return_value=None)
@@ -349,6 +348,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.user_exists.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
+    self.mock_device.get_perfetto_version.return_value = PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT
     self.mock_device.get_current_user.side_effect = lambda: self.current_user
     self.mock_device.create_directory.return_value = None
 
@@ -517,6 +517,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.is_package_running.return_value = False
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
+    self.mock_device.get_perfetto_version.return_value = PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT
 
   def test_execute_reboot_success(self):
     error = self.executor.execute(self.command, self.mock_device)
@@ -646,6 +647,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.mock_device.is_package_running.return_value = False
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
+    self.mock_device.get_perfetto_version.return_value = PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT
     self.mock_device.create_directory.return_value = None
     self.mock_sleep_patcher = mock.patch.object(
         time, 'sleep', return_value=None)

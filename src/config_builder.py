@@ -16,7 +16,7 @@
 
 import argparse
 import textwrap
-from .base import ANDROID_SDK_VERSION_T, ValidationError
+from .base import ANDROID_SDK_VERSION_T, PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT, ValidationError
 
 
 def create_ftrace_events_string(predefined_ftrace_events,
@@ -146,6 +146,7 @@ def create_trigger_config(trigger_names, trigger_mode, trigger_timeout_ms,
 
 def build_predefined_config(command,
                             android_sdk_version,
+                            perfetto_version,
                             predefined_ftrace_events=None,
                             sys_stats_events=None,
                             predefined_atrace_events=None,
@@ -376,6 +377,9 @@ def build_predefined_config(command,
     file_write_period_ms: 5000
     max_file_size_bytes: 100000000000
     flush_period_ms: 5000'''
+    if perfetto_version >= PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT:
+      miscellaneous_options += f'''
+    trace_all_machines: true'''
 
   if incremental_state is None:
     incremental_state = f'''
@@ -403,11 +407,11 @@ def build_predefined_config(command,
   return textwrap.dedent(config), None
 
 
-def build_default_config(command, android_sdk_version):
-  return build_predefined_config(command, android_sdk_version)
+def build_default_config(command, android_sdk_version, perfetto_version):
+  return build_predefined_config(command, android_sdk_version, perfetto_version)
 
 
-def build_lightweight_config(command, android_sdk_version):
+def build_lightweight_config(command, android_sdk_version, perfetto_version):
   predefined_ftrace_events = [
       "power/cpu_idle",
       "sched/sched_blocked_reason",
@@ -450,6 +454,7 @@ def build_lightweight_config(command, android_sdk_version):
   return build_predefined_config(
       command,
       android_sdk_version,
+      perfetto_version,
       predefined_ftrace_events,
       sys_stats_config,
       atrace_events,
@@ -457,7 +462,7 @@ def build_lightweight_config(command, android_sdk_version):
       surface_flinger="")
 
 
-def build_memory_config(command, android_sdk_version):
+def build_memory_config(command, android_sdk_version, perfetto_version):
   predefined_ftrace_events = [
       "dmabuf_heap/dma_heap_stat",
       "ftrace/print",
@@ -545,6 +550,7 @@ def build_memory_config(command, android_sdk_version):
   return build_predefined_config(
       command,
       android_sdk_version,
+      perfetto_version,
       predefined_ftrace_events,
       sys_stats_config,
       atrace_events,

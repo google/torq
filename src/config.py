@@ -17,7 +17,7 @@
 import argparse
 import os
 
-from .base import ANDROID_SDK_VERSION_T, Command, ValidationError
+from .base import ANDROID_SDK_VERSION_T, Command, PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT, ValidationError
 from .config_builder import create_common_config_parser, PREDEFINED_PERFETTO_CONFIGS
 from .profiler import verify_trigger_args
 from .utils import run_subprocess
@@ -126,13 +126,15 @@ def create_config_command(args):
 
 def execute_show_or_pull_command(command, device):
   android_sdk_version = ANDROID_SDK_VERSION_T
+  perfetto_version = PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT
   error = device.check_device_connection()
   if error is None:
     device.root_device()
     android_sdk_version = device.get_android_sdk_version()
+    perfetto_version = device.get_perfetto_version()
 
   config, error = PREDEFINED_PERFETTO_CONFIGS[command.config_name](
-      command, android_sdk_version)
+      command, android_sdk_version, perfetto_version)
 
   if error is not None:
     return error

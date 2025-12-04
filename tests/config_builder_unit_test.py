@@ -20,6 +20,8 @@ import subprocess
 import sys
 import unittest
 from unittest import mock
+
+from src.base import ANDROID_SDK_VERSION_S, ANDROID_SDK_VERSION_T, PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT
 from src.config_builder import (build_default_config, build_custom_config,
                                 build_lightweight_config, build_memory_config)
 from src.profiler import DEFAULT_DUR_MS, ProfilerCommand
@@ -28,8 +30,6 @@ from tests.test_utils import generate_mock_completed_process, run_cli
 TEST_FAILURE_MSG = "Test failure."
 TEST_DUR_MS = 9000
 INVALID_DUR_MS = "invalid-dur-ms"
-ANDROID_SDK_VERSION_T = 33
-ANDROID_SDK_VERSION_S_V2 = 32
 
 COMMON_DEFAULT_SYS_EVENTS = f'''\
       stat_period_ms: 500
@@ -201,6 +201,18 @@ write_into_file: true
 file_write_period_ms: 5000
 max_file_size_bytes: 100000000000
 flush_period_ms: 5000
+trace_all_machines: true
+incremental_state_config {{
+  clear_period_ms: 5000
+}}
+
+'''
+
+CONFIG_ENDING_STRING_OLD_PERFETTO_VERSION = f'''\
+write_into_file: true
+file_write_period_ms: 5000
+max_file_size_bytes: 100000000000
+flush_period_ms: 5000
 incremental_state_config {{
   clear_period_ms: 5000
 }}
@@ -219,6 +231,20 @@ DEFAULT_CONFIG_9000_DUR_MS = f'''\
 {COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 duration_ms: {TEST_DUR_MS}
 {COMMON_CONFIG_ENDING_STRING}
+EOF'''
+
+DEFAULT_CONFIG_9000_DUR_MS_OLD_PERFETTO_VERSION = f'''\
+{COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
+      min_prio: PRIO_VERBOSE
+{COMMON_DEFAULT_CONFIG_SYS_STATS_BEGINNING}
+{COMMON_DEFAULT_SYS_EVENTS}
+{CPUFREQ_STRING_NEW_ANDROID}
+{COMMON_DEFAULT_CONFIG_FTRACE_BEGINNING}
+{COMMON_DEFAULT_FTRACE_EVENTS}
+{COMMON_DEFAULT_ATRACE_EVENTS}
+{COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
+duration_ms: {TEST_DUR_MS}
+{CONFIG_ENDING_STRING_OLD_PERFETTO_VERSION}
 EOF'''
 
 LIGHTWEIGHT_CONFIG_9000_DUR_MS = f'''\
@@ -579,6 +605,7 @@ write_into_file: false
 file_write_period_ms: 5000
 max_file_size_bytes: 100000000000
 flush_period_ms: 5000
+trace_all_machines: true
 incremental_state_config {{
   clear_period_ms: 5000
 }}
@@ -619,16 +646,28 @@ class ConfigBuilderUnitTest(unittest.TestCase):
   def test_build_default_config_setting_valid_dur_ms(self):
     self.command.dur_ms = TEST_DUR_MS
 
-    config, error = build_default_config(self.command, ANDROID_SDK_VERSION_T)
+    config, error = build_default_config(
+        self.command, ANDROID_SDK_VERSION_T,
+        PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
 
     self.assertEqual(error, None)
     self.assertEqual(config, DEFAULT_CONFIG_9000_DUR_MS)
 
+  def test_build_default_config_setting_valid_dur_ms_old_perfetto_version(self):
+    self.command.dur_ms = TEST_DUR_MS
+
+    config, error = build_default_config(self.command, ANDROID_SDK_VERSION_T,
+                                         53)
+
+    self.assertEqual(error, None)
+    self.assertEqual(config, DEFAULT_CONFIG_9000_DUR_MS_OLD_PERFETTO_VERSION)
+
   def test_build_lightweight_config_setting_valid_dur_ms(self):
     self.command.dur_ms = TEST_DUR_MS
 
-    config, error = build_lightweight_config(self.command,
-                                             ANDROID_SDK_VERSION_T)
+    config, error = build_lightweight_config(
+        self.command, ANDROID_SDK_VERSION_T,
+        PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
 
     self.assertEqual(error, None)
     self.assertEqual(config, LIGHTWEIGHT_CONFIG_9000_DUR_MS)
@@ -636,13 +675,16 @@ class ConfigBuilderUnitTest(unittest.TestCase):
   def test_build_memory_config_setting_valid_dur_ms(self):
     self.command.dur_ms = TEST_DUR_MS
 
-    config, error = build_memory_config(self.command, ANDROID_SDK_VERSION_T)
+    config, error = build_memory_config(self.command, ANDROID_SDK_VERSION_T,
+                                        PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
 
     self.assertEqual(error, None)
     self.assertEqual(config, MEMORY_CONFIG_9000_DUR_MS)
 
   def test_build_default_config_on_old_android_version(self):
-    config, error = build_default_config(self.command, ANDROID_SDK_VERSION_S_V2)
+    config, error = build_default_config(
+        self.command, ANDROID_SDK_VERSION_S,
+        PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
 
     self.assertEqual(error, None)
     self.assertEqual(config, DEFAULT_CONFIG_OLD_ANDROID)
@@ -650,7 +692,9 @@ class ConfigBuilderUnitTest(unittest.TestCase):
   def test_build_default_config_setting_no_dur_ms(self):
     self.command.dur_ms = None
 
-    config, error = build_default_config(self.command, ANDROID_SDK_VERSION_T)
+    config, error = build_default_config(
+        self.command, ANDROID_SDK_VERSION_T,
+        PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
 
     self.assertEqual(error, None)
     self.assertEqual(config, DEFAULT_CONFIG_NO_DUR_MS)
@@ -660,7 +704,9 @@ class ConfigBuilderUnitTest(unittest.TestCase):
         "power/suspend_resume", "mm_event/mm_event_record"
     ]
 
-    config, error = build_default_config(self.command, ANDROID_SDK_VERSION_T)
+    config, error = build_default_config(
+        self.command, ANDROID_SDK_VERSION_T,
+        PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
 
     self.assertEqual(error, None)
     self.assertEqual(config, DEFAULT_CONFIG_EXCLUDED_FTRACE_EVENTS)
@@ -668,7 +714,9 @@ class ConfigBuilderUnitTest(unittest.TestCase):
   def test_build_default_config_removing_invalid_excluded_ftrace_events(self):
     self.command.excluded_ftrace_events = ["invalid_ftrace_event"]
 
-    config, error = build_default_config(self.command, ANDROID_SDK_VERSION_T)
+    config, error = build_default_config(
+        self.command, ANDROID_SDK_VERSION_T,
+        PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
 
     self.assertEqual(config, None)
     self.assertNotEqual(error, None)
@@ -713,7 +761,9 @@ class ConfigBuilderUnitTest(unittest.TestCase):
         "mock_ftrace_event1", "mock_ftrace_event2"
     ]
 
-    config, error = build_default_config(self.command, ANDROID_SDK_VERSION_T)
+    config, error = build_default_config(
+        self.command, ANDROID_SDK_VERSION_T,
+        PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
 
     self.assertEqual(error, None)
     self.assertEqual(config, DEFAULT_CONFIG_INCLUDED_FTRACE_EVENTS)
@@ -721,7 +771,9 @@ class ConfigBuilderUnitTest(unittest.TestCase):
   def test_build_default_config_adding_invalid_included_ftrace_events(self):
     self.command.included_ftrace_events = ["power/suspend_resume"]
 
-    config, error = build_default_config(self.command, ANDROID_SDK_VERSION_T)
+    config, error = build_default_config(
+        self.command, ANDROID_SDK_VERSION_T,
+        PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
 
     self.assertEqual(config, None)
     self.assertNotEqual(error, None)
@@ -769,7 +821,9 @@ class ConfigBuilderUnitTest(unittest.TestCase):
     self.command.trigger_mode = "CLONE_SNAPSHOT"
     self.command.trigger_timeout_ms = 604800000
 
-    config, error = build_default_config(self.command, ANDROID_SDK_VERSION_T)
+    config, error = build_default_config(
+        self.command, ANDROID_SDK_VERSION_T,
+        PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT)
 
     self.assertEqual(error, None)
     self.assertEqual(config, DEFAULT_TRIGGER_CONFIG)

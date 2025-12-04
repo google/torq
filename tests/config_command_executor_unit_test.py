@@ -19,7 +19,7 @@ import subprocess
 import sys
 import io
 from unittest import mock
-from src.base import ValidationError
+from src.base import ANDROID_SDK_VERSION_S, ANDROID_SDK_VERSION_T, PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT, ValidationError
 from src.config import ConfigCommand, execute_config_command, PREDEFINED_PERFETTO_CONFIGS
 from src.device import AdbDevice
 from tests.test_utils import generate_mock_completed_process, parse_cli
@@ -27,10 +27,29 @@ from tests.test_utils import generate_mock_completed_process, parse_cli
 TEST_ERROR_MSG = "test-error"
 TEST_VALIDATION_ERROR = ValidationError(TEST_ERROR_MSG, None)
 TEST_SERIAL = "test-serial"
-ANDROID_SDK_VERSION_S = 32
-ANDROID_SDK_VERSION_T = 33
 
-TEST_DEFAULT_CONFIG = f'''\
+TEST_DEFAULT_EXTRA_CONFIGS = f'''\
+write_into_file: true
+file_write_period_ms: 5000
+max_file_size_bytes: 100000000000
+flush_period_ms: 5000
+trace_all_machines: true
+incremental_state_config {{
+  clear_period_ms: 5000
+}}
+'''
+
+TEST_DEFAULT_EXTRA_CONFIGS_OLD_PERFETTO = f'''\
+write_into_file: true
+file_write_period_ms: 5000
+max_file_size_bytes: 100000000000
+flush_period_ms: 5000
+incremental_state_config {{
+  clear_period_ms: 5000
+}}
+'''
+
+TEST_DEFAULT_CONFIG_TEMPLATE = f'''\
 buffers: {{
   size_kb: 4096
   fill_policy: RING_BUFFER
@@ -180,15 +199,16 @@ data_sources {{
   }}
   producer_name_filter: "perfetto.traced_probes"
 }}
+'''
 
-write_into_file: true
-file_write_period_ms: 5000
-max_file_size_bytes: 100000000000
-flush_period_ms: 5000
-incremental_state_config {{
-  clear_period_ms: 5000
-}}
+TEST_DEFAULT_CONFIG = f'''\
+{TEST_DEFAULT_CONFIG_TEMPLATE}
+{TEST_DEFAULT_EXTRA_CONFIGS}
+'''
 
+TEST_DEFAULT_CONFIG_OLD_PERFETTO = f'''\
+{TEST_DEFAULT_CONFIG_TEMPLATE}
+{TEST_DEFAULT_EXTRA_CONFIGS_OLD_PERFETTO}
 '''
 
 TEST_DEFAULT_CONFIG_OLD_ANDROID = f'''\
@@ -342,14 +362,7 @@ data_sources {{
   producer_name_filter: "perfetto.traced_probes"
 }}
 
-write_into_file: true
-file_write_period_ms: 5000
-max_file_size_bytes: 100000000000
-flush_period_ms: 5000
-incremental_state_config {{
-  clear_period_ms: 5000
-}}
-
+{TEST_DEFAULT_EXTRA_CONFIGS}
 '''
 
 
@@ -362,6 +375,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.check_device_connection.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
+    self.mock_device.get_perfetto_version.return_value = PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT
 
   def test_config_list(self):
     terminal_output = io.StringIO()
@@ -411,6 +425,18 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(terminal_output.getvalue(),
                      TEST_DEFAULT_CONFIG_OLD_ANDROID)
 
+  def test_config_show_old_perfetto_version(self):
+    self.mock_device.get_perfetto_version.return_value = 53
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    args = parse_cli("torq config show default")
+    error = execute_config_command(args, self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(terminal_output.getvalue(),
+                     TEST_DEFAULT_CONFIG_OLD_PERFETTO)
+
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull(self, mock_subprocess_run):
     mock_subprocess_run.return_value = generate_mock_completed_process()
@@ -435,6 +461,16 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
   def test_config_pull_old_android_version(self, mock_subprocess_run):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_S)
+    mock_subprocess_run.return_value = generate_mock_completed_process()
+
+    args = parse_cli("torq config pull default")
+    error = execute_config_command(args, self.mock_device)
+
+    self.assertEqual(error, None)
+
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_config_pull_old_perfetto_version(self, mock_subprocess_run):
+    self.mock_device.get_perfetto_version.return_value = 53
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
     args = parse_cli("torq config pull default")

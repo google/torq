@@ -18,7 +18,7 @@ import os
 import time
 import unittest
 
-from src.base import ANDROID_SDK_VERSION_T
+from src.base import ANDROID_SDK_VERSION_T, PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT
 from src.device import AdbDevice
 from src.profiler import PERFETTO_TRACE_FILE
 from tests.test_utils import parameterized, run_cli
@@ -55,6 +55,7 @@ class ProfilerTriggerUnitTest(unittest.TestCase):
     self.mock_device.check_device_connection.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
+    self.mock_device.get_perfetto_version.return_value = PERFETTO_VERSION_WITH_MULTI_VM_SUPPORT
     self.mock_device.create_directory.return_value = None
     self.mock_device.remove_file.return_value = False
     self.mock_device.pull_file.return_value = False
