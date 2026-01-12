@@ -14,10 +14,12 @@
 # limitations under the License.
 #
 
+import builtins
 import unittest
 import os
 from unittest import mock
-from src.config import create_config_command
+
+from src.config import create_config_command, VALID_TRACE_FILE_SUFFIXES
 from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR,
                           DEFAULT_TRIGGER_DUR_MS, DEFAULT_TRIGGER_MODE,
                           DEFAULT_TRIGGER_STOP_DELAY_MS, MIN_STOP_DELAY_MS,
@@ -28,7 +30,7 @@ from tests.test_utils import (create_parser_from_cli, parameterized, parse_cli,
 
 TEST_USER_ID = 10
 TEST_PACKAGE = "com.android.contacts"
-TEST_FILE = "file.pbtxt"
+TEST_FILE = "file.txtpb"
 SYMBOLS_PATH = "/folder/symbols"
 TEST_TRIGGER_NAMES = [
     "team.package.test-trigger-name", "team2.package2.test-trigger-name2"
@@ -931,36 +933,67 @@ class TorqUnitTest(unittest.TestCase):
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, "./default.pbtxt")
+    self.assertEqual(args.file_path, "./default.txtpb")
 
     args = parse_cli("torq config pull lightweight")
 
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, "./lightweight.pbtxt")
+    self.assertEqual(args.file_path, "./lightweight.txtpb")
 
     args = parse_cli("torq config pull memory")
 
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, "./memory.pbtxt")
+    self.assertEqual(args.file_path, "./memory.txtpb")
 
-  def test_verify_args_config_pull_custom_filepath(self):
+  def test_verify_args_config_pull_valid_custom_filepath(self):
+    args = parse_cli("torq config pull default config.txtpb")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.file_path, "config.txtpb")
+
+  def test_verify_args_config_pull_invalid_custom_filepath(self):
     args = parse_cli("torq config pull default config")
 
     args, error = verify_args(args)
 
-    self.assertEqual(error, None)
-    self.assertEqual(args.file_path, "config.pbtxt")
+    self.assertEqual(error.message, ("File 'config' suffix '' is invalid."))
+    self.assertEqual(error.suggestion,
+                     ("Provide a filename with a suffix that is one of [%s]." %
+                      ", ".join(VALID_TRACE_FILE_SUFFIXES)))
 
-    args = parse_cli("torq config pull default config.pbtxt")
+  @mock.patch.object(builtins, "input")
+  def test_verify_args_config_pull_overwriting_existing_filepath(
+      self, mock_input):
+    mock_input.return_value = "y"
+    args = parse_cli("torq config pull default config.txtpb")
 
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, "config.pbtxt")
+    self.assertEqual(args.file_path, "config.txtpb")
+
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  def test_verify_args_config_pull_not_overwriting_existing_filepath(
+      self, mock_input, mock_exists):
+    mock_input.return_value = "n"
+    mock_exists.return_value = True
+    args = parse_cli("torq config pull default config.txtpb")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(
+        error.message,
+        ("File 'config.txtpb' exists and user refused to overwrite it."))
+    self.assertEqual(error.suggestion, (
+        "Provide a filename that does not exist or allow the file to be overwritten."
+    ))
 
   @parameterized(["list", "pull", "show"])
   def test_get_command_config_builder(self, config_subcommand):

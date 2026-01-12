@@ -28,7 +28,7 @@ from src.open_ui_utils import download_trace_processor, open_trace
 from tests.test_utils import generate_mock_completed_process
 
 ANDROID_BUILD_TOP = "/main"
-TEST_FILE = "file.pbtxt"
+TEST_FILE = "file.txtpb"
 TORQ_TEMP_DIR = "/tmp/.torq"
 PERFETTO_BINARY = "/trace_processor"
 TORQ_TEMP_TRACE_PROCESSOR = TORQ_TEMP_DIR + PERFETTO_BINARY
