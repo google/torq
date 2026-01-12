@@ -947,23 +947,20 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(error, None)
     self.assertEqual(args.file_path, "./memory.pbtxt")
 
-  @mock.patch.object(os.path, "isfile", autospec=True)
-  def test_verify_args_default_config_pull_invalid_filepath(self, mock_is_file):
-    mock_invalid_file_path = "mock-invalid-file-path"
-    mock_is_file.return_value = False
-    args = parse_cli(("torq config pull default %s" % mock_invalid_file_path))
+  def test_verify_args_config_pull_custom_filepath(self):
+    args = parse_cli("torq config pull default config")
 
     args, error = verify_args(args)
 
-    self.assertEqual(error.message,
-                     ("Command is invalid because %s is not a valid filepath." %
-                      mock_invalid_file_path))
-    self.assertEqual(
-        error.suggestion,
-        ("A default filepath can be used if you do not specify a file-path:\n\t"
-         " torq pull default to copy to ./default.pbtxt\n\t"
-         " torq pull lightweight to copy to ./lightweight.pbtxt\n\t "
-         "torq pull memory to copy to ./memory.pbtxt"))
+    self.assertEqual(error, None)
+    self.assertEqual(args.file_path, "config.pbtxt")
+
+    args = parse_cli("torq config pull default config.pbtxt")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.file_path, "config.pbtxt")
 
   @parameterized(["list", "pull", "show"])
   def test_get_command_config_builder(self, config_subcommand):
