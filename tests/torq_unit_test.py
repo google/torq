@@ -17,6 +17,7 @@
 import builtins
 import unittest
 import os
+from pathlib import Path
 from unittest import mock
 
 from src.config import create_config_command, VALID_TRACE_FILE_SUFFIXES
@@ -933,21 +934,21 @@ class TorqUnitTest(unittest.TestCase):
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, "./default.txtpb")
+    self.assertEqual(args.file_path.name, "default.txtpb")
 
     args = parse_cli("torq config pull lightweight")
 
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, "./lightweight.txtpb")
+    self.assertEqual(args.file_path.name, "lightweight.txtpb")
 
     args = parse_cli("torq config pull memory")
 
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, "./memory.txtpb")
+    self.assertEqual(args.file_path.name, "memory.txtpb")
 
   def test_verify_args_config_pull_valid_custom_filepath(self):
     args = parse_cli("torq config pull default config.txtpb")
@@ -955,14 +956,24 @@ class TorqUnitTest(unittest.TestCase):
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, "config.txtpb")
+    self.assertEqual(args.file_path.name, "config.txtpb")
 
-  def test_verify_args_config_pull_invalid_custom_filepath(self):
+  def test_verify_args_config_pull_custom_filepath_with_no_suffix(self):
     args = parse_cli("torq config pull default config")
 
     args, error = verify_args(args)
 
-    self.assertEqual(error.message, ("File 'config' suffix '' is invalid."))
+    self.assertEqual(error, None)
+    self.assertEqual(args.file_path.name, "config.txtpb")
+
+  def test_verify_args_config_pull_invalid_custom_filepath(self):
+    args = parse_cli("torq config pull default config.badsuffix")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(
+        error.message,
+        ("File 'config.badsuffix' suffix '.badsuffix' is invalid."))
     self.assertEqual(error.suggestion,
                      ("Provide a filename with a suffix that is one of [%s]." %
                       ", ".join(VALID_TRACE_FILE_SUFFIXES)))
@@ -976,9 +987,9 @@ class TorqUnitTest(unittest.TestCase):
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, "config.txtpb")
+    self.assertEqual(args.file_path.name, "config.txtpb")
 
-  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
   def test_verify_args_config_pull_not_overwriting_existing_filepath(
       self, mock_input, mock_exists):

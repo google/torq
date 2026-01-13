@@ -21,7 +21,7 @@ from .base import ANDROID_SDK_VERSION_T, Command, ValidationError
 from .config_builder import create_common_config_parser, PREDEFINED_PERFETTO_CONFIGS
 from .handle_input import HandleInput
 from .profiler import verify_trigger_args
-from .utils import path_exists, run_subprocess
+from .utils import run_subprocess
 
 VALID_TRACE_FILE_SUFFIXES = [".txtpb", ".textproto", ".textpb", ".pbtxt"]
 
@@ -79,14 +79,20 @@ def verify_config_args(args):
 
   if args.config_subcommand == "pull":
     if args.file_path is None:
-      args.file_path = "./" + args.config_name + ".txtpb"
-    elif Path(args.file_path).suffix not in VALID_TRACE_FILE_SUFFIXES:
+      args.file_path = Path("./" + args.config_name + ".txtpb")
+    else:
+      args.file_path = Path(args.file_path)
+    if not args.file_path.suffix:
+      print("Updating filename from '%s' to '%s'" %
+            (args.file_path, args.file_path.with_suffix(".txtpb")))
+      args.file_path = args.file_path.with_suffix(".txtpb")
+    elif args.file_path.suffix not in VALID_TRACE_FILE_SUFFIXES:
       return None, ValidationError(
           ("File '%s' suffix '%s' is invalid." %
            (args.file_path, Path(args.file_path).suffix)),
           ("Provide a filename with a suffix that is one of [%s]." %
            ", ".join(VALID_TRACE_FILE_SUFFIXES)))
-    if path_exists(args.file_path) and not HandleInput(
+    if (args.file_path).exists() and not HandleInput(
         ("The file '%s' exists. Would you like to overwrite it? [Y/n] " %
          args.file_path), "", {
              "y": lambda: True,
@@ -126,7 +132,7 @@ def create_config_command(args):
     trigger_timeout_ms = args.trigger_timeout_ms
     trigger_mode = args.trigger_mode
     if args.config_subcommand == "pull":
-      file_path = args.file_path
+      file_path = Path(args.file_path) if args.file_path is not None else None
 
   command = ConfigCommand(type, config_name, file_path, dur_ms,
                           excluded_ftrace_events, included_ftrace_events,
