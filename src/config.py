@@ -132,7 +132,7 @@ def create_config_command(args):
     trigger_timeout_ms = args.trigger_timeout_ms
     trigger_mode = args.trigger_mode
     if args.config_subcommand == "pull":
-      file_path = Path(args.file_path) if args.file_path is not None else None
+      file_path = args.file_path
 
   command = ConfigCommand(type, config_name, file_path, dur_ms,
                           excluded_ftrace_events, included_ftrace_events,

@@ -978,10 +978,12 @@ class TorqUnitTest(unittest.TestCase):
                      ("Provide a filename with a suffix that is one of [%s]." %
                       ", ".join(VALID_TRACE_FILE_SUFFIXES)))
 
+  @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
   def test_verify_args_config_pull_overwriting_existing_filepath(
-      self, mock_input):
+      self, mock_input, mock_exists):
     mock_input.return_value = "y"
+    mock_exists.return_value = True
     args = parse_cli("torq config pull default config.txtpb")
 
     args, error = verify_args(args)
