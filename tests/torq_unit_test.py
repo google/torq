@@ -20,7 +20,7 @@ import os
 from pathlib import Path
 from unittest import mock
 
-from src.config import create_config_command, VALID_TRACE_FILE_SUFFIXES
+from src.config import create_config_command, TEXTPROTO_FILE_EXTENSIONS
 from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR,
                           DEFAULT_TRIGGER_DUR_MS, DEFAULT_TRIGGER_MODE,
                           DEFAULT_TRIGGER_STOP_DELAY_MS, MIN_STOP_DELAY_MS,
@@ -976,7 +976,7 @@ class TorqUnitTest(unittest.TestCase):
         ("File 'config.badsuffix' suffix '.badsuffix' is invalid."))
     self.assertEqual(error.suggestion,
                      ("Provide a filename with a suffix that is one of [%s]." %
-                      ", ".join(VALID_TRACE_FILE_SUFFIXES)))
+                      ", ".join(TEXTPROTO_FILE_EXTENSIONS)))
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")

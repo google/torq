@@ -23,7 +23,7 @@ from .handle_input import HandleInput
 from .profiler import verify_trigger_args
 from .utils import run_subprocess
 
-VALID_TRACE_FILE_SUFFIXES = [".txtpb", ".textproto", ".textpb", ".pbtxt"]
+TEXTPROTO_FILE_EXTENSIONS = [".txtpb", ".textproto", ".textpb", ".pbtxt"]
 
 
 def add_config_parser(subparsers):
@@ -86,12 +86,12 @@ def verify_config_args(args):
       print("Updating filename from '%s' to '%s'" %
             (args.file_path, args.file_path.with_suffix(".txtpb")))
       args.file_path = args.file_path.with_suffix(".txtpb")
-    elif args.file_path.suffix not in VALID_TRACE_FILE_SUFFIXES:
+    elif args.file_path.suffix not in TEXTPROTO_FILE_EXTENSIONS:
       return None, ValidationError(
           ("File '%s' suffix '%s' is invalid." %
            (args.file_path, Path(args.file_path).suffix)),
           ("Provide a filename with a suffix that is one of [%s]." %
-           ", ".join(VALID_TRACE_FILE_SUFFIXES)))
+           ", ".join(TEXTPROTO_FILE_EXTENSIONS)))
     if (args.file_path).exists() and not HandleInput(
         ("The file '%s' exists. Would you like to overwrite it? [Y/n] " %
          args.file_path), "", {
