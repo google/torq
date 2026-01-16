@@ -14,10 +14,12 @@
 # limitations under the License.
 #
 
+import builtins
 import unittest
 import subprocess
 import sys
 import io
+from pathlib import Path
 from unittest import mock
 from src.base import ValidationError
 from src.config import ConfigCommand, execute_config_command, PREDEFINED_PERFETTO_CONFIGS
@@ -441,6 +443,36 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     error = execute_config_command(args, self.mock_device)
 
     self.assertEqual(error, None)
+
+  @mock.patch.object(Path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  def test_config_pull_overwriting_existing_filepath(self, mock_input,
+                                                     mock_exists):
+    mock_input.return_value = "y"
+    mock_exists.return_value = True
+    args = parse_cli("torq config pull default config.txtpb")
+
+    error = execute_config_command(args, self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.file_path.name, "config.txtpb")
+
+  @mock.patch.object(Path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  def test_config_pull_not_overwriting_existing_filepath(
+      self, mock_input, mock_exists):
+    mock_input.return_value = "n"
+    mock_exists.return_value = True
+    args = parse_cli("torq config pull default config.txtpb")
+
+    error = execute_config_command(args, self.mock_device)
+
+    self.assertEqual(
+        error.message,
+        ("File 'config.txtpb' exists and user refused to overwrite it."))
+    self.assertEqual(error.suggestion, (
+        "Provide a filename that does not exist or allow the file to be overwritten."
+    ))
 
 
 if __name__ == '__main__':

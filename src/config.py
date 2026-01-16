@@ -64,6 +64,7 @@ def add_config_parser(subparsers):
   config_pull_parser.add_argument(
       'file_path',
       nargs='?',
+      type=Path,
       help=('File path to copy the predefined'
             ' config to'))
 
@@ -77,31 +78,15 @@ def verify_config_args(args):
                                      "\t torq config show\n"
                                      "\t torq config pull\n"))
 
-  if args.config_subcommand == "pull":
-    if args.file_path is None:
-      args.file_path = Path("./" + args.config_name + ".txtpb")
-    else:
-      args.file_path = Path(args.file_path)
+  if args.config_subcommand == "pull" and args.file_path:
     if not args.file_path.suffix:
-      print("Updating filename from '%s' to '%s'" %
-            (args.file_path, args.file_path.with_suffix(".txtpb")))
       args.file_path = args.file_path.with_suffix(".txtpb")
     elif args.file_path.suffix not in TEXTPROTO_FILE_EXTENSIONS:
       return None, ValidationError(
           ("File '%s' suffix '%s' is invalid." %
-           (args.file_path, Path(args.file_path).suffix)),
+           (args.file_path.name, args.file_path.suffix)),
           ("Provide a filename with a suffix that is one of [%s]." %
            ", ".join(TEXTPROTO_FILE_EXTENSIONS)))
-    if (args.file_path).exists() and not HandleInput(
-        ("The file '%s' exists. Would you like to overwrite it? [Y/n] " %
-         args.file_path), "", {
-             "y": lambda: True,
-             "n": lambda: False
-         }, "y").handle_input():
-      return None, ValidationError((
-          "File '%s' exists and user refused to overwrite it." % args.file_path
-      ), ("Provide a filename that does not exist or allow the file to be overwritten."
-         ))
 
   if args.config_subcommand != "list":
     args.runs = 1
@@ -155,7 +140,21 @@ def execute_show_or_pull_command(command, device):
     return error
 
   if command.get_type() == "config pull":
+    if command.file_path is None:
+      command.file_path = Path("./" + command.config_name + ".txtpb")
+    if (command.file_path).exists() and not HandleInput(
+        ("The file '%s' exists. Would you like to overwrite it? [Y/n] " %
+         command.file_path), "", {
+             "y": lambda: True,
+             "n": lambda: False
+         }, "y").handle_input():
+      return ValidationError((
+          "File '%s' exists and user refused to overwrite it." %
+          command.file_path
+      ), ("Provide a filename that does not exist or allow the file to be overwritten."
+         ))
     run_subprocess(("cat > %s %s" % (command.file_path, config)), shell=True)
+    print("The config has been saved to '%s'." % command.file_path)
   else:
     print("\n".join(config.strip().split("\n")[2:-2]))
   return None

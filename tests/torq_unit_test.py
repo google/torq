@@ -934,21 +934,21 @@ class TorqUnitTest(unittest.TestCase):
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path.name, "default.txtpb")
+    self.assertEqual(args.file_path, None)
 
     args = parse_cli("torq config pull lightweight")
 
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path.name, "lightweight.txtpb")
+    self.assertEqual(args.file_path, None)
 
     args = parse_cli("torq config pull memory")
 
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path.name, "memory.txtpb")
+    self.assertEqual(args.file_path, None)
 
   def test_verify_args_config_pull_valid_custom_filepath(self):
     args = parse_cli("torq config pull default config.txtpb")
@@ -977,36 +977,6 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(error.suggestion,
                      ("Provide a filename with a suffix that is one of [%s]." %
                       ", ".join(TEXTPROTO_FILE_EXTENSIONS)))
-
-  @mock.patch.object(Path, "exists", autospec=True)
-  @mock.patch.object(builtins, "input")
-  def test_verify_args_config_pull_overwriting_existing_filepath(
-      self, mock_input, mock_exists):
-    mock_input.return_value = "y"
-    mock_exists.return_value = True
-    args = parse_cli("torq config pull default config.txtpb")
-
-    args, error = verify_args(args)
-
-    self.assertEqual(error, None)
-    self.assertEqual(args.file_path.name, "config.txtpb")
-
-  @mock.patch.object(Path, "exists", autospec=True)
-  @mock.patch.object(builtins, "input")
-  def test_verify_args_config_pull_not_overwriting_existing_filepath(
-      self, mock_input, mock_exists):
-    mock_input.return_value = "n"
-    mock_exists.return_value = True
-    args = parse_cli("torq config pull default config.txtpb")
-
-    args, error = verify_args(args)
-
-    self.assertEqual(
-        error.message,
-        ("File 'config.txtpb' exists and user refused to overwrite it."))
-    self.assertEqual(error.suggestion, (
-        "Provide a filename that does not exist or allow the file to be overwritten."
-    ))
 
   @parameterized(["list", "pull", "show"])
   def test_get_command_config_builder(self, config_subcommand):
