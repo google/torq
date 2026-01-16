@@ -14,10 +14,8 @@
 # limitations under the License.
 #
 
-import builtins
 import unittest
 import os
-from pathlib import Path
 from unittest import mock
 
 from src.config import create_config_command, TEXTPROTO_FILE_EXTENSIONS

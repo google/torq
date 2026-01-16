@@ -696,7 +696,7 @@ class UserSwitchCommandExecutor(ProfilerCommandExecutor):
 class BootCommandExecutor(ProfilerCommandExecutor):
 
   def prepare_device(self, command, device, config):
-    device.write_to_file("/data/misc/perfetto-configs/boottrace.txtpb", config)
+    device.write_to_file("/data/misc/perfetto-configs/boottrace.pbtxt", config)
 
   def prepare_device_for_run(self, command, device):
     device.remove_file(f'{PERFETTO_BOOT_TRACE_FILE}*')
