@@ -18,12 +18,13 @@ import unittest
 import os
 from unittest import mock
 
-from src.config import create_config_command, TEXTPROTO_FILE_EXTENSIONS
+from src.config import create_config_command
 from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR,
                           DEFAULT_TRIGGER_DUR_MS, DEFAULT_TRIGGER_MODE,
                           DEFAULT_TRIGGER_STOP_DELAY_MS, MIN_STOP_DELAY_MS,
                           MIN_DURATION_MS)
 from src.torq import verify_args
+from src.utils import TEXTPROTO_FILE_EXTENSIONS
 from tests.test_utils import (create_parser_from_cli, parameterized, parse_cli,
                               parameterized_config_builder)
 
@@ -971,10 +972,11 @@ class TorqUnitTest(unittest.TestCase):
 
     self.assertEqual(
         error.message,
-        ("File 'config.badsuffix' suffix '.badsuffix' is invalid."))
-    self.assertEqual(error.suggestion,
-                     ("Provide a filename with a suffix that is one of [%s]." %
-                      ", ".join(TEXTPROTO_FILE_EXTENSIONS)))
+        ("File 'config.badsuffix' has invalid file extension: '.badsuffix'."))
+    self.assertEqual(
+        error.suggestion,
+        ("Provide a filename with one of the supported file extensions: [%s]." %
+         ", ".join(TEXTPROTO_FILE_EXTENSIONS)))
 
   @parameterized(["list", "pull", "show"])
   def test_get_command_config_builder(self, config_subcommand):

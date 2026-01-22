@@ -24,6 +24,8 @@ import time
 
 from .base import ValidationError
 
+TEXTPROTO_FILE_EXTENSIONS = [".txtpb", ".textproto", ".textpb", ".pbtxt"]
+
 
 class ShellExitCodes(enum.IntEnum):
   EX_SUCCESS = 0

@@ -461,18 +461,16 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
   @mock.patch.object(builtins, "input")
   def test_config_pull_not_overwriting_existing_filepath(
       self, mock_input, mock_exists):
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
     mock_input.return_value = "n"
     mock_exists.return_value = True
     args = parse_cli("torq config pull default config.txtpb")
 
     error = execute_config_command(args, self.mock_device)
 
-    self.assertEqual(
-        error.message,
-        ("File 'config.txtpb' exists and user refused to overwrite it."))
-    self.assertEqual(error.suggestion, (
-        "Provide a filename that does not exist or allow the file to be overwritten."
-    ))
+    self.assertEqual(error, None)
+    self.assertEqual(terminal_output.getvalue(), "Operation cancelled.\n")
 
 
 if __name__ == '__main__':

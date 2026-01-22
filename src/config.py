@@ -21,9 +21,7 @@ from .base import ANDROID_SDK_VERSION_T, Command, ValidationError
 from .config_builder import create_common_config_parser, PREDEFINED_PERFETTO_CONFIGS
 from .handle_input import HandleInput
 from .profiler import verify_trigger_args
-from .utils import run_subprocess
-
-TEXTPROTO_FILE_EXTENSIONS = [".txtpb", ".textproto", ".textpb", ".pbtxt"]
+from .utils import run_subprocess, TEXTPROTO_FILE_EXTENSIONS
 
 
 def add_config_parser(subparsers):
@@ -83,10 +81,10 @@ def verify_config_args(args):
       args.file_path = args.file_path.with_suffix(".txtpb")
     elif args.file_path.suffix not in TEXTPROTO_FILE_EXTENSIONS:
       return None, ValidationError(
-          ("File '%s' suffix '%s' is invalid." %
+          ("File '%s' has invalid file extension: '%s'." %
            (args.file_path.name, args.file_path.suffix)),
-          ("Provide a filename with a suffix that is one of [%s]." %
-           ", ".join(TEXTPROTO_FILE_EXTENSIONS)))
+          ("Provide a filename with one of the supported file extensions: [%s]."
+           % ", ".join(TEXTPROTO_FILE_EXTENSIONS)))
 
   if args.config_subcommand != "list":
     args.runs = 1
@@ -142,17 +140,17 @@ def execute_show_or_pull_command(command, device):
   if command.get_type() == "config pull":
     if command.file_path is None:
       command.file_path = Path("./" + command.config_name + ".txtpb")
-    if (command.file_path).exists() and not HandleInput(
+    if command.file_path.is_dir():
+      return ValidationError("File path '%s' is a directory.",
+                             "Provide a path to file.")
+    elif command.file_path.exists() and not HandleInput(
         ("The file '%s' exists. Would you like to overwrite it? [Y/n] " %
          command.file_path), "", {
              "y": lambda: True,
              "n": lambda: False
          }, "y").handle_input():
-      return ValidationError((
-          "File '%s' exists and user refused to overwrite it." %
-          command.file_path
-      ), ("Provide a filename that does not exist or allow the file to be overwritten."
-         ))
+      print("Operation cancelled.")
+      return None
     run_subprocess(("cat > %s %s" % (command.file_path, config)), shell=True)
     print("The config has been saved to '%s'." % command.file_path)
   else:
