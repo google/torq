@@ -23,7 +23,6 @@ from pathlib import Path
 from unittest import mock
 from src.base import ValidationError
 from src.config import PREDEFINED_PERFETTO_CONFIGS
-from src.device import AdbDevice
 from tests.test_utils import generate_mock_completed_process, run_cli
 
 TEST_ERROR_MSG = "test-error"
@@ -359,66 +358,60 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
 
   def setUp(self):
     self.maxDiff = None
-    self.mock_device = mock.create_autospec(
-        AdbDevice, instance=True, serial=TEST_SERIAL)
+    self.MockAdbDevice = mock.patch("src.torq.AdbDevice", autospec=True)
+    self.mock_device = self.MockAdbDevice.start().return_value
     self.mock_device.check_device_connection.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
 
-  def run_cli_with_mock_device(self, command_string):
-    run_cli(command_string, self.mock_device)
+    self.stdout_output = io.StringIO()
+    self.stderr_output = io.StringIO()
+    sys.stdout = self.stdout_output
+    sys.stderr = self.stderr_output
+
+  def tearDown(self):
+    self.MockAdbDevice.stop()
 
   def test_config_list(self):
-    terminal_output = io.StringIO()
-    sys.stdout = terminal_output
+    run_cli("torq config list")
 
-    error = self.run_cli_with_mock_device("torq config list")
-
-    self.assertEqual(error, None)
+    self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(
-        terminal_output.getvalue(),
+        self.stdout_output.getvalue(),
         ("%s\n" % "\n".join(list(PREDEFINED_PERFETTO_CONFIGS.keys()))))
 
   def test_config_show(self):
-    terminal_output = io.StringIO()
-    sys.stdout = terminal_output
+    run_cli("torq config show default")
 
-    error = self.run_cli_with_mock_device("torq config show default")
-
-    self.assertEqual(error, None)
-    self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
+    self.assertEqual(self.stderr_output.getvalue(), "")
+    self.assertEqual(self.stdout_output.getvalue(), TEST_DEFAULT_CONFIG)
 
   def test_config_show_no_device_connection(self):
     self.mock_device.check_device_connection.return_value = (
         TEST_VALIDATION_ERROR)
 
-    terminal_output = io.StringIO()
-    sys.stdout = terminal_output
+    run_cli("torq config show default")
 
-    error = self.run_cli_with_mock_device("torq config show default")
-
-    self.assertEqual(error, None)
-    self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
+    self.assertEqual(self.stderr_output.getvalue(), "")
+    self.assertEqual(self.stdout_output.getvalue(), TEST_DEFAULT_CONFIG)
 
   def test_config_show_old_android_version(self):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_S)
-    terminal_output = io.StringIO()
-    sys.stdout = terminal_output
 
-    error = self.run_cli_with_mock_device("torq config show default")
+    run_cli("torq config show default")
 
-    self.assertEqual(error, None)
-    self.assertEqual(terminal_output.getvalue(),
+    self.assertEqual(self.stderr_output.getvalue(), "")
+    self.assertEqual(self.stdout_output.getvalue(),
                      TEST_DEFAULT_CONFIG_OLD_ANDROID)
 
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull(self, mock_subprocess_run):
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    error = self.run_cli_with_mock_device("torq config pull default")
+    run_cli("torq config pull default")
 
-    self.assertEqual(error, None)
+    self.assertEqual(self.stderr_output.getvalue(), "")
 
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull_no_device_connection(self, mock_subprocess_run):
@@ -426,9 +419,9 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
         TEST_VALIDATION_ERROR)
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    error = self.run_cli_with_mock_device("torq config pull default")
+    run_cli("torq config pull default")
 
-    self.assertEqual(error, None)
+    self.assertEqual(self.stderr_output.getvalue(), "")
 
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull_old_android_version(self, mock_subprocess_run):
@@ -436,9 +429,9 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
         ANDROID_SDK_VERSION_S)
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    error = self.run_cli_with_mock_device("torq config pull default")
+    run_cli("torq config pull default")
 
-    self.assertEqual(error, None)
+    self.assertEqual(self.stderr_output.getvalue(), "")
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
@@ -447,39 +440,32 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     mock_input.return_value = "y"
     mock_exists.return_value = True
 
-    error = self.run_cli_with_mock_device(
-        "torq config pull default config.txtpb")
+    run_cli("torq config pull default config.txtpb")
 
-    self.assertEqual(error, None)
+    self.assertEqual(self.stderr_output.getvalue(), "")
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
   def test_config_pull_not_overwriting_existing_filepath(
       self, mock_input, mock_exists):
-    terminal_output = io.StringIO()
-    sys.stdout = terminal_output
     mock_input.return_value = "n"
     mock_exists.return_value = True
 
-    error = self.run_cli_with_mock_device(
-        "torq config pull default config.txtpb")
+    run_cli("torq config pull default config.txtpb")
 
-    self.assertEqual(error, None)
-    self.assertEqual(terminal_output.getvalue(), "Operation cancelled.\n")
+    self.assertEqual(self.stderr_output.getvalue(), "")
+    self.assertEqual(self.stdout_output.getvalue(), "Operation cancelled.\n")
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(Path, "is_dir", autospec=True)
   def test_config_pull_existing_filepath_is_dir(self, mock_is_dir, mock_exists):
-    terminal_output = io.StringIO()
-    sys.stderr = terminal_output
     mock_is_dir.return_value = True
     mock_exists.return_value = True
 
-    error = self.run_cli_with_mock_device(
-        "torq config pull default config.txtpb")
+    run_cli("torq config pull default config.txtpb")
 
     self.assertEqual(
-        terminal_output.getvalue(),
+        self.stderr_output.getvalue(),
         "File path 'config.txtpb' is a directory.\nSuggestion:\n\tProvide a path to a file.\n"
     )
 
