@@ -365,8 +365,8 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
 
-  def run_cli_with_mock_device(self, command):
-    run_cli(command, self.mock_device)
+  def run_cli_with_mock_device(self, command_string):
+    run_cli(command_string, self.mock_device)
 
   def test_config_list(self):
     terminal_output = io.StringIO()
