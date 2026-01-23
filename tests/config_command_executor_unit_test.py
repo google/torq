@@ -472,6 +472,18 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(error, None)
     self.assertEqual(terminal_output.getvalue(), "Operation cancelled.\n")
 
+  @mock.patch.object(Path, "is_dir", autospec=True)
+  @mock.patch.object(Path, "exists", autospec=True)
+  def test_config_pull_existing_filepath_is_dir(self, mock_exists, mock_is_dir):
+    mock_exists.return_value = True
+    mock_is_dir.return_value = True
+    args = parse_cli("torq config pull default config.txtpb")
+
+    error = execute_config_command(args, self.mock_device)
+
+    self.assertEqual(error.message, "File path 'config.txtpb' is a directory.")
+    self.assertEqual(error.suggestion, "Provide a path to a file.")
+
 
 if __name__ == '__main__':
   unittest.main()

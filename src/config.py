@@ -141,8 +141,9 @@ def execute_show_or_pull_command(command, device):
     if command.file_path is None:
       command.file_path = Path("./" + command.config_name + ".txtpb")
     if command.file_path.is_dir():
-      return ValidationError("File path '%s' is a directory.",
-                             "Provide a path to file.")
+      return ValidationError(
+          ("File path '%s' is a directory." % command.file_path),
+          "Provide a path to a file.")
     elif command.file_path.exists() and not HandleInput(
         ("The file '%s' exists. Would you like to overwrite it? [Y/n] " %
          command.file_path), "", {

@@ -16,6 +16,7 @@
 
 import unittest
 import os
+from pathlib import Path
 from unittest import mock
 
 from src.config import create_config_command
@@ -965,7 +966,7 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(error, None)
     self.assertEqual(args.file_path.name, "config.txtpb")
 
-  def test_verify_args_config_pull_invalid_custom_filepath(self):
+  def test_verify_args_config_pull_invalid_custom_filepath_suffix(self):
     args = parse_cli("torq config pull default config.badsuffix")
 
     args, error = verify_args(args)
