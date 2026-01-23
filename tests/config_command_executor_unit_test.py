@@ -22,9 +22,9 @@ import io
 from pathlib import Path
 from unittest import mock
 from src.base import ValidationError
-from src.config import execute_config_command, PREDEFINED_PERFETTO_CONFIGS
+from src.config import PREDEFINED_PERFETTO_CONFIGS
 from src.device import AdbDevice
-from tests.test_utils import generate_mock_completed_process, parse_cli, run_cli
+from tests.test_utils import generate_mock_completed_process, run_cli
 
 TEST_ERROR_MSG = "test-error"
 TEST_VALIDATION_ERROR = ValidationError(TEST_ERROR_MSG, None)
@@ -364,16 +364,15 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.check_device_connection.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
-    self.mock_path_exists = mock.create_autospec(Path.exists)
-    self.mock_path_exists.return_value = True
-    self.mock_path_is_dir = mock.create_autospec(Path.is_dir)
-    self.mock_path_is_dir.return_value = True
+
+  def run_cli_with_mock_device(self, command):
+    run_cli(command, self.mock_device)
 
   def test_config_list(self):
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
-    error = run_cli("torq config list", self.mock_device)
+    error = self.run_cli_with_mock_device("torq config list")
 
     self.assertEqual(error, None)
     self.assertEqual(
@@ -384,7 +383,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
-    error = run_cli("torq config show default", self.mock_device)
+    error = self.run_cli_with_mock_device("torq config show default")
 
     self.assertEqual(error, None)
     self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
@@ -396,7 +395,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
-    error = run_cli("torq config show default", self.mock_device)
+    error = self.run_cli_with_mock_device("torq config show default")
 
     self.assertEqual(error, None)
     self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
@@ -407,7 +406,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
-    error = run_cli("torq config show default", self.mock_device)
+    error = self.run_cli_with_mock_device("torq config show default")
 
     self.assertEqual(error, None)
     self.assertEqual(terminal_output.getvalue(),
@@ -417,7 +416,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
   def test_config_pull(self, mock_subprocess_run):
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    error = run_cli("torq config pull default", self.mock_device)
+    error = self.run_cli_with_mock_device("torq config pull default")
 
     self.assertEqual(error, None)
 
@@ -427,7 +426,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
         TEST_VALIDATION_ERROR)
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    error = run_cli("torq config pull default", self.mock_device)
+    error = self.run_cli_with_mock_device("torq config pull default")
 
     self.assertEqual(error, None)
 
@@ -437,23 +436,24 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
         ANDROID_SDK_VERSION_S)
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    error = run_cli("torq config pull default", self.mock_device)
+    error = self.run_cli_with_mock_device("torq config pull default")
 
     self.assertEqual(error, None)
 
   @mock.patch.object(Path, "exists", autospec=True)
-  @mock.patch.object(builtins, "input", autospec=True)
+  @mock.patch.object(builtins, "input")
   def test_config_pull_overwriting_existing_filepath(self, mock_input,
                                                      mock_exists):
     mock_input.return_value = "y"
     mock_exists.return_value = True
 
-    error = run_cli("torq config pull default config.txtpb", self.mock_device)
+    error = self.run_cli_with_mock_device(
+        "torq config pull default config.txtpb")
 
     self.assertEqual(error, None)
 
   @mock.patch.object(Path, "exists", autospec=True)
-  @mock.patch.object(builtins, "input", autospec=True)
+  @mock.patch.object(builtins, "input")
   def test_config_pull_not_overwriting_existing_filepath(
       self, mock_input, mock_exists):
     terminal_output = io.StringIO()
@@ -461,7 +461,8 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     mock_input.return_value = "n"
     mock_exists.return_value = True
 
-    error = run_cli("torq config pull default config.txtpb", self.mock_device)
+    error = self.run_cli_with_mock_device(
+        "torq config pull default config.txtpb")
 
     self.assertEqual(error, None)
     self.assertEqual(terminal_output.getvalue(), "Operation cancelled.\n")
@@ -474,7 +475,8 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     mock_is_dir.return_value = True
     mock_exists.return_value = True
 
-    error = run_cli("torq config pull default config.txtpb", self.mock_device)
+    error = self.run_cli_with_mock_device(
+        "torq config pull default config.txtpb")
 
     self.assertEqual(
         terminal_output.getvalue(),
