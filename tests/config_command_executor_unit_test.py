@@ -412,6 +412,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     run_cli("torq config pull default")
 
     self.assertEqual(self.stderr_output.getvalue(), "")
+    self.assertEqual(self.stdout_output.getvalue(), "The config has been saved to 'default.txtpb'.\n")
 
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull_no_device_connection(self, mock_subprocess_run):
@@ -422,6 +423,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     run_cli("torq config pull default")
 
     self.assertEqual(self.stderr_output.getvalue(), "")
+    self.assertEqual(self.stdout_output.getvalue(), "The config has been saved to 'default.txtpb'.\n")
 
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull_old_android_version(self, mock_subprocess_run):
@@ -432,6 +434,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     run_cli("torq config pull default")
 
     self.assertEqual(self.stderr_output.getvalue(), "")
+    self.assertEqual(self.stdout_output.getvalue(), "The config has been saved to 'default.txtpb'.\n")
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
@@ -443,6 +446,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     run_cli("torq config pull default config.txtpb")
 
     self.assertEqual(self.stderr_output.getvalue(), "")
+    self.assertEqual(self.stdout_output.getvalue(), "The config has been saved to 'config.txtpb'.\n")
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
