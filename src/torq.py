@@ -105,7 +105,7 @@ def print_error(error):
     print(f"Suggestion:\n\t{error.suggestion}", file=sys.stderr)
 
 
-def run(device=None):
+def run():
   parser, error = create_parser()
   if error is not None:
     print_error(error)
@@ -118,8 +118,7 @@ def run(device=None):
     print_error(error)
     return
   serial = args.serial[0] if args.serial else None
-  if not device:
-    device = AdbDevice(serial)
+  device = AdbDevice(serial)
   error = execute_command(args, device)
   if error is not None:
     print_error(error)
