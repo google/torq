@@ -22,9 +22,9 @@ import io
 from pathlib import Path
 from unittest import mock
 from src.base import ValidationError
-from src.config import ConfigCommand, execute_config_command, PREDEFINED_PERFETTO_CONFIGS
+from src.config import execute_config_command, PREDEFINED_PERFETTO_CONFIGS
 from src.device import AdbDevice
-from tests.test_utils import generate_mock_completed_process, parse_cli
+from tests.test_utils import generate_mock_completed_process, parse_cli, run_cli
 
 TEST_ERROR_MSG = "test-error"
 TEST_VALIDATION_ERROR = ValidationError(TEST_ERROR_MSG, None)
@@ -364,13 +364,16 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.check_device_connection.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
+    self.mock_path_exists = mock.create_autospec(Path.exists)
+    self.mock_path_exists.return_value = True
+    self.mock_path_is_dir = mock.create_autospec(Path.is_dir)
+    self.mock_path_is_dir.return_value = True
 
   def test_config_list(self):
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
-    args = parse_cli("torq config list")
-    error = execute_config_command(args, self.mock_device)
+    error = run_cli("torq config list", self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(
@@ -381,8 +384,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
-    args = parse_cli("torq config show default")
-    error = execute_config_command(args, self.mock_device)
+    error = run_cli("torq config show default", self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
@@ -394,8 +396,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
-    args = parse_cli("torq config show default")
-    error = execute_config_command(args, self.mock_device)
+    error = run_cli("torq config show default", self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(terminal_output.getvalue(), TEST_DEFAULT_CONFIG)
@@ -406,8 +407,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
-    args = parse_cli("torq config show default")
-    error = execute_config_command(args, self.mock_device)
+    error = run_cli("torq config show default", self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(terminal_output.getvalue(),
@@ -417,8 +417,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
   def test_config_pull(self, mock_subprocess_run):
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    args = parse_cli("torq config pull default")
-    error = execute_config_command(args, self.mock_device)
+    error = run_cli("torq config pull default", self.mock_device)
 
     self.assertEqual(error, None)
 
@@ -428,8 +427,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
         TEST_VALIDATION_ERROR)
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    args = parse_cli("torq config pull default")
-    error = execute_config_command(args, self.mock_device)
+    error = run_cli("torq config pull default", self.mock_device)
 
     self.assertEqual(error, None)
 
@@ -439,50 +437,49 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
         ANDROID_SDK_VERSION_S)
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    args = parse_cli("torq config pull default")
-    error = execute_config_command(args, self.mock_device)
+    error = run_cli("torq config pull default", self.mock_device)
 
     self.assertEqual(error, None)
 
   @mock.patch.object(Path, "exists", autospec=True)
-  @mock.patch.object(builtins, "input")
+  @mock.patch.object(builtins, "input", autospec=True)
   def test_config_pull_overwriting_existing_filepath(self, mock_input,
                                                      mock_exists):
     mock_input.return_value = "y"
     mock_exists.return_value = True
-    args = parse_cli("torq config pull default config.txtpb")
 
-    error = execute_config_command(args, self.mock_device)
+    error = run_cli("torq config pull default config.txtpb", self.mock_device)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path.name, "config.txtpb")
 
   @mock.patch.object(Path, "exists", autospec=True)
-  @mock.patch.object(builtins, "input")
+  @mock.patch.object(builtins, "input", autospec=True)
   def test_config_pull_not_overwriting_existing_filepath(
       self, mock_input, mock_exists):
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
     mock_input.return_value = "n"
     mock_exists.return_value = True
-    args = parse_cli("torq config pull default config.txtpb")
 
-    error = execute_config_command(args, self.mock_device)
+    error = run_cli("torq config pull default config.txtpb", self.mock_device)
 
     self.assertEqual(error, None)
     self.assertEqual(terminal_output.getvalue(), "Operation cancelled.\n")
 
-  @mock.patch.object(Path, "is_dir", autospec=True)
   @mock.patch.object(Path, "exists", autospec=True)
-  def test_config_pull_existing_filepath_is_dir(self, mock_exists, mock_is_dir):
-    mock_exists.return_value = True
+  @mock.patch.object(Path, "is_dir", autospec=True)
+  def test_config_pull_existing_filepath_is_dir(self, mock_is_dir, mock_exists):
+    terminal_output = io.StringIO()
+    sys.stderr = terminal_output
     mock_is_dir.return_value = True
-    args = parse_cli("torq config pull default config.txtpb")
+    mock_exists.return_value = True
 
-    error = execute_config_command(args, self.mock_device)
+    error = run_cli("torq config pull default config.txtpb", self.mock_device)
 
-    self.assertEqual(error.message, "File path 'config.txtpb' is a directory.")
-    self.assertEqual(error.suggestion, "Provide a path to a file.")
+    self.assertEqual(
+        terminal_output.getvalue(),
+        "File path 'config.txtpb' is a directory.\nSuggestion:\n\tProvide a path to a file.\n"
+    )
 
 
 if __name__ == '__main__':

@@ -67,9 +67,9 @@ def parse_cli(command_string):
   return parser.parse_args()
 
 
-def run_cli(command_string):
+def run_cli(command_string, mock_device=None):
   sys.argv = command_string.split()
-  run()
+  run(mock_device)
 
 
 def generate_mock_completed_process(stdout_string=b'\n',

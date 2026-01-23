@@ -76,8 +76,10 @@ def verify_config_args(args):
                                      "\t torq config show\n"
                                      "\t torq config pull\n"))
 
-  if args.config_subcommand == "pull" and args.file_path:
-    if not args.file_path.suffix:
+  if args.config_subcommand == "pull":
+    if args.file_path is None:
+      args.file_path = Path("./" + args.config_name + ".txtpb")
+    elif not args.file_path.suffix:
       args.file_path = args.file_path.with_suffix(".txtpb")
     elif args.file_path.suffix not in TEXTPROTO_FILE_EXTENSIONS:
       return None, ValidationError(
@@ -85,6 +87,10 @@ def verify_config_args(args):
            (args.file_path.name, args.file_path.suffix)),
           ("Provide a filename with one of the supported file extensions: [%s]."
            % ", ".join(TEXTPROTO_FILE_EXTENSIONS)))
+    if args.file_path.is_dir():
+      return None, ValidationError(
+          ("File path '%s' is a directory." % args.file_path),
+          "Provide a path to a file.")
 
   if args.config_subcommand != "list":
     args.runs = 1
@@ -138,13 +144,7 @@ def execute_show_or_pull_command(command, device):
     return error
 
   if command.get_type() == "config pull":
-    if command.file_path is None:
-      command.file_path = Path("./" + command.config_name + ".txtpb")
-    if command.file_path.is_dir():
-      return ValidationError(
-          ("File path '%s' is a directory." % command.file_path),
-          "Provide a path to a file.")
-    elif command.file_path.exists() and not HandleInput(
+    if command.file_path.exists() and not HandleInput(
         ("The file '%s' exists. Would you like to overwrite it? [Y/n] " %
          command.file_path), "", {
              "y": lambda: True,

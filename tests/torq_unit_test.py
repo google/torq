@@ -933,21 +933,21 @@ class TorqUnitTest(unittest.TestCase):
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, None)
+    self.assertEqual(args.file_path.name, "default.txtpb")
 
     args = parse_cli("torq config pull lightweight")
 
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, None)
+    self.assertEqual(args.file_path.name, "lightweight.txtpb")
 
     args = parse_cli("torq config pull memory")
 
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, None)
+    self.assertEqual(args.file_path.name, "memory.txtpb")
 
   def test_verify_args_config_pull_valid_custom_filepath(self):
     args = parse_cli("torq config pull default config.txtpb")
