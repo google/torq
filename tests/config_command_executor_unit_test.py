@@ -469,10 +469,8 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
-  @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull_not_overwriting_existing_filepath(
-      self, mock_subprocess_run, mock_input, mock_exists):
-    mock_subprocess_run.return_value = generate_mock_completed_process()
+      self, mock_input, mock_exists):
     mock_input.return_value = "n"
     mock_exists.return_value = True
 
@@ -498,6 +496,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
   def test_config_pull_custom_filepath_with_no_suffix(self,
                                                       mock_subprocess_run):
     mock_subprocess_run.return_value = generate_mock_completed_process()
+
     run_cli("torq config pull default config")
 
     self.assertEqual(self.stderr_output.getvalue(), "")
