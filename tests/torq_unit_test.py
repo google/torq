@@ -24,7 +24,6 @@ from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR,
                           DEFAULT_TRIGGER_STOP_DELAY_MS, MIN_STOP_DELAY_MS,
                           MIN_DURATION_MS)
 from src.torq import verify_args
-from src.utils import TEXTPROTO_FILE_EXTENSIONS
 from tests.test_utils import (create_parser_from_cli, parameterized, parse_cli,
                               parameterized_config_builder)
 
@@ -956,27 +955,6 @@ class TorqUnitTest(unittest.TestCase):
 
     self.assertEqual(error, None)
     self.assertEqual(args.file_path.name, "config.txtpb")
-
-  def test_verify_args_config_pull_custom_filepath_with_no_suffix(self):
-    args = parse_cli("torq config pull default config")
-
-    args, error = verify_args(args)
-
-    self.assertEqual(error, None)
-    self.assertEqual(args.file_path.name, "config.txtpb")
-
-  def test_verify_args_config_pull_invalid_custom_filepath_suffix(self):
-    args = parse_cli("torq config pull default config.badsuffix")
-
-    args, error = verify_args(args)
-
-    self.assertEqual(
-        error.message,
-        ("File 'config.badsuffix' has invalid file extension: '.badsuffix'."))
-    self.assertEqual(
-        error.suggestion,
-        ("Provide a filename with one of the supported file extensions: [%s]." %
-         ", ".join(TEXTPROTO_FILE_EXTENSIONS)))
 
   @parameterized(["list", "pull", "show"])
   def test_get_command_config_builder(self, config_subcommand):

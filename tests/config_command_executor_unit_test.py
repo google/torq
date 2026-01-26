@@ -441,21 +441,40 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
-  def test_config_pull_overwriting_existing_filepath(self, mock_input,
-                                                     mock_exists):
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_config_pull_nonexistent_filepath(self, mock_subprocess_run,
+                                            mock_input, mock_exists):
+    mock_subprocess_run.return_value = generate_mock_completed_process()
     mock_input.return_value = "y"
-    mock_exists.return_value = True
+    mock_exists.return_value = False
 
-    run_cli("torq config pull default config.txtpb")
+    run_cli("torq config pull default new_config.txtpb")
 
     self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(self.stdout_output.getvalue(),
-                     "The config has been saved to 'config.txtpb'.\n")
+                     "The config has been saved to 'new_config.txtpb'.\n")
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_config_pull_overwriting_existing_filepath(self, mock_subprocess_run,
+                                                     mock_input, mock_exists):
+    mock_subprocess_run.return_value = generate_mock_completed_process()
+    mock_input.return_value = "y"
+    mock_exists.return_value = True
+
+    run_cli("torq config pull default ~/torq/config.txtpb")
+
+    self.assertEqual(self.stderr_output.getvalue(), "")
+    self.assertEqual(self.stdout_output.getvalue(),
+                     "The config has been saved to '~/torq/config.txtpb'.\n")
+
+  @mock.patch.object(Path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull_not_overwriting_existing_filepath(
-      self, mock_input, mock_exists):
+      self, mock_subprocess_run, mock_input, mock_exists):
+    mock_subprocess_run.return_value = generate_mock_completed_process()
     mock_input.return_value = "n"
     mock_exists.return_value = True
 
@@ -476,6 +495,25 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
         self.stderr_output.getvalue(),
         "File path 'config.txtpb' is a directory.\nSuggestion:\n\tProvide a path to a file.\n"
     )
+
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_config_pull_custom_filepath_with_no_suffix(self,
+                                                      mock_subprocess_run):
+    mock_subprocess_run.return_value = generate_mock_completed_process()
+    run_cli("torq config pull default config")
+
+    self.assertEqual(self.stderr_output.getvalue(), "")
+    self.assertEqual(self.stdout_output.getvalue(),
+                     "The config has been saved to 'config.txtpb'.\n")
+
+  def test_config_pull_invalid_custom_filepath_suffix(self):
+    run_cli("torq config pull default config.badsuffix")
+
+    self.assertEqual(
+        self.stderr_output.getvalue(),
+        "File 'config.badsuffix' has invalid file extension: '.badsuffix'.\nSuggestion:"
+        "\n\tProvide a filename with one of the supported file extensions: "
+        "[.txtpb, .textproto, .textpb, .pbtxt].\n")
 
 
 if __name__ == '__main__':
