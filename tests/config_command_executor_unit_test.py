@@ -461,11 +461,11 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     mock_input.return_value = "y"
     mock_exists.return_value = True
 
-    run_cli("torq config pull default ~/torq/config.txtpb")
+    run_cli("torq config pull default config.txtpb")
 
     self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(self.stdout_output.getvalue(),
-                     "The config has been saved to '~/torq/config.txtpb'.\n")
+                     "The config has been saved to 'config.txtpb'.\n")
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
