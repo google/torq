@@ -440,12 +440,10 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
                      "The config has been saved to 'default.txtpb'.\n")
 
   @mock.patch.object(Path, "exists", autospec=True)
-  @mock.patch.object(builtins, "input")
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull_nonexistent_filepath(self, mock_subprocess_run,
-                                            mock_input, mock_exists):
+                                            mock_exists):
     mock_subprocess_run.return_value = generate_mock_completed_process()
-    mock_input.return_value = "y"
     mock_exists.return_value = False
 
     run_cli("torq config pull default new_config.txtpb")
