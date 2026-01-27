@@ -21,7 +21,7 @@ import sys
 import time
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import print_error, run_subprocess, ShellExitCodes
+from .utils import run_subprocess, ShellExitCodes
 
 ADB_ROOT_TIMED_OUT_LIMIT_SECS = 5
 ADB_BOOT_COMPLETED_TIMED_OUT_LIMIT_SECS = 30
@@ -39,18 +39,13 @@ class AdbDevice:
     self.serial = serial
 
   @staticmethod
-  def check_adb_exists():
-    if run_subprocess(
-        "adb",
+  def adb_exists():
+    return not run_subprocess(
+        "which adb",
         capture_output=True,
         shell=True,
-        ignore_returncodes=[
-            ShellExitCodes.EX_FAILURE, ShellExitCodes.EX_NOTFOUND
-        ]).returncode == ShellExitCodes.EX_NOTFOUND:
-      print_error(
-          ValidationError(
-              "adb could not be found on the host device. Terminating.", None))
-      sys.exit(1)
+        ignore_returncodes=[ShellExitCodes.EX_FAILURE
+                           ]).returncode == ShellExitCodes.EX_FAILURE
 
   @staticmethod
   def get_adb_devices():
@@ -73,7 +68,8 @@ class AdbDevice:
     return devices
 
   def check_device_connection(self):
-    self.check_adb_exists()
+    if not self.adb_exists():
+      return ValidationError("adb could not be found on the host device.", None)
     devices = self.get_adb_devices()
     if len(devices) == 0:
       return ValidationError("There are currently no devices connected.", None)
