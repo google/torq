@@ -218,3 +218,9 @@ class UniqueStore(argparse.Action):
     if getattr(namespace, self.dest, self.default) is not self.default:
       parser.error(option_string + " can only be specified once")
     setattr(namespace, self.dest, values)
+
+
+def print_error(error):
+  print(error.message, file=sys.stderr)
+  if error.suggestion is not None:
+    print(f"Suggestion:\n\t{error.suggestion}", file=sys.stderr)

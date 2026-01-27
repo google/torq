@@ -25,7 +25,7 @@ from .profiler import (add_profiler_parser, execute_profiler_command,
                        verify_profiler_args)
 from .trigger import (add_trigger_parser, execute_trigger_command,
                       verify_trigger_args)
-from .utils import set_default_subparser
+from .utils import print_error, set_default_subparser
 from .vm import add_vm_parser, execute_vm_command, verify_vm_args
 
 # Add default parser capability to argparse
@@ -97,12 +97,6 @@ def verify_args(args):
 
 def execute_command(args, device):
   return TORQ_COMMANDS[args.subcommands]['execute'](args, device)
-
-
-def print_error(error):
-  print(error.message, file=sys.stderr)
-  if error.suggestion is not None:
-    print(f"Suggestion:\n\t{error.suggestion}", file=sys.stderr)
 
 
 def run():
