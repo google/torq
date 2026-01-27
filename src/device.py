@@ -68,7 +68,7 @@ class AdbDevice:
     return devices
 
   def check_device_connection(self):
-    if not self.adb_exists():
+    if not AdbDevice.adb_exists():
       return ValidationError("adb could not be found on the host device.", None)
     devices = self.get_adb_devices()
     if len(devices) == 0:
