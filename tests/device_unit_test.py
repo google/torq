@@ -929,7 +929,7 @@ class DeviceUnitTest(unittest.TestCase):
         generate_mock_completed_process(
             returncode=ShellExitCodes.EX_NOTFOUND.value))
     adbDevice = AdbDevice(TEST_DEVICE_SERIAL)
-    
+
     with self.assertRaises(SystemExit) as e:
       adbDevice.check_adb_exists()
 
