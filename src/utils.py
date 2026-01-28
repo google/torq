@@ -66,6 +66,16 @@ def are_mutually_exclusive(*args):
   return cnt == 0 or cnt == 1
 
 
+def poll_is_task_completed(timed_out_limit, interval, check_is_completed):
+  start_time = time.time()
+  while True:
+    time.sleep(interval)
+    if check_is_completed():
+      return True
+    if time.time() - start_time > timed_out_limit:
+      return False
+
+
 def convert_simpleperf_to_gecko(scripts_path, host_raw_trace_filename,
                                 host_gecko_trace_filename, symbols):
   expanded_symbols = os.path.expanduser(symbols)

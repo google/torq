@@ -14,14 +14,16 @@
 # limitations under the License.
 #
 
+import enum
 import math
 import os
 import subprocess
 import sys
 import time
+from abc import ABC, abstractmethod
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import run_subprocess, ShellExitCodes
+from .utils import poll_is_task_completed, run_subprocess, ShellExitCodes
 
 ADB_ROOT_TIMED_OUT_LIMIT_SECS = 5
 ADB_BOOT_COMPLETED_TIMED_OUT_LIMIT_SECS = 30
@@ -29,7 +31,59 @@ POLLING_INTERVAL_SECS = 0.5
 SIMPLEPERF_TRACE_FILE = "/tmp/simpleperf-traces/perf.data"
 
 
-class AdbDevice:
+@enum.unique
+class OSCodes(enum.IntEnum):
+  OS_UNKNOWN = 0
+  OS_ANDROID = 1
+
+
+class Device(ABC):
+  """
+  Abstract base class representing a device
+  """
+
+  @abstractmethod
+  def os(self):
+    raise NotImplementedError
+
+  @abstractmethod
+  def root_device(self):
+    raise NotImplementedError
+
+  @abstractmethod
+  def check_device_connection(self):
+    raise NotImplementedError
+
+  @abstractmethod
+  def send_signal(self, process_name, signal):
+    raise NotImplementedError
+
+  @abstractmethod
+  def kill_process(self, process_name):
+    raise NotImplementedError
+
+  @abstractmethod
+  def pull_file(self, filepath):
+    raise NotImplementedError
+
+  @abstractmethod
+  def remove_file(self, filepath):
+    raise NotImplementedError
+
+  @abstractmethod
+  def is_process_running(self, process_name):
+    raise NotImplementedError
+
+  @abstractmethod
+  def get_current_user(self):
+    raise NotImplementedError
+
+  @abstractmethod
+  def start_perfetto_trace(self, config):
+    raise NotImplementedError
+
+
+class AdbDevice(Device):
   """
   Class representing a device. APIs interact with the current device through
   the adb bridge.
@@ -68,6 +122,9 @@ class AdbDevice:
       if words_in_line[1] == "device":
         devices.append(words_in_line[0])
     return devices
+
+  def os(self):
+    return OSCodes.OS_ANDROID
 
   def check_device_connection(self):
     if not AdbDevice.adb_exists():
@@ -113,29 +170,18 @@ class AdbDevice:
       self.serial = chosen_serial
     return None
 
-  @staticmethod
-  def poll_is_task_completed(timed_out_limit, interval, check_is_completed):
-    start_time = time.time()
-    while True:
-      time.sleep(interval)
-      if check_is_completed():
-        return True
-      if time.time() - start_time > timed_out_limit:
-        return False
-
   def root_device(self):
     run_subprocess(["adb", "-s", self.serial, "root"])
-    if not self.poll_is_task_completed(
+    if not poll_is_task_completed(
         ADB_ROOT_TIMED_OUT_LIMIT_SECS, POLLING_INTERVAL_SECS,
         lambda: self.serial in self.get_adb_devices()):
       raise Exception(("Device with serial %s took too long to reconnect after"
                        " being rooted." % self.serial))
 
-  def remove_file(self, file_path):
-    output = run_subprocess(
-        ["adb", "-s", self.serial, "shell", "rm", file_path],
-        capture_output=True,
-        ignore_returncodes=[ShellExitCodes.EX_FAILURE])
+  def remove_file(self, filepath):
+    output = run_subprocess(["adb", "-s", self.serial, "shell", "rm", filepath],
+                            capture_output=True,
+                            ignore_returncodes=[ShellExitCodes.EX_FAILURE])
     return not output.returncode
 
   def file_exists(self, file):
@@ -167,9 +213,9 @@ class AdbDevice:
          (self.serial, duration, events_param, SIMPLEPERF_TRACE_FILE)),
         shell=True)
 
-  def pull_file(self, file_path, host_file):
+  def pull_file(self, filepath, host_file):
     output = run_subprocess(
-        ["adb", "-s", self.serial, "pull", file_path, host_file],
+        ["adb", "-s", self.serial, "pull", filepath, host_file],
         capture_output=True,
         ignore_returncodes=[ShellExitCodes.EX_FAILURE])
     return not output.returncode
@@ -217,7 +263,7 @@ class AdbDevice:
 
   def reboot(self):
     run_subprocess(["adb", "-s", self.serial, "reboot"])
-    if not self.poll_is_task_completed(
+    if not poll_is_task_completed(
         ADB_ROOT_TIMED_OUT_LIMIT_SECS, POLLING_INTERVAL_SECS,
         lambda: self.serial not in self.get_adb_devices()):
       raise Exception(("Device with serial %s took too long to start"
@@ -233,9 +279,9 @@ class AdbDevice:
     return command_output.stdout.decode("utf-8").strip() == "1"
 
   def wait_for_boot_to_complete(self):
-    if not self.poll_is_task_completed(ADB_BOOT_COMPLETED_TIMED_OUT_LIMIT_SECS,
-                                       POLLING_INTERVAL_SECS,
-                                       self.is_boot_completed):
+    if not poll_is_task_completed(ADB_BOOT_COMPLETED_TIMED_OUT_LIMIT_SECS,
+                                  POLLING_INTERVAL_SECS,
+                                  self.is_boot_completed):
       raise Exception(("Device with serial %s took too long to finish"
                        " rebooting." % self.serial))
 
@@ -246,16 +292,16 @@ class AdbDevice:
             capture_output=True).stdout.decode("utf-8").splitlines()
     ]
 
-  def get_pid(self, package):
+  def get_pid(self, process_name):
     return run_subprocess(
-        "adb -s %s shell pidof %s" % (self.serial, package),
+        "adb -s %s shell pidof %s" % (self.serial, process_name),
         shell=True,
         capture_output=True,
         ignore_returncodes=[ShellExitCodes.EX_FAILURE
                            ]).stdout.decode("utf-8").split("\n")[0]
 
-  def is_package_running(self, package):
-    return self.get_pid(package) != ""
+  def is_process_running(self, process_name):
+    return self.get_pid(process_name) != ""
 
   def start_package(self, package):
     if run_subprocess(
