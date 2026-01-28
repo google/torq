@@ -927,7 +927,7 @@ class DeviceUnitTest(unittest.TestCase):
   def test_adb_exists(self, mock_subprocess_run):
     mock_subprocess_run.return_value = (
         generate_mock_completed_process(
-            returncode=ShellExitCodes.EX_FAILURE.value))
+            returncode=ShellExitCodes.EX_NOTFOUND.value))
     adbDevice = AdbDevice(TEST_DEVICE_SERIAL)
 
     self.assertFalse(adbDevice.adb_exists())

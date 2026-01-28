@@ -40,12 +40,14 @@ class AdbDevice:
 
   @staticmethod
   def adb_exists():
+    # adb returns 1 when it runs, so ignore this error code.
     return not run_subprocess(
-        "which adb",
+        "adb",
         capture_output=True,
         shell=True,
-        ignore_returncodes=[ShellExitCodes.EX_FAILURE
-                           ]).returncode == ShellExitCodes.EX_FAILURE
+        ignore_returncodes=[
+            ShellExitCodes.EX_FAILURE, ShellExitCodes.EX_NOTFOUND
+        ]).returncode == ShellExitCodes.EX_NOTFOUND
 
   @staticmethod
   def get_adb_devices():
