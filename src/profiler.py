@@ -26,7 +26,7 @@ from .config_builder import (build_custom_config, create_common_config_parser,
 from .device import SIMPLEPERF_TRACE_FILE, POLLING_INTERVAL_SECS
 from .handle_input import HandleInput
 from .open_ui_utils import open_trace, WEB_UI_ADDRESS
-from .utils import convert_simpleperf_to_gecko
+from .utils import convert_simpleperf_to_gecko, poll_is_task_completed
 from .validate_simpleperf import verify_simpleperf_args
 
 DEFAULT_DUR_MS = 10000
@@ -497,7 +497,7 @@ class ProfilerCommand(Command):
           ("Select from one of the following packages on"
            " device with serial %s: \n\t %s" % (device.serial,
                                                 (",\n\t ".join(packages)))))
-    if device.is_package_running(self.app):
+    if device.is_process_running(self.app):
       return ValidationError(("Package %s is already running on device with"
                               " serial %s." % (self.app, device.serial)),
                              ("Run 'adb -s %s shell am force-stop %s' to close"
@@ -603,7 +603,7 @@ class ProfilerCommandExecutor(CommandExecutor):
       self.stop_process(device, command.profiler)
       return error
     self.wait_for_trace(command, device, process)
-    if device.is_package_running(command.profiler):
+    if device.is_process_running(command.profiler):
       print("\nTrace interrupted.")
       self.stop_process(device, command.profiler)
     return None
@@ -652,9 +652,9 @@ class ProfilerCommandExecutor(CommandExecutor):
       # Simpleperf does post-processing, need to wait until the package stops
       # running
       print("Doing post-processing.")
-      if not device.poll_is_task_completed(
+      if not poll_is_task_completed(
           SIMPLEPERF_STOP_TIMEOUT_SECS, POLLING_INTERVAL_SECS,
-          lambda: not device.is_package_running(name)):
+          lambda: not device.is_process_running(name)):
         raise Exception("Simpleperf post-processing took too long.")
     else:
       device.kill_process(name)
@@ -674,7 +674,7 @@ class UserSwitchCommandExecutor(ProfilerCommandExecutor):
       print("Switching from the current user, %s, to the from-user, %s." %
             (current_user, command.from_user))
       device.perform_user_switch(command.from_user)
-      if not device.poll_is_task_completed(
+      if not poll_is_task_completed(
           MAX_WAIT_FOR_INIT_USER_SWITCH_SECS, POLLING_INTERVAL_SECS,
           lambda: device.get_current_user() == command.from_user):
         raise Exception(
@@ -714,7 +714,7 @@ class BootCommandExecutor(ProfilerCommandExecutor):
       print("Tracing. Press CTRL+C to end.")
     device.wait_for_boot_to_complete()
     self.wait_for_trace(command, device, None)
-    if device.is_package_running(command.profiler):
+    if device.is_process_running(command.profiler):
       print("Trace interrupted.")
       self.stop_process(device, command.profiler)
     return None
@@ -733,7 +733,7 @@ class BootCommandExecutor(ProfilerCommandExecutor):
       device.pull_file(PERFETTO_BOOT_TRACE_FILE, host_raw_trace_filename)
 
   def is_trace_cancelled(self, profiler, device, process):
-    return not device.is_package_running(profiler) or self.trace_cancelled
+    return not device.is_process_running(profiler) or self.trace_cancelled
 
 
 class AppStartupCommandExecutor(ProfilerCommandExecutor):

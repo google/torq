@@ -64,9 +64,13 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_sleep_patcher = mock.patch.object(
         time, 'sleep', return_value=None)
     self.mock_sleep_patcher.start()
+    self.mock_poll_patcher = mock.patch(
+        'src.profiler.poll_is_task_completed', return_value=True)
+    self.mock_poll_patcher.start()
 
   def tearDown(self):
     self.mock_sleep_patcher.stop()
+    self.mock_poll_patcher.stop()
 
   @parameterized_profiler(setup_func=setUpSubtest)
   @mock.patch.object(subprocess, "run", autospec=True)
@@ -351,6 +355,12 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
         ANDROID_SDK_VERSION_T)
     self.mock_device.get_current_user.side_effect = lambda: self.current_user
     self.mock_device.create_directory.return_value = None
+    self.mock_poll_patcher = mock.patch(
+        'src.profiler.poll_is_task_completed', return_value=True)
+    self.mock_poll_patcher.start()
+
+  def tearDown(self):
+    self.mock_poll_patcher.stop()
 
   @parameterized_profiler(setup_func=setUpSubtest)
   @mock.patch.object(subprocess, "run", autospec=True)
@@ -514,9 +524,15 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device = mock.create_autospec(
         AdbDevice, instance=True, serial=TEST_SERIAL)
     self.mock_device.check_device_connection.return_value = None
-    self.mock_device.is_package_running.return_value = False
+    self.mock_device.is_process_running.return_value = False
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
+    self.mock_poll_patcher = mock.patch(
+        'src.profiler.poll_is_task_completed', return_value=True)
+    self.mock_poll_patcher.start()
+
+  def tearDown(self):
+    self.mock_poll_patcher.stop()
 
   def test_execute_reboot_success(self):
     error = self.executor.execute(self.command, self.mock_device)
@@ -643,16 +659,20 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_packages.return_value = [
         TEST_PACKAGE_1, TEST_PACKAGE_2
     ]
-    self.mock_device.is_package_running.return_value = False
+    self.mock_device.is_process_running.return_value = False
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.create_directory.return_value = None
     self.mock_sleep_patcher = mock.patch.object(
         time, 'sleep', return_value=None)
     self.mock_sleep_patcher.start()
+    self.mock_poll_patcher = mock.patch(
+        'src.profiler.poll_is_task_completed', return_value=True)
+    self.mock_poll_patcher.start()
 
   def tearDown(self):
     self.mock_sleep_patcher.stop()
+    self.mock_poll_patcher.stop()
 
   @parameterized_profiler(setup_func=setUpSubtest)
   @mock.patch.object(subprocess, "run", autospec=True)
@@ -714,7 +734,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
 
   @parameterized_profiler(setup_func=setUpSubtest)
   def test_package_is_running_failure(self, profiler):
-    self.mock_device.is_package_running.return_value = True
+    self.mock_device.is_process_running.return_value = True
 
     error = self.executor.execute(self.command, self.mock_device)
 
