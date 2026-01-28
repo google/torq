@@ -127,6 +127,7 @@ class AdbDevice(Device):
     return OSCodes.OS_ANDROID
 
   def check_device_connection(self):
+    devices = AdbDevice.get_adb_devices()
     if not AdbDevice.adb_exists():
       return ValidationError("adb could not be found on the host device.", None)
     devices = self.get_adb_devices()
@@ -174,7 +175,7 @@ class AdbDevice(Device):
     run_subprocess(["adb", "-s", self.serial, "root"])
     if not poll_is_task_completed(
         ADB_ROOT_TIMED_OUT_LIMIT_SECS, POLLING_INTERVAL_SECS,
-        lambda: self.serial in self.get_adb_devices()):
+        lambda: self.serial in AdbDevice.get_adb_devices()):
       raise Exception(("Device with serial %s took too long to reconnect after"
                        " being rooted." % self.serial))
 
@@ -265,7 +266,7 @@ class AdbDevice(Device):
     run_subprocess(["adb", "-s", self.serial, "reboot"])
     if not poll_is_task_completed(
         ADB_ROOT_TIMED_OUT_LIMIT_SECS, POLLING_INTERVAL_SECS,
-        lambda: self.serial not in self.get_adb_devices()):
+        lambda: self.serial not in AdbDevice.get_adb_devices()):
       raise Exception(("Device with serial %s took too long to start"
                        " rebooting." % self.serial))
 

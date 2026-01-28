@@ -454,7 +454,7 @@ class ProfilerCommand(Command):
       case "user-switch":
         return self.validate_user_switch(device)
       case "boot":
-        return self.validate_boot(device)
+        return ProfilerCommand.validate_boot(device)
       case "app-startup":
         return self.validate_app_startup(device)
 
@@ -521,8 +521,8 @@ class ProfilerCommandExecutor(CommandExecutor):
     self.trace_cancelled = False
 
   def execute_command(self, command, device):
-    config, error = self.create_config(command,
-                                       device.get_android_sdk_version())
+    config, error = ProfilerCommandExecutor.create_config(
+        command, device.get_android_sdk_version())
     if error is not None:
       return error
     error = self.prepare_device(command, device, config)
