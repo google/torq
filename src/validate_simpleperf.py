@@ -96,10 +96,12 @@ def download_simpleperf_scripts():
                        "with the simpleperf directory. To use "
                        "simpleperf, torq will download simpleperf "
                        "scripts to '%s'. Are you ok with this download?"
-                       " [Y/N]: " % TORQ_TEMP_DIR), fail_suggestion, {
-                           "y": download_accepted_callback,
-                           "n": rejected_callback
-                       }).handle_input())
+                       " [Y/n]: " % TORQ_TEMP_DIR),
+                      fail_suggestion, {
+                          "y": download_accepted_callback,
+                          "n": rejected_callback
+                      },
+                      default_choice="y").handle_input())
 
 
 def temp_simpleperf_scripts_exist():

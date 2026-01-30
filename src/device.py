@@ -64,6 +64,10 @@ class Device(ABC):
     self.shell = shell
 
   @abstractmethod
+  def id(self):
+    raise NotImplementedError
+
+  @abstractmethod
   def os(self):
     raise NotImplementedError
 
@@ -107,6 +111,9 @@ class AdbDevice(Device):
   the adb bridge.
   """
 
+  def id(self):
+    return self.shell.id()
+
   def os(self):
     return OSCodes.OS_ANDROID
 
@@ -131,13 +138,12 @@ class AdbDevice(Device):
     return not output.returncode
 
   def start_perfetto_trace(self, config):
-    return self.shell.popen([
-        "shell", "perfetto", "-c", "-", "--txt", "-o",
-        "/data/misc/perfetto-traces/trace.perfetto-trace", config
-    ])
+    return self.shell.popen("shell perfetto -c - --txt -o "
+                            "/data/misc/perfetto-traces/trace.perfetto-trace " +
+                            config)
 
   def trigger_perfetto(self, trigger_name):
-    self.shell.run(["shell", "trigger_perfetto", trigger_name], shell=True)
+    self.shell.run(["shell", "trigger_perfetto", trigger_name])
 
   def start_simpleperf_trace(self, command):
     events_param = "-e " + ",".join(command.simpleperf_event)
@@ -183,8 +189,7 @@ class AdbDevice(Device):
     self.shell.run(["shell", "am", "switch-user", str(user)])
 
   def write_to_file(self, file_path, host_file_string):
-    self.shell.run(["shell", "'cat >", file_path, host_file_string, "'"],
-                   shell=True)
+    self.shell.run(["shell", f"cat > {file_path} {host_file_string}"])
 
   def set_prop(self, prop, value):
     self.shell.run(["shell", "setprop", prop, value])
@@ -225,7 +230,6 @@ class AdbDevice(Device):
 
   def get_pid(self, process_name):
     return self.shell.run(["shell", "pidof", process_name],
-                          shell=True,
                           capture_output=True,
                           ignore_returncodes=[
                               ShellExitCodes.EX_FAILURE

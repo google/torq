@@ -325,7 +325,7 @@ class DeviceUnitTest(unittest.TestCase):
     mock_subprocess_popen.return_value = mock.Mock()
     adbDevice = AdbDevice(AdbShell(TEST_DEVICE_SERIAL))
 
-    mock_process = adbDevice.start_perfetto_trace(None)
+    mock_process = adbDevice.start_perfetto_trace("")
 
     # No exception is expected to be thrown
     self.assertEqual(mock_process, mock_subprocess_popen.return_value)
@@ -336,7 +336,7 @@ class DeviceUnitTest(unittest.TestCase):
     adbDevice = AdbDevice(AdbShell(TEST_DEVICE_SERIAL))
 
     with self.assertRaises(Exception) as e:
-      adbDevice.start_perfetto_trace(None)
+      adbDevice.start_perfetto_trace("")
 
     self.assertEqual(str(e.exception), TEST_FAILURE_MSG)
 

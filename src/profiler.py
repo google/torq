@@ -473,7 +473,7 @@ class ProfilerCommand(Command):
       return ValidationError(
           "Cannot perform user-switch to user %s because"
           " the current user on device %s is already %s." %
-          (self.to_user, device.serial, self.from_user),
+          (self.to_user, device.id(), self.from_user),
           "Choose a --to-user ID that is different than"
           " the --from-user ID.")
     return None
@@ -493,23 +493,23 @@ class ProfilerCommand(Command):
     if self.app not in packages:
       return ValidationError(
           ("Package %s does not exist on device with serial"
-           " %s." % (self.app, device.serial)),
+           " %s." % (self.app, device.id())),
           ("Select from one of the following packages on"
-           " device with serial %s: \n\t %s" % (device.serial,
+           " device with serial %s: \n\t %s" % (device.id(),
                                                 (",\n\t ".join(packages)))))
     if device.is_process_running(self.app):
       return ValidationError(("Package %s is already running on device with"
-                              " serial %s." % (self.app, device.serial)),
+                              " serial %s." % (self.app, device.id())),
                              ("Run 'adb -s %s shell am force-stop %s' to close"
                               " the package %s before trying to start it." %
-                              (device.serial, self.app, self.app)))
+                              (device.id(), self.app, self.app)))
     return None
 
   def validate_trace_folder(self, device):
     if not device.file_exists(PERFETTO_DEVICE_FOLDER):
       return ValidationError(
           "%s folder does not exist on device with"
-          " serial %s." % (PERFETTO_DEVICE_FOLDER, device.serial),
+          " serial %s." % (PERFETTO_DEVICE_FOLDER, device.id()),
           "Make sure that your device has %s properly"
           " configured." % self.profiler.capitalize())
     return None
@@ -633,12 +633,18 @@ class ProfilerCommandExecutor(CommandExecutor):
         while device.pull_file(f"{PERFETTO_TRACE_FILE}.{i}",
                                f"{host_raw_trace_filename}.{i}"):
           i += 1
-      else:
-        device.pull_file(PERFETTO_TRACE_FILE, host_raw_trace_filename)
+      elif not device.pull_file(PERFETTO_TRACE_FILE, host_raw_trace_filename):
+        return ValidationError(
+            f"Failed to pull {PERFETTO_TRACE_FILE} from device {device.id()}",
+            None)
     else:
-      device.pull_file(SIMPLEPERF_TRACE_FILE, host_raw_trace_filename)
+      if not device.pull_file(SIMPLEPERF_TRACE_FILE, host_raw_trace_filename):
+        return ValidationError(
+            f"Failed to pull {SIMPLEPERF_TRACE_FILE} from device {device.id()}",
+            None)
       convert_simpleperf_to_gecko(command.scripts_path, host_raw_trace_filename,
                                   host_gecko_trace_filename, command.symbols)
+    return None
 
   def cleanup(self, command, device):
     return None
@@ -679,7 +685,7 @@ class UserSwitchCommandExecutor(ProfilerCommandExecutor):
           lambda: device.get_current_user() == command.from_user):
         raise Exception(
             ("Device with serial %s took more than %d secs to "
-             "switch to the initial user." % (device.serial, dur_seconds)))
+             "switch to the initial user." % (device.id(), dur_seconds)))
 
   def trigger_system_event(self, command, device):
     print("Switching from the from-user, %s, to the to-user, %s." %
@@ -729,8 +735,13 @@ class BootCommandExecutor(ProfilerCommandExecutor):
       while device.pull_file(f'{PERFETTO_BOOT_TRACE_FILE}.{i}',
                              f'{host_raw_trace_filename}.{i}'):
         i += 1
-    else:
-      device.pull_file(PERFETTO_BOOT_TRACE_FILE, host_raw_trace_filename)
+    elif not device.pull_file(PERFETTO_BOOT_TRACE_FILE,
+                              host_raw_trace_filename):
+      return ValidationError(
+          f"Failed to pull {PERFETTO_BOOT_TRACE_FILE} from device {device.id()}",
+          None)
+
+    return None
 
   def is_trace_cancelled(self, profiler, device, process):
     return not device.is_process_running(profiler) or self.trace_cancelled

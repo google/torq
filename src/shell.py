@@ -152,7 +152,10 @@ class AdbShell(Shell):
     return self.serial
 
   def popen(self, args):
-    return subprocess.Popen(["adb", "-s", self.serial] + args, shell=True)
+    is_list = isinstance(args, list)
+    prefix = ["adb", "-s", self.serial]
+    cmd = prefix + args if is_list else f"{' '.join(prefix)} {args}"
+    return subprocess.Popen(cmd, shell=(not is_list))
 
   def run(self,
           args,

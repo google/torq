@@ -55,11 +55,11 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     if profiler == "simpleperf":
       self.command.symbols = "/"
       self.command.scripts_path = "/"
-    self.mock_device = mock.create_autospec(
-        AdbDevice, instance=True, serial=TEST_SERIAL)
+    self.mock_device = mock.create_autospec(AdbDevice, instance=True)
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.create_directory.return_value = None
+    self.mock_device.id.return_value = TEST_SERIAL
     self.mock_sleep_patcher = mock.patch.object(
         time, 'sleep', return_value=None)
     self.mock_sleep_patcher.start()
@@ -331,13 +331,13 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     if profiler == "simpleperf":
       self.command.symbols = "/"
       self.command.scripts_path = "/"
-    self.mock_device = mock.create_autospec(
-        AdbDevice, instance=True, serial=TEST_SERIAL)
+    self.mock_device = mock.create_autospec(AdbDevice, instance=True)
     self.mock_device.user_exists.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.get_current_user.side_effect = lambda: self.current_user
     self.mock_device.create_directory.return_value = None
+    self.mock_device.id.return_value = TEST_SERIAL
     self.mock_poll_patcher = mock.patch(
         'src.profiler.poll_is_task_completed', return_value=True)
     self.mock_poll_patcher.start()
@@ -504,11 +504,11 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
                                    False, None, None, None, None, None, None,
                                    None, None, None, None)
     self.executor = get_executor("boot")
-    self.mock_device = mock.create_autospec(
-        AdbDevice, instance=True, serial=TEST_SERIAL)
+    self.mock_device = mock.create_autospec(AdbDevice, instance=True)
     self.mock_device.is_process_running.return_value = False
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
+    self.mock_device.id.return_value = TEST_SERIAL
     self.mock_poll_patcher = mock.patch(
         'src.profiler.poll_is_task_completed', return_value=True)
     self.mock_poll_patcher.start()
@@ -635,8 +635,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     if profiler == "simpleperf":
       self.command.symbols = "/"
       self.command.scripts_path = "/"
-    self.mock_device = mock.create_autospec(
-        AdbDevice, instance=True, serial=TEST_SERIAL)
+    self.mock_device = mock.create_autospec(AdbDevice, instance=True)
     self.mock_device.get_packages.return_value = [
         TEST_PACKAGE_1, TEST_PACKAGE_2
     ]
@@ -644,6 +643,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.create_directory.return_value = None
+    self.mock_device.id.return_value = TEST_SERIAL
     self.mock_sleep_patcher = mock.patch.object(
         time, 'sleep', return_value=None)
     self.mock_sleep_patcher.start()
@@ -704,12 +704,11 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.assertNotEqual(error, None)
     self.assertEqual(error.message,
                      ("Package %s does not exist on device with serial %s." %
-                      (TEST_PACKAGE_1, self.mock_device.serial)))
+                      (TEST_PACKAGE_1, TEST_SERIAL)))
     self.assertEqual(
         error.suggestion,
         ("Select from one of the following packages on device with serial %s:"
-         " \n\t %s,\n\t %s" %
-         (self.mock_device.serial, TEST_PACKAGE_2, TEST_PACKAGE_3)))
+         " \n\t %s,\n\t %s" % (TEST_SERIAL, TEST_PACKAGE_2, TEST_PACKAGE_3)))
     self.assertEqual(self.mock_device.start_package.call_count, 0)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
@@ -723,12 +722,12 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.assertEqual(
         error.message,
         ("Package %s is already running on device with serial %s." %
-         (TEST_PACKAGE_1, self.mock_device.serial)))
+         (TEST_PACKAGE_1, TEST_SERIAL)))
     self.assertEqual(
         error.suggestion,
         ("Run 'adb -s %s shell am force-stop %s' to close the package %s before"
          " trying to start it." %
-         (self.mock_device.serial, TEST_PACKAGE_1, TEST_PACKAGE_1)))
+         (TEST_SERIAL, TEST_PACKAGE_1, TEST_PACKAGE_1)))
     self.assertEqual(self.mock_device.start_package.call_count, 0)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
