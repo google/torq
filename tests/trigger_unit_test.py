@@ -19,7 +19,7 @@ import time
 import unittest
 
 from src.base import ANDROID_SDK_VERSION_T
-from src.device import AdbDevice
+from src.device import AndroidDevice
 from src.profiler import PERFETTO_TRACE_FILE
 from tests.test_utils import parameterized, run_cli
 from unittest import mock
@@ -39,7 +39,7 @@ class TriggerSubcommandUnitTest(unittest.TestCase):
 
   @mock.patch('src.torq.get_device', autospec=True)
   def test_trigger_names(self, mock_get_device):
-    mock_device = mock.create_autospec(AdbDevice, instance=True)
+    mock_device = mock.create_autospec(AndroidDevice, instance=True)
     mock_get_device.return_value = (mock_device, None)
 
     run_cli(f"torq trigger {TEST_TRIGGER_NAMES[0]}")
@@ -51,7 +51,7 @@ class ProfilerTriggerUnitTest(unittest.TestCase):
 
   def setUp(self):
     self.mock_device = mock.create_autospec(
-        AdbDevice, instance=True, serial=TEST_SERIAL)
+        AndroidDevice, instance=True, serial=TEST_SERIAL)
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.create_directory.return_value = None

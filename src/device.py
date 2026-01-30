@@ -38,11 +38,11 @@ def get_device(args, is_device_required):
     error = AdbShell.verify_serial(serial)
     if error is not None:
       return None, error
-    device = AdbDevice(AdbShell(serial))
+    device = AndroidDevice(AdbShell(serial))
   else:
     serial, error = AdbShell.get_default_serial()
     if error is None:
-      device = AdbDevice(AdbShell(serial))
+      device = AndroidDevice(AdbShell(serial))
     elif is_device_required:
       return None, error
   return device, None
@@ -104,8 +104,7 @@ class Device(ABC):
     raise NotImplementedError
 
 
-# TODO(jahdiel): Rename to AndroidDevice
-class AdbDevice(Device):
+class AndroidDevice(Device):
   """
   Class representing a device. APIs interact with the current device through
   the adb bridge.

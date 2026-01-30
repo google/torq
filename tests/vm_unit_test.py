@@ -17,7 +17,7 @@
 import io
 import unittest
 from contextlib import redirect_stderr
-from src.device import AdbDevice
+from src.device import AndroidDevice
 from src.vm import (DEFAULT_IP_ADDR, TRACED_ENABLE_PROP,
                     TRACED_MACHINE_NAME_PROP, TRACED_RELAY_PORT_PROP,
                     TRACED_RELAY_PRODUCER_PORT_PROP, DEFAULT_VSOCK_ADDR)
@@ -33,14 +33,14 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device = None
 
   @mock.patch('src.vm.AdbShell', autospec=True)
-  @mock.patch('src.vm.AdbDevice', autospec=True)
-  def test_set_primary(self, MockAdbDevice, MockAdbShell):
-    self.mock_device = MockAdbDevice.return_value
+  @mock.patch('src.vm.AndroidDevice', autospec=True)
+  def test_set_primary(self, MockAndroidDevice, MockAdbShell):
+    self.mock_device = MockAndroidDevice.return_value
     MockAdbShell.verify_serial.return_value = None
 
     run_cli(f"torq vm configure --primary {TEST_SERIAL}")
 
-    MockAdbDevice.assert_called_once_with(mock.ANY)
+    MockAndroidDevice.assert_called_once_with(mock.ANY)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
                                               DEFAULT_VSOCK_ADDR)
@@ -48,14 +48,14 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
   @mock.patch('src.vm.AdbShell', autospec=True)
-  @mock.patch('src.vm.AdbDevice', autospec=True)
-  def test_set_primary_with_machine_name(self, MockAdbDevice, MockAdbShell):
-    self.mock_device = MockAdbDevice.return_value
+  @mock.patch('src.vm.AndroidDevice', autospec=True)
+  def test_set_primary_with_machine_name(self, MockAndroidDevice, MockAdbShell):
+    self.mock_device = MockAndroidDevice.return_value
     MockAdbShell.verify_serial.return_value = None
 
     run_cli(f"torq vm configure --primary machine_name={TEST_SERIAL}")
 
-    MockAdbDevice.assert_called_once_with(mock.ANY)
+    MockAndroidDevice.assert_called_once_with(mock.ANY)
 
     self.mock_device.set_prop.assert_any_call(TRACED_MACHINE_NAME_PROP,
                                               "machine_name")
@@ -65,14 +65,14 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
   @mock.patch('src.vm.AdbShell', autospec=True)
-  @mock.patch('src.vm.AdbDevice', autospec=True)
-  def test_set_primary_with_tcp(self, MockAdbDevice, MockAdbShell):
-    self.mock_device = MockAdbDevice.return_value
+  @mock.patch('src.vm.AndroidDevice', autospec=True)
+  def test_set_primary_with_tcp(self, MockAndroidDevice, MockAdbShell):
+    self.mock_device = MockAndroidDevice.return_value
     MockAdbShell.verify_serial.return_value = None
 
     run_cli(f"torq vm configure --primary {TEST_SERIAL} --primary-ip 0.0.0.2")
 
-    MockAdbDevice.assert_called_once_with(mock.ANY)
+    MockAndroidDevice.assert_called_once_with(mock.ANY)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
                                               DEFAULT_IP_ADDR)
@@ -80,17 +80,17 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
   @mock.patch('src.vm.AdbShell', autospec=True)
-  @mock.patch('src.vm.AdbDevice', autospec=True)
-  def test_set_primary_with_custom_vsock_addr(self, MockAdbDevice,
+  @mock.patch('src.vm.AndroidDevice', autospec=True)
+  def test_set_primary_with_custom_vsock_addr(self, MockAndroidDevice,
                                               MockAdbShell):
-    self.mock_device = MockAdbDevice.return_value
+    self.mock_device = MockAndroidDevice.return_value
     MockAdbShell.verify_serial.return_value = None
 
     run_cli(
         f"torq vm configure --primary {TEST_SERIAL} --primary-addr vsock://5:4000"
     )
 
-    MockAdbDevice.assert_called_once_with(mock.ANY)
+    MockAndroidDevice.assert_called_once_with(mock.ANY)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
                                               "vsock://-1:4000")
@@ -98,16 +98,17 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
   @mock.patch('src.vm.AdbShell', autospec=True)
-  @mock.patch('src.vm.AdbDevice', autospec=True)
-  def test_set_primary_with_custom_tcp_addr(self, MockAdbDevice, MockAdbShell):
-    self.mock_device = MockAdbDevice.return_value
+  @mock.patch('src.vm.AndroidDevice', autospec=True)
+  def test_set_primary_with_custom_tcp_addr(self, MockAndroidDevice,
+                                            MockAdbShell):
+    self.mock_device = MockAndroidDevice.return_value
     MockAdbShell.verify_serial.return_value = None
 
     run_cli(
         f"torq vm configure --primary {TEST_SERIAL} --primary-addr 0.0.0.1:4000"
     )
 
-    MockAdbDevice.assert_called_once_with(mock.ANY)
+    MockAndroidDevice.assert_called_once_with(mock.ANY)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
                                               "0.0.0.0:4000")
@@ -135,14 +136,14 @@ class VmUnitTest(unittest.TestCase):
     self.assertIn("--primary can only be specified once", output)
 
   @mock.patch('src.vm.AdbShell', autospec=True)
-  @mock.patch('src.vm.AdbDevice', autospec=True)
-  def test_set_secondary(self, MockAdbDevice, MockAdbShell):
-    self.mock_device = MockAdbDevice.return_value
+  @mock.patch('src.vm.AndroidDevice', autospec=True)
+  def test_set_secondary(self, MockAndroidDevice, MockAdbShell):
+    self.mock_device = MockAndroidDevice.return_value
     MockAdbShell.verify_serial.return_value = None
 
     run_cli(f"torq vm configure --primary-cid 4 --secondary {TEST_SERIAL}")
 
-    MockAdbDevice.assert_called_once_with(mock.ANY)
+    MockAndroidDevice.assert_called_once_with(mock.ANY)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PORT_PROP,
                                               "vsock://4:30001")
@@ -150,16 +151,17 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "2")
 
   @mock.patch('src.vm.AdbShell', autospec=True)
-  @mock.patch('src.vm.AdbDevice', autospec=True)
-  def test_set_secondary_with_machine_name(self, MockAdbDevice, MockAdbShell):
-    self.mock_device = MockAdbDevice.return_value
+  @mock.patch('src.vm.AndroidDevice', autospec=True)
+  def test_set_secondary_with_machine_name(self, MockAndroidDevice,
+                                           MockAdbShell):
+    self.mock_device = MockAndroidDevice.return_value
     MockAdbShell.verify_serial.return_value = None
 
     run_cli(
         f"torq vm configure --primary-cid 4 --secondary guest_name={TEST_SERIAL}"
     )
 
-    MockAdbDevice.assert_called_once_with(mock.ANY)
+    MockAndroidDevice.assert_called_once_with(mock.ANY)
 
     self.mock_device.set_prop.assert_any_call(TRACED_MACHINE_NAME_PROP,
                                               "guest_name")
@@ -169,14 +171,14 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "2")
 
   @mock.patch('src.vm.AdbShell', autospec=True)
-  @mock.patch('src.vm.AdbDevice', autospec=True)
-  def test_set_secondary_with_ip(self, MockAdbDevice, MockAdbShell):
-    self.mock_device = MockAdbDevice.return_value
+  @mock.patch('src.vm.AndroidDevice', autospec=True)
+  def test_set_secondary_with_ip(self, MockAndroidDevice, MockAdbShell):
+    self.mock_device = MockAndroidDevice.return_value
     MockAdbShell.verify_serial.return_value = None
 
     run_cli(f"torq vm configure --primary-ip 0.0.0.0 --secondary {TEST_SERIAL}")
 
-    MockAdbDevice.assert_called_once_with(mock.ANY)
+    MockAndroidDevice.assert_called_once_with(mock.ANY)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PORT_PROP,
                                               "0.0.0.0:30001")
@@ -223,16 +225,16 @@ class VmUnitTest(unittest.TestCase):
     self.assertIn("--primary-addr can only be specified once", output)
 
   @mock.patch('src.vm.AdbShell', autospec=True)
-  @mock.patch('src.vm.AdbDevice', autospec=True)
-  def test_set_multiple_machines(self, MockAdbDevice, MockAdbShell):
-    self.mock_device = MockAdbDevice.return_value
+  @mock.patch('src.vm.AndroidDevice', autospec=True)
+  def test_set_multiple_machines(self, MockAndroidDevice, MockAdbShell):
+    self.mock_device = MockAndroidDevice.return_value
     MockAdbShell.verify_serial.return_value = None
 
     run_cli(f"torq vm configure --primary-cid 4 --primary main={TEST_SERIAL} "
             "--secondary guest=test-serial2")
 
-    self.assertEqual(MockAdbDevice.call_count, 2)
-    MockAdbDevice.assert_any_call(mock.ANY)
+    self.assertEqual(MockAndroidDevice.call_count, 2)
+    MockAndroidDevice.assert_any_call(mock.ANY)
 
     # Assert the primary machine
     self.mock_device.set_prop.assert_any_call(TRACED_MACHINE_NAME_PROP, "main")

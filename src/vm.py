@@ -15,7 +15,7 @@
 #
 
 from .base import Command, ValidationError
-from .device import AdbDevice, get_device
+from .device import AndroidDevice, get_device
 from .shell import AdbShell
 from .utils import are_mutually_exclusive, extract_port, UniqueStore
 
@@ -197,7 +197,7 @@ def configure_execute(args):
     machine_name, serial = get_name_and_serial(args.primary)
     if (error := AdbShell.verify_serial(serial)) is not None:
       return error
-    primary_device = AdbDevice(AdbShell(serial))
+    primary_device = AndroidDevice(AdbShell(serial))
     primary_device.root_device()
     relay_prod_port = DEFAULT_VSOCK_ADDR if "vsock" in net_addr else DEFAULT_IP_ADDR
     if args.primary_addr:
@@ -211,7 +211,7 @@ def configure_execute(args):
     machine_name, serial = get_name_and_serial(secondary)
     if (error := AdbShell.verify_serial(serial)) is not None:
       return error
-    secondary_device = AdbDevice(AdbShell(serial))
+    secondary_device = AndroidDevice(AdbShell(serial))
     secondary_device.root_device()
     if machine_name is not None:
       secondary_device.set_prop(TRACED_MACHINE_NAME_PROP, machine_name)

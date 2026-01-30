@@ -21,7 +21,7 @@ import subprocess
 import time
 from unittest import mock
 from src.base import ValidationError
-from src.device import AdbDevice
+from src.device import AndroidDevice
 from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR, get_executor,
                           ProfilerCommand)
 from tests.test_utils import generate_mock_completed_process, parameterized_profiler
@@ -55,7 +55,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     if profiler == "simpleperf":
       self.command.symbols = "/"
       self.command.scripts_path = "/"
-    self.mock_device = mock.create_autospec(AdbDevice, instance=True)
+    self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.create_directory.return_value = None
@@ -331,7 +331,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     if profiler == "simpleperf":
       self.command.symbols = "/"
       self.command.scripts_path = "/"
-    self.mock_device = mock.create_autospec(AdbDevice, instance=True)
+    self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.user_exists.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
@@ -504,7 +504,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
                                    False, None, None, None, None, None, None,
                                    None, None, None, None)
     self.executor = get_executor("boot")
-    self.mock_device = mock.create_autospec(AdbDevice, instance=True)
+    self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.is_process_running.return_value = False
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
@@ -635,7 +635,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     if profiler == "simpleperf":
       self.command.symbols = "/"
       self.command.scripts_path = "/"
-    self.mock_device = mock.create_autospec(AdbDevice, instance=True)
+    self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.get_packages.return_value = [
         TEST_PACKAGE_1, TEST_PACKAGE_2
     ]

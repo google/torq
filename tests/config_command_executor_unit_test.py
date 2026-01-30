@@ -21,7 +21,7 @@ import sys
 import io
 from pathlib import Path
 from unittest import mock
-from src.device import AdbDevice, get_device
+from src.device import AndroidDevice, get_device
 from src.base import ValidationError
 from src.config import PREDEFINED_PERFETTO_CONFIGS
 from tests.test_utils import generate_adb_devices_result, generate_mock_completed_process, run_cli
@@ -361,7 +361,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.maxDiff = None
     self.mock_get_device_patcher = mock.patch("src.torq.get_device")
     self.mock_get_device = self.mock_get_device_patcher.start()
-    self.mock_device = mock.create_autospec(AdbDevice, instance=True)
+    self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_get_device.return_value = (self.mock_device, None)
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
