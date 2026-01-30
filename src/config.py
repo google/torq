@@ -132,8 +132,7 @@ def create_config_command(args):
 
 def execute_show_or_pull_command(command, device):
   android_sdk_version = ANDROID_SDK_VERSION_T
-  error = device.check_device_connection()
-  if error is None:
+  if device is not None:
     device.root_device()
     android_sdk_version = device.get_android_sdk_version()
 

@@ -19,7 +19,7 @@ import sys
 
 from .config import (add_config_parser, execute_config_command,
                      verify_config_args)
-from .device import AdbDevice
+from .device import get_device
 from .open import (add_open_parser, execute_open_command, verify_open_args)
 from .profiler import (add_profiler_parser, execute_profiler_command,
                        verify_profiler_args)
@@ -40,26 +40,31 @@ TORQ_COMMANDS = {
         'parse': add_config_parser,
         'verify': verify_config_args,
         'execute': execute_config_command,
+        'require_device': False,
     },
     'open': {
         'parse': add_open_parser,
         'verify': verify_open_args,
         'execute': execute_open_command,
+        'require_device': False,
     },
     'profiler': {
         'parse': add_profiler_parser,
         'verify': verify_profiler_args,
         'execute': execute_profiler_command,
+        'require_device': True,
     },
     'trigger': {
         'parse': add_trigger_parser,
         'verify': verify_trigger_args,
         'execute': execute_trigger_command,
+        'require_device': True,
     },
     'vm': {
         'parse': add_vm_parser,
         'verify': verify_vm_args,
         'execute': execute_vm_command,
+        'require_device': False,  # configure command doesn't rely on --serial
     },
 }
 
@@ -95,6 +100,10 @@ def verify_args(args):
   return TORQ_COMMANDS[args.subcommands]['verify'](args)
 
 
+def is_device_required(args):
+  return TORQ_COMMANDS[args.subcommands]['require_device']
+
+
 def execute_command(args, device):
   return TORQ_COMMANDS[args.subcommands]['execute'](args, device)
 
@@ -117,8 +126,10 @@ def run():
   if error is not None:
     print_error(error)
     return
-  serial = args.serial[0] if args.serial else None
-  device = AdbDevice(serial)
+  device, error = get_device(args, is_device_required(args))
+  if error is not None:
+    print_error(error)
+    return
   error = execute_command(args, device)
   if error is not None:
     print_error(error)

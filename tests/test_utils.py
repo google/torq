@@ -88,3 +88,16 @@ def generate_mock_completed_process(stdout_string=b'\n',
       returncode=returncode)
   mock_completed_process.check_returncode = check_returncode
   return mock_completed_process
+
+
+def generate_adb_devices_result(devices, adb_started=True):
+  devices = [device.encode('utf-8') for device in devices]
+  stdout_string = b'List of devices attached\n'
+  if not adb_started:
+    stdout_string = (b'* daemon not running; starting now at tcp:1234\n'
+                     b'* daemon started successfully\n') + stdout_string
+  if len(devices) > 0:
+    stdout_string += b'\tdevice\n'.join(devices) + b'\tdevice\n'
+    stdout_string += b'\n'
+  return subprocess.CompletedProcess(
+      args=['adb', 'devices'], returncode=0, stdout=stdout_string)

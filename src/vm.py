@@ -15,7 +15,8 @@
 #
 
 from .base import Command, ValidationError
-from .device import AdbDevice
+from .device import AdbDevice, get_device
+from .shell import AdbShell
 from .utils import are_mutually_exclusive, extract_port, UniqueStore
 
 DEFAULT_COMMS_PORT = "30001"
@@ -194,9 +195,9 @@ def configure_execute(args):
 
   if args.primary:
     machine_name, serial = get_name_and_serial(args.primary)
-    primary_device = AdbDevice(serial)
-    if (error := primary_device.check_device_connection()) is not None:
+    if (error := AdbShell.verify_serial(serial)) is not None:
       return error
+    primary_device = AdbDevice(AdbShell(serial))
     primary_device.root_device()
     relay_prod_port = DEFAULT_VSOCK_ADDR if "vsock" in net_addr else DEFAULT_IP_ADDR
     if args.primary_addr:
@@ -208,9 +209,9 @@ def configure_execute(args):
 
   for secondary in args.secondary:
     machine_name, serial = get_name_and_serial(secondary)
-    secondary_device = AdbDevice(serial)
-    if (error := secondary_device.check_device_connection()) is not None:
+    if (error := AdbShell.verify_serial(serial)) is not None:
       return error
+    secondary_device = AdbDevice(AdbShell(serial))
     secondary_device.root_device()
     if machine_name is not None:
       secondary_device.set_prop(TRACED_MACHINE_NAME_PROP, machine_name)
@@ -252,9 +253,11 @@ def relay_producer_execute(command, device, machine_name=None):
 def execute_vm_command(args, device):
   command = create_vm_command(args)
   if command.type != 'configure':
-    error = device.check_device_connection()
-    if error is not None:
-      return error
+    if device is None:
+      # Done to extract the error message
+      device, error = get_device(args, True)
+      if error is not None:
+        return error
     device.root_device()
   match command.type:
     case 'configure':

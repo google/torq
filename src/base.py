@@ -47,11 +47,9 @@ class CommandExecutor(ABC):
     pass
 
   def execute(self, command, device):
+    assert device is not None, "device cannot be None"
     for sig in [signal.SIGINT, signal.SIGTERM]:
       signal.signal(sig, lambda s, f: self.signal_handler(s, f))
-    error = device.check_device_connection()
-    if error is not None:
-      return error
     device.root_device()
     error = command.validate(device)
     if error is not None:

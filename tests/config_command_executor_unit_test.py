@@ -21,9 +21,10 @@ import sys
 import io
 from pathlib import Path
 from unittest import mock
+from src.device import AdbDevice, get_device
 from src.base import ValidationError
 from src.config import PREDEFINED_PERFETTO_CONFIGS
-from tests.test_utils import generate_mock_completed_process, run_cli
+from tests.test_utils import generate_adb_devices_result, generate_mock_completed_process, run_cli
 
 TEST_ERROR_MSG = "test-error"
 TEST_VALIDATION_ERROR = ValidationError(TEST_ERROR_MSG, None)
@@ -358,9 +359,10 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
 
   def setUp(self):
     self.maxDiff = None
-    self.MockAdbDevice = mock.patch("src.torq.AdbDevice", autospec=True)
-    self.mock_device = self.MockAdbDevice.start().return_value
-    self.mock_device.check_device_connection.return_value = None
+    self.mock_get_device_patcher = mock.patch("src.torq.get_device")
+    self.mock_get_device = self.mock_get_device_patcher.start()
+    self.mock_device = mock.create_autospec(AdbDevice, instance=True)
+    self.mock_get_device.return_value = (self.mock_device, None)
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
 
@@ -370,7 +372,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     sys.stderr = self.stderr_output
 
   def tearDown(self):
-    self.MockAdbDevice.stop()
+    self.mock_get_device_patcher.stop()
 
   def test_config_list(self):
     run_cli("torq config list")
@@ -386,16 +388,20 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(self.stdout_output.getvalue(), TEST_DEFAULT_CONFIG)
 
-  def test_config_show_no_device_connection(self):
-    self.mock_device.check_device_connection.return_value = (
-        TEST_VALIDATION_ERROR)
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_config_show_no_device_connected(self, mock_subprocess_run):
+    mock_subprocess_run.return_value = (generate_adb_devices_result([]))
 
     run_cli("torq config show default")
 
     self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(self.stdout_output.getvalue(), TEST_DEFAULT_CONFIG)
 
-  def test_config_show_old_android_version(self):
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_config_show_old_android_version(self, mock_subprocess_run):
+    mock_subprocess_run.return_value = (
+        generate_adb_devices_result(["test-serial"]))
+
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_S)
 
@@ -416,9 +422,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
                      "The config has been saved to 'default.txtpb'.\n")
 
   @mock.patch.object(subprocess, "run", autospec=True)
-  def test_config_pull_no_device_connection(self, mock_subprocess_run):
-    self.mock_device.check_device_connection.return_value = (
-        TEST_VALIDATION_ERROR)
+  def test_config_pull_no_device_connected(self, mock_subprocess_run):
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
     run_cli("torq config pull default")

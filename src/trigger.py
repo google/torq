@@ -31,7 +31,5 @@ def verify_trigger_args(args):
 
 
 def execute_trigger_command(args, device):
-  error = device.check_device_connection()
-  if error is not None:
-    return error
+  assert device is not None, "device cannot be None"
   return device.trigger_perfetto(args.trigger_name)

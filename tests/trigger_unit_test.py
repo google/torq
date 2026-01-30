@@ -37,14 +37,14 @@ TEST_TRIGGER_MODE = "stop"
 
 class TriggerSubcommandUnitTest(unittest.TestCase):
 
-  @mock.patch('src.torq.AdbDevice', autospec=True)
-  def test_trigger_names(self, mock_device):
-    self.mock_device = mock_device.return_value
-    self.mock_device.check_device_connection.return_value = None
+  @mock.patch('src.torq.get_device', autospec=True)
+  def test_trigger_names(self, mock_get_device):
+    mock_device = mock.create_autospec(AdbDevice, instance=True)
+    mock_get_device.return_value = (mock_device, None)
 
     run_cli(f"torq trigger {TEST_TRIGGER_NAMES[0]}")
 
-    self.mock_device.trigger_perfetto.assert_called_with(TEST_TRIGGER_NAMES[0])
+    mock_device.trigger_perfetto.assert_called_with(TEST_TRIGGER_NAMES[0])
 
 
 class ProfilerTriggerUnitTest(unittest.TestCase):
@@ -52,7 +52,6 @@ class ProfilerTriggerUnitTest(unittest.TestCase):
   def setUp(self):
     self.mock_device = mock.create_autospec(
         AdbDevice, instance=True, serial=TEST_SERIAL)
-    self.mock_device.check_device_connection.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.create_directory.return_value = None
@@ -71,9 +70,9 @@ class ProfilerTriggerUnitTest(unittest.TestCase):
               TEST_MULTIPLE_TRIGGER_STOP_DELAY_MS)
       ]
   ] + [f"--trigger-mode {mode}" for mode in ["start", "clone", "stop"]])
-  @mock.patch('src.torq.AdbDevice', autospec=True)
-  def test_trigger_names(self, trigger_args, mock_device_creator):
-    mock_device_creator.return_value = self.mock_device
+  @mock.patch('src.torq.get_device', autospec=True)
+  def test_trigger_names(self, trigger_args, mock_get_device):
+    mock_get_device.return_value = (self.mock_device, None)
 
     with (mock.patch("src.profiler.open_trace", autospec=True) as
           mock_open_trace):
@@ -81,16 +80,14 @@ class ProfilerTriggerUnitTest(unittest.TestCase):
       run_cli(
           f"torq --trigger-names {' '.join(TEST_TRIGGER_NAMES)} {trigger_args}")
 
-    mock_device_creator.assert_called_once_with(None)
-
     self.mock_device.pull_file.assert_called_with(
         PERFETTO_TRACE_FILE + (".0" if "clone" in trigger_args else ""), ANY)
 
     self.mock_device.start_perfetto_trace.assert_called()
 
-  @mock.patch('src.torq.AdbDevice', autospec=True)
-  def test_trigger_names_incorrect_stop_delays(self, mock_device_creator):
-    mock_device_creator.return_value = self.mock_device
+  @mock.patch('src.torq.get_device', autospec=True)
+  def test_trigger_names_incorrect_stop_delays(self, mock_get_device):
+    mock_get_device.return_value = (self.mock_device, None)
 
     with (mock.patch("src.profiler.open_trace", autospec=True) as
           mock_open_trace):
@@ -99,7 +96,7 @@ class ProfilerTriggerUnitTest(unittest.TestCase):
               f" --trigger-stop-delay-ms"
               f" {' '.join(TEST_MULTIPLE_TRIGGER_STOP_DELAY_MS)} 3000")
 
-    mock_device_creator.assert_not_called()
+    mock_get_device.assert_not_called()
 
     self.mock_device.pull_file.assert_not_called()
 

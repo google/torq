@@ -57,7 +57,6 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(
         AdbDevice, instance=True, serial=TEST_SERIAL)
-    self.mock_device.check_device_connection.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.create_directory.return_value = None
@@ -162,21 +161,6 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
 
     self.assertEqual(error, None)
     self.assertEqual(self.mock_device.pull_file.call_count, 1)
-
-  @parameterized_profiler(setup_func=setUpSubtest)
-  @mock.patch.object(subprocess, "run", autospec=True)
-  @mock.patch.object(os.path, "exists", autospec=True)
-  def test_execute_check_device_connection_failure(self, profiler, mock_exists,
-                                                   mock_run):
-    self.mock_device.check_device_connection.side_effect = TEST_EXCEPTION
-    mock_exists.return_value = True
-    mock_run.return_value = generate_mock_completed_process()
-
-    with self.assertRaises(Exception) as e:
-      self.executor.execute(self.command, self.mock_device)
-
-    self.assertEqual(str(e.exception), TEST_ERROR_MSG)
-    self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
   @parameterized_profiler(setup_func=setUpSubtest)
   def test_execute_root_device_failure(self, profiler):
@@ -349,7 +333,6 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(
         AdbDevice, instance=True, serial=TEST_SERIAL)
-    self.mock_device.check_device_connection.return_value = None
     self.mock_device.user_exists.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
@@ -523,7 +506,6 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.executor = get_executor("boot")
     self.mock_device = mock.create_autospec(
         AdbDevice, instance=True, serial=TEST_SERIAL)
-    self.mock_device.check_device_connection.return_value = None
     self.mock_device.is_process_running.return_value = False
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
@@ -655,7 +637,6 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(
         AdbDevice, instance=True, serial=TEST_SERIAL)
-    self.mock_device.check_device_connection.return_value = None
     self.mock_device.get_packages.return_value = [
         TEST_PACKAGE_1, TEST_PACKAGE_2
     ]
