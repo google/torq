@@ -490,7 +490,6 @@ class DeviceUnitTest(unittest.TestCase):
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_write_to_file_failure(self, mock_subprocess_run):
     mock_subprocess_run.side_effect = TEST_EXCEPTION
-
     adbDevice = AdbDevice(AdbShell(TEST_DEVICE_SERIAL))
 
     with self.assertRaises(Exception) as e:

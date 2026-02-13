@@ -634,13 +634,17 @@ class ProfilerCommandExecutor(CommandExecutor):
                                f"{host_raw_trace_filename}.{i}"):
           i += 1
       elif not device.pull_file(PERFETTO_TRACE_FILE, host_raw_trace_filename):
-        return ValidationError(
-            f"Failed to pull {PERFETTO_TRACE_FILE} from device {device.id()}",
-            None)
+        # Since it is possible for no trigger event to be emitted,
+        # we do not return an error if no trace file is pulled when waiting
+        # on triggers.
+        if not command.trigger_names:
+          return ValidationError(
+              f"Failed to pull {PERFETTO_TRACE_FILE} from device {device.id()}.",
+              None)
     else:
       if not device.pull_file(SIMPLEPERF_TRACE_FILE, host_raw_trace_filename):
         return ValidationError(
-            f"Failed to pull {SIMPLEPERF_TRACE_FILE} from device {device.id()}",
+            f"Failed to pull {SIMPLEPERF_TRACE_FILE} from device {device.id()}.",
             None)
       convert_simpleperf_to_gecko(command.scripts_path, host_raw_trace_filename,
                                   host_gecko_trace_filename, command.symbols)
@@ -738,7 +742,7 @@ class BootCommandExecutor(ProfilerCommandExecutor):
     elif not device.pull_file(PERFETTO_BOOT_TRACE_FILE,
                               host_raw_trace_filename):
       return ValidationError(
-          f"Failed to pull {PERFETTO_BOOT_TRACE_FILE} from device {device.id()}",
+          f"Failed to pull {PERFETTO_BOOT_TRACE_FILE} from device {device.id()}.",
           None)
 
     return None

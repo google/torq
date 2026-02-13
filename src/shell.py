@@ -127,7 +127,7 @@ class AdbShell(Shell):
               "device[0-%d]: " % (options, len(devices) - 1),
               "Please select a valid option.", choices).handle_input())
       if isinstance(chosen_serial, ValidationError):
-        return chosen_serial, None
+        return None, chosen_serial
       print("Using device with serial %s" % chosen_serial)
       serial = chosen_serial
     return serial, None

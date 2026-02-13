@@ -390,7 +390,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
 
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_show_no_device_connected(self, mock_subprocess_run):
-    mock_subprocess_run.return_value = (generate_adb_devices_result([]))
+    self.mock_get_device.return_value = (None, None)
 
     run_cli("torq config show default")
 
@@ -424,6 +424,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull_no_device_connected(self, mock_subprocess_run):
     mock_subprocess_run.return_value = generate_mock_completed_process()
+    self.mock_get_device.return_value = (None, None)
 
     run_cli("torq config pull default")
 
