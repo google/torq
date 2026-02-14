@@ -248,7 +248,7 @@ class DeviceUnitTest(unittest.TestCase):
     self.assertEqual(error, None)
     self.assertEqual(serial, TEST_DEVICE_SERIAL2)
 
-  @mock.patch("src.device.poll_is_task_completed", autospec=True)
+  @mock.patch("src.shell.poll_is_task_completed", autospec=True)
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_root_device_success(self, mock_subprocess_run,
                                mock_poll_is_task_completed):
@@ -272,7 +272,7 @@ class DeviceUnitTest(unittest.TestCase):
 
     self.assertEqual(str(e.exception), TEST_FAILURE_MSG)
 
-  @mock.patch("src.device.poll_is_task_completed", autospec=True)
+  @mock.patch("src.shell.poll_is_task_completed", autospec=True)
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_root_device_times_out_error(self, mock_subprocess_run,
                                        mock_poll_is_task_completed):
@@ -515,7 +515,7 @@ class DeviceUnitTest(unittest.TestCase):
 
     self.assertEqual(str(e.exception), TEST_FAILURE_MSG)
 
-  @mock.patch("src.device.poll_is_task_completed", autospec=True)
+  @mock.patch("src.shell.poll_is_task_completed", autospec=True)
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_reboot_success(self, mock_subprocess_run,
                           mock_poll_is_task_completed):

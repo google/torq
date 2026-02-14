@@ -25,16 +25,14 @@ from .handle_input import HandleInput
 from .shell import AdbShell
 from .utils import poll_is_task_completed, run_subprocess, ShellExitCodes
 
-ADB_ROOT_TIMED_OUT_LIMIT_SECS = 5
-ADB_BOOT_COMPLETED_TIMED_OUT_LIMIT_SECS = 30
+BOOT_COMPLETED_TIME_OUT_SECS = 30
 POLLING_INTERVAL_SECS = 0.5
 SIMPLEPERF_TRACE_FILE = "/tmp/simpleperf-traces/perf.data"
 
 
-def get_device(args, is_device_required):
+def get_device(serial, is_device_required):
   device = None
-  if args.serial:
-    serial = args.serial[0]
+  if serial is not None:
     error = AdbShell.verify_serial(serial)
     if error is not None:
       return None, error
@@ -118,9 +116,7 @@ class AndroidDevice(Device):
 
   def root_device(self):
     self.shell.run(["root"])
-    if not poll_is_task_completed(
-        ADB_ROOT_TIMED_OUT_LIMIT_SECS, POLLING_INTERVAL_SECS,
-        lambda: self.shell.id() in AdbShell.get_adb_devices()):
+    if not self.shell.wait_for_device():
       raise Exception(("Device with serial %s took too long to reconnect after"
                        " being rooted." % self.shell.id()))
 
@@ -198,9 +194,7 @@ class AndroidDevice(Device):
 
   def reboot(self):
     self.shell.run(["reboot"])
-    if not poll_is_task_completed(
-        ADB_ROOT_TIMED_OUT_LIMIT_SECS, POLLING_INTERVAL_SECS,
-        lambda: self.shell.id() not in AdbShell.get_adb_devices()):
+    if not self.shell.wait_for_device():
       raise Exception(("Device with serial %s took too long to start"
                        " rebooting." % self.shell.id()))
 
@@ -213,7 +207,7 @@ class AndroidDevice(Device):
     return command_output.stdout.decode("utf-8").strip() == "1"
 
   def wait_for_boot_to_complete(self):
-    if not poll_is_task_completed(ADB_BOOT_COMPLETED_TIMED_OUT_LIMIT_SECS,
+    if not poll_is_task_completed(BOOT_COMPLETED_TIME_OUT_SECS,
                                   POLLING_INTERVAL_SECS,
                                   self.is_boot_completed):
       raise Exception(("Device with serial %s took too long to finish"

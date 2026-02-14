@@ -126,7 +126,8 @@ def run():
   if error is not None:
     print_error(error)
     return
-  device, error = get_device(args, is_device_required(args))
+  serial = args.serial[0] if args.serial else None
+  device, error = get_device(serial, is_device_required(args))
   if error is not None:
     print_error(error)
     return

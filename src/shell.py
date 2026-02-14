@@ -20,7 +20,10 @@ import sys
 from abc import ABC, abstractmethod
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import run_subprocess, ShellExitCodes
+from .utils import poll_is_task_completed, run_subprocess, ShellExitCodes
+
+WAIT_FOR_DEVICE_TIME_OUT_SECS = 5
+POLLING_INTERVAL_SECS = 0.5
 
 
 class Shell(ABC):
@@ -53,6 +56,10 @@ class Shell(ABC):
           text=None,
           env=None,
           universal_newlines=None):
+    raise NotImplementedError
+
+  @abstractmethod
+  def wait_for_device(self):
     raise NotImplementedError
 
 
@@ -177,3 +184,8 @@ class AdbShell(Shell):
                           stdin, input, stdout, stderr, capture_output, shell,
                           cwd, timeout, encoding, errors, text, env,
                           universal_newlines)
+
+  def wait_for_device(self):
+    return poll_is_task_completed(
+        WAIT_FOR_DEVICE_TIME_OUT_SECS, POLLING_INTERVAL_SECS,
+        lambda: self.serial in AdbShell.get_adb_devices())

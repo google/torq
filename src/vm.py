@@ -15,8 +15,7 @@
 #
 
 from .base import Command, ValidationError
-from .device import AndroidDevice, get_device
-from .shell import AdbShell
+from .device import get_device
 from .utils import are_mutually_exclusive, extract_port, UniqueStore
 
 DEFAULT_COMMS_PORT = "30001"
@@ -123,8 +122,12 @@ def name_format_error(value):
 
 
 def is_name_format_valid(value):
-  splits = len(value.split('='))
-  return splits == 1 or splits == 2
+  splits = value.split('=')
+  if len(splits) == 1:
+    return splits[0] != ""
+  if len(splits) == 2:
+    return splits[0] != "" and splits[1] != ""
+  return False
 
 
 def verify_vm_args(args):
@@ -195,9 +198,9 @@ def configure_execute(args):
 
   if args.primary:
     machine_name, serial = get_name_and_serial(args.primary)
-    if (error := AdbShell.verify_serial(serial)) is not None:
+    primary_device, error = get_device(serial, True)
+    if error is not None:
       return error
-    primary_device = AndroidDevice(AdbShell(serial))
     primary_device.root_device()
     relay_prod_port = DEFAULT_VSOCK_ADDR if "vsock" in net_addr else DEFAULT_IP_ADDR
     if args.primary_addr:
@@ -209,9 +212,9 @@ def configure_execute(args):
 
   for secondary in args.secondary:
     machine_name, serial = get_name_and_serial(secondary)
-    if (error := AdbShell.verify_serial(serial)) is not None:
+    secondary_device, error = get_device(serial, True)
+    if error is not None:
       return error
-    secondary_device = AndroidDevice(AdbShell(serial))
     secondary_device.root_device()
     if machine_name is not None:
       secondary_device.set_prop(TRACED_MACHINE_NAME_PROP, machine_name)
@@ -255,7 +258,8 @@ def execute_vm_command(args, device):
   if command.type != 'configure':
     if device is None:
       # Done to extract the error message
-      device, error = get_device(args, True)
+      serial = args.serial[0] if args.serial else None
+      device, error = get_device(serial, True)
       if error is not None:
         return error
     device.root_device()
