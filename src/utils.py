@@ -24,6 +24,10 @@ import time
 
 from .base import ValidationError
 
+# Timing constants
+POLLING_INTERVAL_SECS = 0.5
+
+# File constants
 TEXTPROTO_FILE_EXTENSIONS = [".txtpb", ".textproto", ".textpb", ".pbtxt"]
 
 

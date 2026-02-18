@@ -23,10 +23,10 @@ from .base import (ANDROID_SDK_VERSION_T, Command, CommandExecutor,
                    ValidationError)
 from .config_builder import (build_custom_config, create_common_config_parser,
                              PREDEFINED_PERFETTO_CONFIGS)
-from .device import SIMPLEPERF_TRACE_FILE, POLLING_INTERVAL_SECS
+from .device import SIMPLEPERF_TRACE_FILE
 from .handle_input import HandleInput
 from .open_ui_utils import open_trace, WEB_UI_ADDRESS
-from .utils import convert_simpleperf_to_gecko, poll_is_task_completed
+from .utils import convert_simpleperf_to_gecko, poll_is_task_completed, POLLING_INTERVAL_SECS
 from .validate_simpleperf import verify_simpleperf_args
 
 DEFAULT_DUR_MS = 10000

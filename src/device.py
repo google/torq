@@ -23,10 +23,9 @@ from abc import ABC, abstractmethod
 from .base import ValidationError
 from .handle_input import HandleInput
 from .shell import AdbShell
-from .utils import poll_is_task_completed, run_subprocess, ShellExitCodes
+from .utils import poll_is_task_completed, POLLING_INTERVAL_SECS, run_subprocess, ShellExitCodes
 
 BOOT_COMPLETED_TIME_OUT_SECS = 30
-POLLING_INTERVAL_SECS = 0.5
 SIMPLEPERF_TRACE_FILE = "/tmp/simpleperf-traces/perf.data"
 
 

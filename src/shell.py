@@ -20,10 +20,9 @@ import sys
 from abc import ABC, abstractmethod
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import poll_is_task_completed, run_subprocess, ShellExitCodes
+from .utils import poll_is_task_completed, POLLING_INTERVAL_SECS, run_subprocess, ShellExitCodes
 
 WAIT_FOR_DEVICE_TIME_OUT_SECS = 5
-POLLING_INTERVAL_SECS = 0.5
 
 
 class Shell(ABC):
