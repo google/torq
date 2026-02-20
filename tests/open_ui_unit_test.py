@@ -25,7 +25,7 @@ import os
 import webbrowser
 from unittest import mock
 from src.open_ui_utils import download_trace_processor, open_trace
-from tests.test_utils import generate_mock_completed_process
+from tests.test_utils import generate_mock_completed_process, run_cli
 
 ANDROID_BUILD_TOP = "/main"
 TEST_FILE = "file.txtpb"
@@ -274,6 +274,189 @@ class OpenUiUnitTest(unittest.TestCase):
 
     self.assertEqual(trace_processor_path, TORQ_TEMP_TRACE_PROCESSOR)
     self.assertEqual(terminal_output.getvalue(), "")
+
+  @mock.patch.object(os.path, "isfile", autospec=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  @mock.patch("src.open.BatchTraceProcessor")
+  def test_execute_repl_quit(self, mock_btp, mock_input, mock_exists,
+                             mock_isfile):
+    mock_input.return_value = "quit"
+    mock_btp_instance = mock_btp.return_value.__enter__.return_value
+    mock_exists.return_value = True
+    mock_isfile.return_value = True
+
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    run_cli("torq open trace1.pftrace trace2.pftrace")
+
+    mock_btp.assert_called_with(
+        [os.path.abspath("trace1.pftrace"),
+         os.path.abspath("trace2.pftrace")])
+    self.assertIn("Loading 2 traces into torq...", terminal_output.getvalue())
+    self.assertIn("[torq REPL] - Type 'quit' to exit.",
+                  terminal_output.getvalue())
+    self.assertIn("Exiting", terminal_output.getvalue())
+    mock_btp_instance.query_and_flatten.assert_not_called()
+
+  @mock.patch.object(os.path, "isfile", autospec=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  @mock.patch("src.open.BatchTraceProcessor")
+  def test_execute_repl_exit(self, mock_btp, mock_input, mock_exists,
+                             mock_isfile):
+    mock_input.return_value = "exit"
+    mock_btp_instance = mock_btp.return_value.__enter__.return_value
+    mock_exists.return_value = True
+    mock_isfile.return_value = True
+
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    # Needs two distinct valid trace files to enter REPL
+    run_cli("torq open trace1.pftrace trace2.pftrace")
+
+    self.assertIn("Exiting", terminal_output.getvalue())
+    mock_btp_instance.query_and_flatten.assert_not_called()
+
+  @mock.patch.object(os.path, "isfile", autospec=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  @mock.patch("src.open.BatchTraceProcessor")
+  def test_execute_repl_query_and_quit(self, mock_btp, mock_input, mock_exists,
+                                       mock_isfile):
+    mock_input.side_effect = ["select * from slice;", "", "quit"]
+    mock_btp_instance = mock_btp.return_value.__enter__.return_value
+    mock_df = mock.Mock()
+    mock_df.to_string.return_value = "mock_dataframe_output"
+    mock_btp_instance.query_and_flatten.return_value = mock_df
+    mock_exists.return_value = True
+    mock_isfile.return_value = True
+
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    run_cli("torq open trace1.pftrace trace2.pftrace")
+
+    mock_btp_instance.query_and_flatten.assert_called_with(
+        "select * from slice;")
+    self.assertIn("mock_dataframe_output", terminal_output.getvalue())
+    self.assertIn("Exiting", terminal_output.getvalue())
+
+  @mock.patch.object(os.path, "isfile", autospec=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  @mock.patch("src.open.BatchTraceProcessor")
+  def test_execute_repl_multi_line_query(self, mock_btp, mock_input,
+                                         mock_exists, mock_isfile):
+    mock_input.side_effect = ["select *", "from slice;", "", "quit"]
+    mock_btp_instance = mock_btp.return_value.__enter__.return_value
+    mock_df = mock.Mock()
+    mock_df.to_string.return_value = "multi_line_output"
+    mock_btp_instance.query_and_flatten.return_value = mock_df
+    mock_exists.return_value = True
+    mock_isfile.return_value = True
+
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    run_cli("torq open trace1.pftrace trace2.pftrace")
+
+    mock_btp_instance.query_and_flatten.assert_called_with(
+        "select *\nfrom slice;")
+    self.assertIn("multi_line_output", terminal_output.getvalue())
+    self.assertIn("Exiting", terminal_output.getvalue())
+
+  @mock.patch.object(os.path, "isfile", autospec=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  @mock.patch("src.open.BatchTraceProcessor")
+  def test_execute_repl_empty_query_ignored(self, mock_btp, mock_input,
+                                            mock_exists, mock_isfile):
+    mock_input.side_effect = ["", "   ", "quit"]
+    mock_btp_instance = mock_btp.return_value.__enter__.return_value
+
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    run_cli("torq open trace1.pftrace trace2.pftrace")
+
+    mock_btp_instance.query_and_flatten.assert_not_called()
+    self.assertIn("Exiting", terminal_output.getvalue())
+
+  @mock.patch.object(os.path, "isfile", autospec=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  @mock.patch("src.open.BatchTraceProcessor")
+  def test_execute_repl_sql_error_handled(self, mock_btp, mock_input,
+                                          mock_exists, mock_isfile):
+    mock_input.side_effect = ["bad query;", "", "quit"]
+    mock_btp_instance = mock_btp.return_value.__enter__.return_value
+    mock_btp_instance.query_and_flatten.side_effect = Exception("Syntax error")
+    mock_exists.return_value = True
+    mock_isfile.return_value = True
+
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    run_cli("torq open trace1.pftrace trace2.pftrace")
+
+    self.assertIn("Error executing query: Syntax error",
+                  terminal_output.getvalue())
+    self.assertIn("Exiting", terminal_output.getvalue())
+
+  @mock.patch.object(os.path, "isfile", autospec=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  @mock.patch("src.open.BatchTraceProcessor")
+  def test_execute_repl_keyboard_interrupt_handled(self, mock_btp, mock_input,
+                                                   mock_exists, mock_isfile):
+    mock_input.side_effect = [KeyboardInterrupt(), "quit"]
+    mock_exists.return_value = True
+    mock_isfile.return_value = True
+
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    run_cli("torq open trace1.pftrace trace2.pftrace")
+
+    self.assertIn("Exiting", terminal_output.getvalue())
+
+  @mock.patch.object(os.path, "isfile", autospec=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(builtins, "input")
+  @mock.patch("src.open.BatchTraceProcessor")
+  def test_execute_repl_eof_error_handled(self, mock_btp, mock_input,
+                                          mock_exists, mock_isfile):
+    mock_input.side_effect = EOFError()
+    mock_exists.return_value = True
+    mock_isfile.return_value = True
+
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    run_cli("torq open trace1.pftrace trace2.pftrace")
+
+    self.assertIn("Exiting", terminal_output.getvalue())
+
+  @mock.patch.object(os.path, "isfile", autospec=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch("src.open.BatchTraceProcessor")
+  def test_execute_repl_initialization_failure(self, mock_btp, mock_exists,
+                                               mock_isfile):
+    mock_btp.side_effect = Exception("Failed to load trace")
+    mock_exists.return_value = True
+    mock_isfile.return_value = True
+
+    terminal_output = io.StringIO()
+    sys.stdout = terminal_output
+
+    run_cli("torq open trace1.pftrace trace2.pftrace")
+
+    self.assertIn("Failed to initialize the torq REPL: Failed to load trace",
+                  terminal_output.getvalue())
+    self.assertIn("Exiting", terminal_output.getvalue())
 
 
 if __name__ == '__main__':

@@ -1125,14 +1125,17 @@ class TorqUnitTest(unittest.TestCase):
          (MIN_DURATION_MS, (MIN_DURATION_MS / 1000))))
 
   @mock.patch.object(os.path, "exists", autospec=True)
-  def test_create_parser_valid_open_subcommand(self, mock_exists):
+  @mock.patch.object(os.path, "isfile", autospec=True)
+  def test_create_parser_valid_open_subcommand(self, mock_isfile, mock_exists):
     mock_exists.return_value = True
-    args = parse_cli("torq open %s" % TEST_FILE)
+    mock_isfile.return_value = True
+    test_trace_file = TEST_FILE + ".pftrace"
+    args = parse_cli("torq open %s" % test_trace_file)
 
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
-    self.assertEqual(args.file_path, TEST_FILE)
+    self.assertEqual(args.file_path, [os.path.abspath(test_trace_file)])
 
   def test_create_parser_open_subcommand_no_file(self):
     parser, error = create_parser_from_cli("torq open")
@@ -1149,9 +1152,9 @@ class TorqUnitTest(unittest.TestCase):
     args, error = verify_args(args)
 
     self.assertEqual(
-        error.message, "Command is invalid because %s is an "
-        "invalid file path." % TEST_FILE)
-    self.assertEqual(error.suggestion, "Make sure your file exists.")
+        error.message, f"Command is invalid because '{TEST_FILE}' is not a "
+        "valid file or directory path.")
+    self.assertEqual(error.suggestion, "Make sure the path exists.")
 
 
 if __name__ == '__main__':
