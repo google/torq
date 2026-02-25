@@ -23,7 +23,7 @@ from .base import (ANDROID_SDK_VERSION_T, Command, CommandExecutor,
                    ValidationError)
 from .config_builder import (build_custom_config, create_common_config_parser,
                              PREDEFINED_PERFETTO_CONFIGS)
-from .device import SIMPLEPERF_TRACE_FILE
+from .device import OsCodes, SIMPLEPERF_TRACE_FILE
 from .handle_input import HandleInput
 from .open_ui_utils import open_trace, WEB_UI_ADDRESS
 from .utils import convert_simpleperf_to_gecko, poll_is_task_completed, POLLING_INTERVAL_SECS
@@ -521,8 +521,10 @@ class ProfilerCommandExecutor(CommandExecutor):
     self.trace_cancelled = False
 
   def execute_command(self, command, device):
-    config, error = self.create_config(command,
-                                       device.get_android_sdk_version())
+    android_sdk_version = ANDROID_SDK_VERSION_T
+    if device.os() == OsCodes.OS_ANDROID:
+      android_sdk_version = device.get_android_sdk_version()
+    config, error = self.create_config(command, android_sdk_version)
     if error is not None:
       return error
     error = self.prepare_device(command, device, config)
@@ -582,7 +584,10 @@ class ProfilerCommandExecutor(CommandExecutor):
       return build_custom_config(command)
 
   def prepare_device(self, command, device, config):
-    return None
+    error = None
+    if command.profiler == "perfetto":
+      error = device.setup_perfetto()
+    return error
 
   def prepare_device_for_run(self, command, device):
     if command.profiler == "perfetto":
@@ -651,7 +656,10 @@ class ProfilerCommandExecutor(CommandExecutor):
     return None
 
   def cleanup(self, command, device):
-    return None
+    error = None
+    if command.profiler == "perfetto":
+      error = device.teardown_perfetto()
+    return error
 
   def signal_handler(self, sig, frame):
     self.trace_cancelled = True
@@ -701,12 +709,14 @@ class UserSwitchCommandExecutor(ProfilerCommandExecutor):
       print("Switching from the to-user, %s, back to the original user, %s." %
             (command.to_user, command.original_user))
       device.perform_user_switch(command.original_user)
+    return None
 
 
 class BootCommandExecutor(ProfilerCommandExecutor):
 
   def prepare_device(self, command, device, config):
     device.write_to_file("/data/misc/perfetto-configs/boottrace.pbtxt", config)
+    return None
 
   def prepare_device_for_run(self, command, device):
     device.remove_file(f'{PERFETTO_BOOT_TRACE_FILE}*')

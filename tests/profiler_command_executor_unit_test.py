@@ -56,6 +56,8 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       self.command.symbols = "/"
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.setup_perfetto.return_value = None
+    self.mock_device.teardown_perfetto.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.create_directory.return_value = None
@@ -332,6 +334,8 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
       self.command.symbols = "/"
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.setup_perfetto.return_value = None
+    self.mock_device.teardown_perfetto.return_value = None
     self.mock_device.user_exists.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
@@ -505,6 +509,8 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
                                    None, None, None, None)
     self.executor = get_executor("boot")
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.setup_perfetto.return_value = None
+    self.mock_device.teardown_perfetto.return_value = None
     self.mock_device.is_process_running.return_value = False
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
@@ -636,6 +642,8 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
       self.command.symbols = "/"
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.setup_perfetto.return_value = None
+    self.mock_device.teardown_perfetto.return_value = None
     self.mock_device.get_packages.return_value = [
         TEST_PACKAGE_1, TEST_PACKAGE_2
     ]

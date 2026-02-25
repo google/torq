@@ -15,15 +15,17 @@
 #
 
 import builtins
+import io
 import unittest
 import os
 import subprocess
+from contextlib import redirect_stderr
 from unittest import mock
-from src.device import AndroidDevice
+from src.device import AndroidDevice, get_device
 from src.profiler import ProfilerCommand
-from src.shell import AdbShell
+from src.shell import AdbShell, OsCodes
 from src.utils import ShellExitCodes
-from tests.test_utils import generate_adb_devices_result, generate_mock_completed_process
+from tests.test_utils import generate_adb_devices_result, generate_mock_completed_process, run_cli
 
 TEST_DEVICE_SERIAL = "test-device-serial"
 TEST_DEVICE_SERIAL2 = "test-device-serial2"
@@ -898,6 +900,85 @@ class DeviceUnitTest(unittest.TestCase):
             returncode=ShellExitCodes.EX_NOTFOUND.value))
 
     self.assertFalse(AdbShell.adb_exists())
+
+  @mock.patch.object(AdbShell, "get_os", autospec=True)
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_device_unsupported_os(self, mock_subprocess_run, mock_get_os):
+    mock_subprocess_run.return_value = (
+        generate_adb_devices_result([TEST_DEVICE_SERIAL]))
+    mock_get_os.return_value = OsCodes.OS_UNKNOWN
+
+    tmp_stderr = io.StringIO()
+    with redirect_stderr(tmp_stderr):
+      run_cli(f"torq --serial {TEST_DEVICE_SERIAL}")
+
+    output = tmp_stderr.getvalue()
+    self.assertIn(
+        f"Device '{TEST_DEVICE_SERIAL}' runs an unsupported operating system.",
+        output)
+    self.assertIn("The supported operating systems are: Android, Qnx", output)
+
+  def test_get_shell_unsupported_uri_scheme(self):
+    tmp_stderr = io.StringIO()
+    with redirect_stderr(tmp_stderr):
+      run_cli("torq --serial http://localhost:8080")
+
+    output = tmp_stderr.getvalue()
+    self.assertIn("The URI scheme 'http' is not supported.", output)
+    self.assertIn("The only supported URI scheme is 'ssh'.", output)
+
+  @mock.patch("src.torq.execute_command", autospec=True)
+  @mock.patch("src.shell.run_subprocess", autospec=True)
+  def test_ssh_shell_get_os_qnx(self, mock_run_subprocess,
+                                mock_execute_command):
+    from src.device import QnxDevice
+    mock_run_subprocess.return_value = generate_mock_completed_process(b"QNX\n")
+    mock_execute_command.return_value = None
+
+    tmp_stderr = io.StringIO()
+    with redirect_stderr(tmp_stderr):
+      run_cli("torq --serial ssh://root@172.12.345.678 profiler")
+
+    output = tmp_stderr.getvalue()
+    self.assertEqual(output, "")
+
+    mock_run_subprocess.assert_called_with(
+        ["ssh", "root@172.12.345.678", "PATH=$PATH:/ifs/bin:/mnt/bin; uname"],
+        [ShellExitCodes.EX_FAILURE, ShellExitCodes.EX_NOTFOUND], None, None,
+        None, None, True, False, None, None, None, None, None, None, None)
+
+    self.assertTrue(mock_execute_command.called)
+    self.assertIsInstance(mock_execute_command.call_args[0][1], QnxDevice)
+
+  @mock.patch("src.shell.run_subprocess", autospec=True)
+  def test_ssh_shell_get_os_unknown(self, mock_run_subprocess):
+    mock_run_subprocess.return_value = generate_mock_completed_process(
+        b"Linux\n")
+
+    tmp_stderr = io.StringIO()
+    with redirect_stderr(tmp_stderr):
+      run_cli("torq --serial ssh://user@172.12.345.678:2222")
+
+    output = tmp_stderr.getvalue()
+    self.assertIn(
+        "Device 'ssh://user@172.12.345.678:2222' runs an unsupported operating system.",
+        output)
+    self.assertIn("The supported operating systems are: Android, Qnx", output)
+
+  @mock.patch("src.shell.run_subprocess", autospec=True)
+  def test_ssh_shell_get_os_failure(self, mock_run_subprocess):
+    mock_run_subprocess.return_value = generate_mock_completed_process(
+        returncode=ShellExitCodes.EX_FAILURE.value)
+
+    tmp_stderr = io.StringIO()
+    with redirect_stderr(tmp_stderr):
+      run_cli("torq --serial ssh://root@172.12.345.678")
+
+    output = tmp_stderr.getvalue()
+    self.assertIn(
+        "Device 'ssh://root@172.12.345.678' runs an unsupported operating system.",
+        output)
+    self.assertIn("The supported operating systems are: Android, Qnx", output)
 
 
 if __name__ == '__main__':
