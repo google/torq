@@ -21,7 +21,7 @@ import os
 import subprocess
 from contextlib import redirect_stderr
 from unittest import mock
-from src.device import AndroidDevice, get_device
+from src.device import AndroidDevice, get_device, QnxDevice
 from src.profiler import ProfilerCommand
 from src.shell import AdbShell, OsCodes
 from src.utils import ShellExitCodes
@@ -931,13 +931,12 @@ class DeviceUnitTest(unittest.TestCase):
   @mock.patch("src.shell.run_subprocess", autospec=True)
   def test_ssh_shell_get_os_qnx(self, mock_run_subprocess,
                                 mock_execute_command):
-    from src.device import QnxDevice
     mock_run_subprocess.return_value = generate_mock_completed_process(b"QNX\n")
     mock_execute_command.return_value = None
 
     tmp_stderr = io.StringIO()
     with redirect_stderr(tmp_stderr):
-      run_cli("torq --serial ssh://root@172.12.345.678 profiler")
+      run_cli("torq --serial ssh://root@172.12.345.678")
 
     output = tmp_stderr.getvalue()
     self.assertEqual(output, "")
@@ -970,15 +969,11 @@ class DeviceUnitTest(unittest.TestCase):
     mock_run_subprocess.return_value = generate_mock_completed_process(
         returncode=ShellExitCodes.EX_FAILURE.value)
 
-    tmp_stderr = io.StringIO()
-    with redirect_stderr(tmp_stderr):
+    with self.assertRaises(Exception) as e:
       run_cli("torq --serial ssh://root@172.12.345.678")
 
-    output = tmp_stderr.getvalue()
-    self.assertIn(
-        "Device 'ssh://root@172.12.345.678' runs an unsupported operating system.",
-        output)
-    self.assertIn("The supported operating systems are: Android, Qnx", output)
+    self.assertEqual(e.exception.args[0],
+                     "SshShell: failed to get the os: error: 1")
 
 
 if __name__ == '__main__':

@@ -26,6 +26,7 @@ from .shell import AdbShell, OsCodes, get_shell, SshShell
 from .utils import poll_is_task_completed, POLLING_INTERVAL_SECS, run_subprocess, ShellExitCodes
 
 BOOT_COMPLETED_TIME_OUT_SECS = 30
+DEVICE_PERFETTO_TRACE_FILE = "/data/misc/perfetto-traces/trace.perfetto-trace"
 SIMPLEPERF_TRACE_FILE = "/tmp/simpleperf-traces/perf.data"
 
 
@@ -153,8 +154,7 @@ class AndroidDevice(Device):
 
   def start_perfetto_trace(self, config):
     return self.shell.popen("shell perfetto -c - --txt -o "
-                            "/data/misc/perfetto-traces/trace.perfetto-trace " +
-                            config)
+                            f"{DEVICE_PERFETTO_TRACE_FILE} " + config)
 
   def teardown_perfetto(self):
     # Perfetto runs by default in Android, no need to teardown
@@ -331,10 +331,6 @@ QNX_PATH_ENV = "PATH=$PATH:/ifs/bin:/mnt/bin:/userdata/bin"
 
 
 class QnxDevice(Device):
-  """
-  Class representing a QNX device. APIs interact with the current device through
-  an SSH shell.
-  """
 
   def id(self):
     return self.shell.id()
@@ -351,6 +347,10 @@ class QnxDevice(Device):
       self.shell.run([f"{QNX_PATH_ENV}; kill -{signal} {pid}"])
 
   def get_pid(self, process_name):
+    # Example output of pidin command:
+    # > pidin -p io-sock -f a
+    #   pid
+    #   860197
     results = self.shell.run([f"{QNX_PATH_ENV}; pidin -p {process_name} -f a"],
                              capture_output=True,
                              ignore_returncodes=[
@@ -358,6 +358,7 @@ class QnxDevice(Device):
                              ]).stdout.decode("utf-8").strip().split("\n")
     if len(results) > 2:
       raise Exception(f"More than 1 process found for name: {process_name}")
+    # Index 0 is reserved for the column header
     return results[1] if len(results) > 1 else ""
 
   def kill_process(self, process_name):
@@ -397,7 +398,7 @@ class QnxDevice(Device):
   def start_perfetto_trace(self, config):
     return self.shell.popen(
         f"{QNX_PATH_ENV}; perfetto -c - --txt -o "
-        "/data/misc/perfetto-traces/trace.perfetto-trace " + config,
+        f"{DEVICE_PERFETTO_TRACE_FILE} " + config,
         stderr=DEVNULL)
 
   def teardown_perfetto(self):

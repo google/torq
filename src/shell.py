@@ -253,7 +253,8 @@ class SshShell(Shell):
                           ShellExitCodes.EX_FAILURE, ShellExitCodes.EX_NOTFOUND
                       ])
     if result.returncode != 0:
-      return OsCodes.OS_UNKNOWN
+      raise Exception(
+          f"SshShell: failed to get the os: error: {result.returncode}")
 
     os_name = result.stdout.decode("utf-8").strip().lower()
     if os_name == "qnx":
