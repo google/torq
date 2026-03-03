@@ -39,7 +39,6 @@ import sys
 import argparse
 
 def parse_args():
-    """Parses command line arguments into specific flags."""
     parser = argparse.ArgumentParser(description="Run torq tests.")
     group = parser.add_mutually_exclusive_group()
 
@@ -59,18 +58,14 @@ def parse_args():
     return parser.parse_args()
 
 def run_tests(args):
-    """Executes tests based on the flags provided."""
-
     cmd = ["bazel", "test", "--test_output=errors"]
-    
+
     if args.test_mode != "all":
       cmd.append(f"--test_tag_filters={args.test_mode}")
-    
-    env_path = f"--action_env=PATH={os.environ.get('PATH', '')}"
-    
+
     if args.test_mode == "integration" or args.test_mode == "all":
-        cmd.extend([env_path,])
-        
+        cmd.extend([f"--action_env=PATH={os.environ.get('PATH', '')}",])
+
     cmd.extend(args.remaining if args.remaining else ["//:all"])
 
     print(f"\n--- Running {args.test_mode} Tests: ---")

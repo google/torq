@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#      https://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -141,6 +141,8 @@ py_test(
         ":torq_lib",
         ":torq_test_lib",
     ],
+    # external tag forces test run execution without relying on cached results
     tags = ["integration", "external"],
+    # local flag allows test run on local environment without bazel sandboxing
     local = True,
 )

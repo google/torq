@@ -30,6 +30,17 @@ from tests.test_utils import run_cli
 class TorqIntegrationTest(unittest.TestCase):
 
   @classmethod
+  def _get_adb_device(cls):
+    devices = AdbShell.get_adb_devices()
+
+    if not devices:
+      return None
+
+    selected_device = devices[0]
+    print(f"INFO: Found {len(devices)} device(s). Targeting: {selected_device}")
+    return selected_device
+
+  @classmethod
   def setUpClass(cls):
     if not AdbShell.adb_exists():
       raise RuntimeError(
@@ -45,19 +56,7 @@ class TorqIntegrationTest(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
-    if hasattr(cls, 'parent_tmp_dir') and cls.parent_tmp_dir.exists():
-      shutil.rmtree(cls.parent_tmp_dir)
-
-  @classmethod
-  def _get_adb_device(cls):
-    devices = AdbShell.get_adb_devices()
-
-    if not devices:
-      return None
-
-    selected_device = devices[0]
-    print(f"INFO: Found {len(devices)} device(s). Targeting: {selected_device}")
-    return selected_device
+    shutil.rmtree(cls.parent_tmp_dir)
 
   def setUp(self):
     self.test_run_dir = self.parent_tmp_dir / self._testMethodName
@@ -68,7 +67,7 @@ class TorqIntegrationTest(unittest.TestCase):
 
     try:
       with redirect_stdout(output_io), redirect_stderr(output_io):
-        run_cli(f"torq --serial {TorqIntegrationTest.serial} -d 3000 "
+        run_cli(f"torq --serial {self.serial} -d 3000 "
                 f"--no-ui -o {self.test_run_dir}")
     except SystemExit as e:
       if e.code != 0:
