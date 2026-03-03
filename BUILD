@@ -15,10 +15,25 @@
 load("@rules_python//python:py_binary.bzl", "py_binary")
 load("@rules_python//python:py_library.bzl", "py_library")
 load("@rules_python//python:py_test.bzl", "py_test")
+load("@pypi//:requirements.bzl", "requirement")
+load("@python_versions//3.11:defs.bzl", compile_pip_requirements_3_11 = "compile_pip_requirements")
+
+# This stanza calls a rule that generates targets for managing pip dependencies
+# with pip-compile.
+compile_pip_requirements_3_11(
+    name = "requirements_3_11",
+    extra_args = ["--allow-unsafe"],
+    requirements_in = "requirements.in",
+    requirements_txt = "requirements_lock_3_11.txt",
+)
 
 py_library(
     name = "torq_lib",
     srcs = glob(["src/**/*.py"]),
+    deps = [
+        requirement("pandas"),
+        requirement("perfetto"),
+    ],
 )
 
 py_binary(
