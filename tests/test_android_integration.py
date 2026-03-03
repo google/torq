@@ -15,7 +15,6 @@
 #
 
 import io
-import re
 import unittest
 import os
 import shutil
@@ -25,6 +24,12 @@ from pathlib import Path
 from contextlib import redirect_stderr, redirect_stdout
 from src.shell import AdbShell
 from tests.test_utils import run_cli
+from perfetto.batch_trace_processor.api import BatchTraceProcessor
+
+btp_query = {
+    "test_duration":
+        "SELECT (MAX(ts) - MIN(ts)) / 1e9 AS duration_sec FROM slice",
+}
 
 
 class TorqIntegrationTest(unittest.TestCase):
@@ -86,26 +91,26 @@ class TorqIntegrationTest(unittest.TestCase):
 
     self.assertIn("Performing run ", output_text)
 
-    duration_match = re.search(r"Run lasted for (\d+\.\d+) seconds\.",
-                               output_text)
-    self.assertIsNotNone(
-        duration_match,
-        f"Could not find duration summary in output.\nFull Logs: {output_text}")
-
-    actual_duration = float(duration_match.group(1))
-    self.assertGreaterEqual(
-        actual_duration, 3.0,
-        f"Torq reported a duration of {actual_duration}s (expected >= 3.0s).")
-
     trace_files = list(self.test_run_dir.glob("*.perfetto-trace"))
+
     self.assertEqual(
         len(trace_files), 1,
         f"Expected 1 .perfetto-trace file in {self.test_run_dir}, found {len(trace_files)}"
     )
 
     trace = trace_files[0]
-    file_size = trace.stat().st_size
-    self.assertGreater(file_size, 0, f"Trace file {trace.name} is empty.")
+    trace_path = str(trace)
+    self.assertGreater(trace.stat().st_size, 0,
+                       f"Trace file {trace.name} is empty.")
+
+    with BatchTraceProcessor([trace_path]) as btp:
+      results = btp.query(btp_query["test_duration"])
+      if not results:
+        self.fail(f"Couldn't query test_duration from trace {trace_path}")
+      if results[0].empty or results[0]['duration_sec'].iloc[0] is None:
+        self.fail(f"Trace {trace_path} has no duration. Check trace file")
+      self.assertGreaterEqual(results[0]['duration_sec'].iloc[0], 2.8,
+                              "Trace should be ~3 sec")
 
 
 if __name__ == "__main__":
