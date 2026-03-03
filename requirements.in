@@ -1,0 +1,4 @@
+--extra-index-url https://pypi.org/simple
+
+pandas
+perfetto==0.16.0
