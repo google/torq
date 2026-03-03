@@ -1,5 +1,4 @@
 --extra-index-url https://pypi.org/simple
 
-wheel
 pandas
 perfetto==0.16.0
