@@ -28,7 +28,7 @@ from perfetto.batch_trace_processor.api import BatchTraceProcessor
 
 btp_query = {
     "test_duration":
-        "SELECT (MAX(ts) - MIN(ts)) / 1e9 AS duration_sec FROM slice",
+        "SELECT (end_ts - start_ts) / 1e9 AS duration_sec FROM trace_bounds",
 }
 
 
@@ -69,10 +69,11 @@ class TorqIntegrationTest(unittest.TestCase):
 
   def test_torq_basic_perfetto(self):
     output_io = io.StringIO()
+    trace_sec = 3
 
     try:
       with redirect_stdout(output_io), redirect_stderr(output_io):
-        run_cli(f"torq --serial {self.serial} -d 3000 "
+        run_cli(f"torq --serial {self.serial} -d {trace_sec * 1000}  "
                 f"--no-ui -o {self.test_run_dir}")
     except SystemExit as e:
       if e.code != 0:
@@ -109,8 +110,12 @@ class TorqIntegrationTest(unittest.TestCase):
         self.fail(f"Couldn't query test_duration from trace {trace_path}")
       if results[0].empty or results[0]['duration_sec'].iloc[0] is None:
         self.fail(f"Trace {trace_path} has no duration. Check trace file")
-      self.assertGreaterEqual(results[0]['duration_sec'].iloc[0], 2.8,
-                              "Trace should be ~3 sec")
+      duration = results[0]['duration_sec'].iloc[0]
+      trace_variance = 0.05
+      self.assertGreaterEqual(duration, trace_sec * (1 - trace_variance),
+                              "Trace should be ~3 sec ")
+      self.assertLessEqual(duration, trace_sec * (1 + trace_variance),
+                           "Trace should be ~3 sec")
 
 
 if __name__ == "__main__":
