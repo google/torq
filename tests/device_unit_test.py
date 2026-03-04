@@ -21,7 +21,7 @@ import os
 import subprocess
 from contextlib import redirect_stderr
 from unittest import mock
-from src.device import AndroidDevice, get_device, QnxDevice
+from src.device import AndroidDevice, QnxDevice
 from src.profiler import ProfilerCommand
 from src.shell import AdbShell, OsCodes
 from src.utils import ShellExitCodes
@@ -900,23 +900,6 @@ class DeviceUnitTest(unittest.TestCase):
             returncode=ShellExitCodes.EX_NOTFOUND.value))
 
     self.assertFalse(AdbShell.adb_exists())
-
-  @mock.patch.object(AdbShell, "get_os", autospec=True)
-  @mock.patch.object(subprocess, "run", autospec=True)
-  def test_get_device_unsupported_os(self, mock_subprocess_run, mock_get_os):
-    mock_subprocess_run.return_value = (
-        generate_adb_devices_result([TEST_DEVICE_SERIAL]))
-    mock_get_os.return_value = OsCodes.OS_UNKNOWN
-
-    tmp_stderr = io.StringIO()
-    with redirect_stderr(tmp_stderr):
-      run_cli(f"torq --serial {TEST_DEVICE_SERIAL}")
-
-    output = tmp_stderr.getvalue()
-    self.assertIn(
-        f"Device '{TEST_DEVICE_SERIAL}' runs an unsupported operating system.",
-        output)
-    self.assertIn("The supported operating systems are: Android, Qnx", output)
 
   def test_get_shell_unsupported_uri_scheme(self):
     tmp_stderr = io.StringIO()

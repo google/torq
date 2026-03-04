@@ -30,6 +30,11 @@ POLLING_INTERVAL_SECS = 0.5
 # File constants
 TEXTPROTO_FILE_EXTENSIONS = [".txtpb", ".textproto", ".textpb", ".pbtxt"]
 
+# Perfetto constants
+PERFETTO_DEVICE_FOLDER = "/data/misc/perfetto-traces"
+PERFETTO_TRACE_FILE = PERFETTO_DEVICE_FOLDER + "/trace.perfetto-trace"
+PERFETTO_BOOT_TRACE_FILE = PERFETTO_DEVICE_FOLDER + "/boottrace.perfetto-trace"
+
 
 class ShellExitCodes(enum.IntEnum):
   EX_SUCCESS = 0

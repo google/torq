@@ -26,7 +26,9 @@ from .config_builder import (build_custom_config, create_common_config_parser,
 from .device import OsCodes, SIMPLEPERF_TRACE_FILE
 from .handle_input import HandleInput
 from .open_ui_utils import open_trace, WEB_UI_ADDRESS
-from .utils import convert_simpleperf_to_gecko, poll_is_task_completed, POLLING_INTERVAL_SECS
+from .utils import (convert_simpleperf_to_gecko, poll_is_task_completed,
+                    PERFETTO_BOOT_TRACE_FILE, PERFETTO_DEVICE_FOLDER,
+                    PERFETTO_TRACE_FILE, POLLING_INTERVAL_SECS)
 from .validate_simpleperf import verify_simpleperf_args
 
 DEFAULT_DUR_MS = 10000
@@ -34,9 +36,6 @@ DEFAULT_OUT_DIR = "."
 MAX_WAIT_FOR_INIT_USER_SWITCH_SECS = 180
 MIN_DURATION_MS = 3000
 MIN_STOP_DELAY_MS = 1000
-PERFETTO_DEVICE_FOLDER = "/data/misc/perfetto-traces"
-PERFETTO_TRACE_FILE = PERFETTO_DEVICE_FOLDER + "/trace.perfetto-trace"
-PERFETTO_BOOT_TRACE_FILE = PERFETTO_DEVICE_FOLDER + "/boottrace.perfetto-trace"
 SIMPLEPERF_DEVICE_TRACE_FOLDER = "/tmp/simpleperf-traces"
 SIMPLEPERF_STOP_TIMEOUT_SECS = 60
 TRACE_START_DELAY_SECS = 0.5
