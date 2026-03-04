@@ -14,16 +14,17 @@
 # limitations under the License.
 #
 
-import enum
 import math
 import os
 import sys
 import time
 from abc import ABC, abstractmethod
+from subprocess import DEVNULL
 from .base import ValidationError
 from .handle_input import HandleInput
-from .shell import AdbShell
-from .utils import poll_is_task_completed, POLLING_INTERVAL_SECS, run_subprocess, ShellExitCodes
+from .shell import AdbShell, OsCodes, get_shell, SshShell
+from .utils import (PERFETTO_TRACE_FILE, poll_is_task_completed,
+                    POLLING_INTERVAL_SECS, run_subprocess, ShellExitCodes)
 
 BOOT_COMPLETED_TIME_OUT_SECS = 30
 SIMPLEPERF_TRACE_FILE = "/tmp/simpleperf-traces/perf.data"
@@ -32,23 +33,27 @@ SIMPLEPERF_TRACE_FILE = "/tmp/simpleperf-traces/perf.data"
 def get_device(serial, is_device_required):
   device = None
   if serial is not None:
-    error = AdbShell.verify_serial(serial)
+    shell, error = get_shell(serial)
     if error is not None:
       return None, error
-    device = AndroidDevice(AdbShell(serial))
+    match shell.get_os():
+      case OsCodes.OS_ANDROID:
+        device = AndroidDevice(shell)
+      case OsCodes.OS_QNX:
+        device = QnxDevice(shell)
+      case _:
+        return None, ValidationError(
+            f"Device '{serial}' runs an unsupported operating system.",
+            f"The supported operating systems are: {', '.join(OsCodes.get_supported_os_names())}."
+        )
   else:
+    # If no serial passed we default to Android
     serial, error = AdbShell.get_default_serial()
     if error is None:
       device = AndroidDevice(AdbShell(serial))
     elif is_device_required:
       return None, error
   return device, None
-
-
-@enum.unique
-class OSCodes(enum.IntEnum):
-  OS_UNKNOWN = 0
-  OS_ANDROID = 1
 
 
 class Device(ABC):
@@ -81,7 +86,11 @@ class Device(ABC):
     raise NotImplementedError
 
   @abstractmethod
-  def pull_file(self, filepath):
+  def file_exists(self, filepath):
+    raise NotImplementedError
+
+  @abstractmethod
+  def pull_file(self, filepath, host_file):
     raise NotImplementedError
 
   @abstractmethod
@@ -94,6 +103,14 @@ class Device(ABC):
 
   @abstractmethod
   def get_current_user(self):
+    raise NotImplementedError
+
+  @abstractmethod
+  def setup_perfetto(self):
+    raise NotImplementedError
+
+  @abstractmethod
+  def teardown_perfetto(self):
     raise NotImplementedError
 
   @abstractmethod
@@ -111,7 +128,7 @@ class AndroidDevice(Device):
     return self.shell.id()
 
   def os(self):
-    return OSCodes.OS_ANDROID
+    return OsCodes.OS_ANDROID
 
   def root_device(self):
     self.shell.run(["root"])
@@ -131,10 +148,17 @@ class AndroidDevice(Device):
                             ignore_returncodes=[ShellExitCodes.EX_FAILURE])
     return not output.returncode
 
+  def setup_perfetto(self):
+    # Perfetto runs by default in Android
+    pass
+
   def start_perfetto_trace(self, config):
     return self.shell.popen("shell perfetto -c - --txt -o "
-                            "/data/misc/perfetto-traces/trace.perfetto-trace " +
-                            config)
+                            f"{PERFETTO_TRACE_FILE} " + config)
+
+  def teardown_perfetto(self):
+    # Perfetto runs by default in Android, no need to teardown
+    pass
 
   def trigger_perfetto(self, trigger_name):
     self.shell.run(["shell", "trigger_perfetto", trigger_name])
@@ -300,3 +324,83 @@ class AndroidDevice(Device):
           " %s." % events_copy, "Run adb shell simpleperf list to"
           " see valid simpleperf events.")
     return None
+
+
+class QnxDevice(Device):
+  # TODO(jahdiel): Remove /userdata/bin from this list, added only for testing
+  QNX_PATH_ENV = "PATH=$PATH:/ifs/bin:/mnt/bin:/userdata/bin"
+
+  def id(self):
+    return self.shell.id()
+
+  def os(self):
+    return OsCodes.OS_QNX
+
+  def root_device(self):
+    pass
+
+  def send_signal(self, process_name, signal):
+    pid = self.get_pid(process_name)
+    if pid != "":
+      self.shell.run([f"{QnxDevice.QNX_PATH_ENV}; kill -{signal} {pid}"])
+
+  def get_pid(self, process_name):
+    # Example output of pidin command:
+    # > pidin -p io-sock -f a
+    #   pid
+    #   860197
+    results = self.shell.run(
+        [f"{QnxDevice.QNX_PATH_ENV}; pidin -p {process_name} -f a"],
+        capture_output=True,
+        ignore_returncodes=[ShellExitCodes.EX_FAILURE
+                           ]).stdout.decode("utf-8").strip().split("\n")
+    if len(results) > 2:
+      raise Exception(f"More than 1 process found for name: {process_name}")
+    # Index 0 is reserved for the column header
+    return results[1] if len(results) > 1 else ""
+
+  def kill_process(self, process_name):
+    self.send_signal(process_name, "SIGKILL")
+
+  def file_exists(self, filepath):
+    output = self.shell.run([f"{QnxDevice.QNX_PATH_ENV}; ls {filepath}"],
+                            capture_output=True,
+                            ignore_returncodes=[ShellExitCodes.EX_FAILURE])
+    return not output.returncode
+
+  def pull_file(self, filepath, host_file):
+    if isinstance(self.shell, SshShell):
+      return self.shell.pull_file(filepath, host_file)
+    raise NotImplementedError
+
+  def remove_file(self, filepath):
+    output = self.shell.run([f"{QnxDevice.QNX_PATH_ENV}; rm {filepath}"],
+                            capture_output=True,
+                            ignore_returncodes=[ShellExitCodes.EX_FAILURE])
+    return not output.returncode
+
+  def is_process_running(self, process_name):
+    return self.get_pid(process_name) != ""
+
+  def get_current_user(self):
+    raise NotImplementedError
+
+  def setup_perfetto(self):
+    self.kill_process("tracelogger")
+    if not self.is_process_running("traced"):
+      self.shell.popen(f"{QnxDevice.QNX_PATH_ENV}; traced", stderr=DEVNULL)
+    if not self.is_process_running("traced_qnx_probes"):
+      self.shell.popen(
+          f"{QnxDevice.QNX_PATH_ENV}; traced_qnx_probes",
+          stdout=DEVNULL,
+          stderr=DEVNULL)
+
+  def start_perfetto_trace(self, config):
+    return self.shell.popen(
+        f"{QnxDevice.QNX_PATH_ENV}; perfetto -c - --txt -o "
+        f"{PERFETTO_TRACE_FILE} " + config,
+        stderr=DEVNULL)
+
+  def teardown_perfetto(self):
+    self.kill_process("traced_qnx_probes")
+    self.kill_process("traced")
