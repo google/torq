@@ -33,6 +33,7 @@ BTP_QUERY = {
 
 DUR_TOLERANCE = 0.05
 
+
 class TorqIntegrationTest(unittest.TestCase):
 
   @classmethod
@@ -109,9 +110,11 @@ class TorqIntegrationTest(unittest.TestCase):
       results = btp.query(BTP_QUERY["trace_duration"])
       self.assertIsNotNone(results[0]['duration_sec'].iloc[0])
       actual_duration = results[0]['duration_sec'].iloc[0]
-      self.assertAlmostEqual(actual_duration, dur_sec,
-                             delta= DUR_TOLERANCE * dur_sec,
-                             msg=f"Trace should be ~{dur_sec} sec")
+      self.assertAlmostEqual(
+          actual_duration,
+          dur_sec,
+          delta=DUR_TOLERANCE * dur_sec,
+          msg=f"Trace should be ~{dur_sec} sec")
 
 
 if __name__ == "__main__":
