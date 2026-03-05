@@ -212,9 +212,9 @@ class TorqUnitTest(unittest.TestCase):
 
     self.assertEqual(error.message, ("Command is invalid because"
                                      " --dur-ms cannot be set to a value"
-                                     " smaller than 3000."))
-    self.assertEqual(error.suggestion, ("Set --dur-ms 3000 to capture a"
-                                        " trace for 3 seconds."))
+                                     " smaller than 1000."))
+    self.assertEqual(error.suggestion, ("Set --dur-ms 1000 to capture a"
+                                        " trace for 1 seconds."))
 
     args = parse_cli("torq -d 0")
 
@@ -222,9 +222,9 @@ class TorqUnitTest(unittest.TestCase):
 
     self.assertEqual(error.message, ("Command is invalid because"
                                      " --dur-ms cannot be set to a value"
-                                     " smaller than 3000."))
-    self.assertEqual(error.suggestion, ("Set --dur-ms 3000 to capture a"
-                                        " trace for 3 seconds."))
+                                     " smaller than 1000."))
+    self.assertEqual(error.suggestion, ("Set --dur-ms 1000 to capture a"
+                                        " trace for 1 seconds."))
 
     args = parse_cli("torq -d 20")
 
@@ -232,9 +232,9 @@ class TorqUnitTest(unittest.TestCase):
 
     self.assertEqual(error.message, ("Command is invalid because"
                                      " --dur-ms cannot be set to a value"
-                                     " smaller than 3000."))
-    self.assertEqual(error.suggestion, ("Set --dur-ms 3000 to capture a"
-                                        " trace for 3 seconds."))
+                                     " smaller than 1000."))
+    self.assertEqual(error.suggestion, ("Set --dur-ms 1000 to capture a"
+                                        " trace for 1 seconds."))
 
   def test_verify_args_valid_between_dur_ms_values(self):
     args = parse_cli("torq -r 2 --between-dur-ms 10000")
@@ -251,9 +251,9 @@ class TorqUnitTest(unittest.TestCase):
 
     self.assertEqual(error.message, ("Command is invalid because"
                                      " --between-dur-ms cannot be set to"
-                                     " a smaller value than 3000."))
-    self.assertEqual(error.suggestion, ("Set --between-dur-ms 3000 to wait"
-                                        " 3 seconds between each run."))
+                                     " a smaller value than 1000."))
+    self.assertEqual(error.suggestion, ("Set --between-dur-ms 1000 to wait"
+                                        " 1 seconds between each run."))
 
     args = parse_cli("torq -r 2 --between-dur-ms 0")
 
@@ -261,9 +261,9 @@ class TorqUnitTest(unittest.TestCase):
 
     self.assertEqual(error.message, ("Command is invalid because"
                                      " --between-dur-ms cannot be set to a"
-                                     " smaller value than 3000."))
-    self.assertEqual(error.suggestion, ("Set --between-dur-ms 3000 to wait"
-                                        " 3 seconds between each run."))
+                                     " smaller value than 1000."))
+    self.assertEqual(error.suggestion, ("Set --between-dur-ms 1000 to wait"
+                                        " 1 seconds between each run."))
 
     args = parse_cli("torq -r 2 --between-dur-ms 20")
 
@@ -271,9 +271,9 @@ class TorqUnitTest(unittest.TestCase):
 
     self.assertEqual(error.message, ("Command is invalid because"
                                      " --between-dur-ms cannot be set to a"
-                                     " smaller value than 3000."))
-    self.assertEqual(error.suggestion, ("Set --between-dur-ms 3000 to wait"
-                                        " 3 seconds between each run."))
+                                     " smaller value than 1000."))
+    self.assertEqual(error.suggestion, ("Set --between-dur-ms 1000 to wait"
+                                        " 1 seconds between each run."))
 
   def test_verify_args_valid_runs_values(self):
     args = parse_cli("torq -r 4")
