@@ -74,8 +74,47 @@ class TorqIntegrationTest(unittest.TestCase):
     self.test_run_dir = self.parent_tmp_dir / self._testMethodName
     self.test_run_dir.mkdir(parents=True, exist_ok=True)
 
-  def get_trace_files(self):
+  def get_perfetto_traces(self):
     return [str(f) for f in self.test_run_dir.glob("*.perfetto-trace")]
+
+  def get_simpleperf_data(self):
+    return [str(f) for f in self.test_run_dir.glob("*.data")]
+
+  def _get_symbols_via_adb_device(self, aosp_root):
+    try:
+      product = subprocess.check_output(
+          ["adb", "-s", self.serial, "shell", "getprop", "ro.build.product"],
+          text=True).strip()
+
+      symbols = aosp_root / "out" / "target" / "product" / product / "symbols"
+      if symbols.exists():
+        return str(symbols)
+    except Exception:
+      out_dir = aosp_root / "out" / "target" / "product"
+      if out_dir.exists():
+        dirs = [d for d in out_dir.iterdir() if (d / "symbols").exists()]
+        if dirs:
+          return str(max(dirs, key=os.path.getmtime) / "symbols")
+
+    return None
+
+  def _get_android_symbols_path(self):
+    product_out = os.environ.get('ANDROID_PRODUCT_OUT')
+    if product_out and (Path(product_out) / "symbols").exists():
+      return str(Path(product_out) / "symbols")
+
+    curr = Path(__file__).resolve()
+    while curr.parent != curr:
+      if (curr / "build" / "envsetup.sh").exists():
+        return self._get_symbols_via_adb_device(curr)
+      curr = curr.parent
+
+    adb_path = subprocess.check_output(["which", "adb"], text=True).strip()
+    path = Path(adb_path).resolve()
+    if "out/host" in str(path):
+      return self._get_symbols_via_adb_device(path.parents[4])
+
+    return None
 
   def run_torq(self, command):
     output_io = io.StringIO()
@@ -95,7 +134,7 @@ class TorqIntegrationTest(unittest.TestCase):
 
     return output_text
 
-  def validate_perfetto_output(self, output_text, num_traces=1):
+  def validate_torq_output(self, output_text):
     error_keywords = ["Error:", "Exception:", "Failed to", "adb: error:"]
     for error in error_keywords:
       self.assertNotIn(
@@ -104,8 +143,7 @@ class TorqIntegrationTest(unittest.TestCase):
 
     self.assertIn("Performing run ", output_text)
 
-    trace_files = list(self.test_run_dir.glob("*.perfetto-trace"))
-
+  def validate_trace_metadata(self, trace_files, num_traces=1):
     self.assertEqual(
         len(trace_files), num_traces,
         f"Expected {num_traces} .perfetto-trace file(s) in "
@@ -114,6 +152,16 @@ class TorqIntegrationTest(unittest.TestCase):
     for trace in trace_files:
       self.assertGreater(trace.stat().st_size, 0,
                          f"Trace file {trace.name} is empty.")
+
+  def validate_perfetto_output(self, output_text, num_traces=1):
+    self.validate_torq_output(output_text)
+    trace_files = list(self.test_run_dir.glob("*.perfetto-trace"))
+    self.validate_trace_metadata(trace_files, num_traces)
+
+  def validate_simpleperf_output(self, output_text):
+    self.validate_torq_output(output_text)
+    trace_files = list(self.test_run_dir.glob("perf*.data*"))
+    self.validate_trace_metadata(trace_files)
 
   def validate_trace_duration(self, btp, dur_sec):
     results = btp.query(BTP_QUERY["trace_duration"])
@@ -131,7 +179,7 @@ class TorqIntegrationTest(unittest.TestCase):
                                 f"{dur_sec * 1000} -o {self.test_run_dir}")
 
     self.validate_perfetto_output(torq_output)
-    with BatchTraceProcessor(self.get_trace_files()) as btp:
+    with BatchTraceProcessor(self.get_perfetto_traces()) as btp:
       self.validate_trace_duration(btp, dur_sec)
 
   def test_torq_multiple_app_startup_events(self):
@@ -145,7 +193,7 @@ class TorqIntegrationTest(unittest.TestCase):
                                 f"{self.test_run_dir} -r {num_runs}")
     self.validate_perfetto_output(torq_output, num_traces=num_runs)
 
-    with BatchTraceProcessor(self.get_trace_files()) as btp:
+    with BatchTraceProcessor(self.get_perfetto_traces()) as btp:
       self.validate_trace_duration(btp, dur_sec)
       results = btp.query(BTP_QUERY["app_startup"].format(package=package))
 
@@ -160,6 +208,20 @@ class TorqIntegrationTest(unittest.TestCase):
 
         self.assertIsNotNone(df['startup_id'].iloc[0],
                              f"Startup ID should not be null in trace {i}")
+
+  def test_torq_basic_simpleperf(self):
+    dur_sec = 3
+    symbols_path = self._get_android_symbols_path()
+    self.assertIsNotNone(symbols_path,
+                         "Could not find Android symbols directory.")
+
+    torq_output = self.run_torq(
+        f"torq --serial {self.serial} -p simpleperf -s cpu-clock --no-ui "
+        f"-d {dur_sec * 1000} -o {self.test_run_dir} --symbols {symbols_path}")
+    self.validate_simpleperf_output(torq_output)
+
+    with BatchTraceProcessor(self.get_simpleperf_data()) as btp:
+      self.validate_trace_duration(btp, dur_sec)
 
 
 if __name__ == "__main__":
