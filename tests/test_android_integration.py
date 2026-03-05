@@ -37,6 +37,7 @@ BTP_QUERY = {
 }
 
 DUR_TOLERANCE = 0.05
+RADIO_APP = "com.android.car.radio"
 
 
 class TorqIntegrationTest(unittest.TestCase):
@@ -125,13 +126,32 @@ class TorqIntegrationTest(unittest.TestCase):
         delta=DUR_TOLERANCE * dur_sec,
         msg=f"Trace should be ~{dur_sec} sec")
 
-  def validate_app_startup(self, btp, package):
+  def validate_app_startup(self, btp, package, expected_runs=1):
     results = btp.query(BTP_QUERY["app_startup"].format(package=package))
-    self.assertGreater(
-        len(results[0]), 0, f"No valid startup_id for {package} in the trace.")
 
-    startup_id = results[0]['startup_id'].iloc[0]
-    self.assertIsNotNone(startup_id, "Startup ID should not be null")
+    self.assertEqual(
+        len(results), expected_runs,
+        f"Expected {expected_runs} traces, got {len(results)}")
+
+    for i, df in enumerate(results):
+      self.assertGreater(
+          len(df), 0, f"No valid startup_id for {package} in trace index {i}.")
+
+      self.assertIsNotNone(df['startup_id'].iloc[0],
+                           f"Startup ID should not be null in trace {i}")
+
+  def test_torq_app_startup_event(self):
+    dur_sec = 3
+    subprocess.run(
+        ["adb", "-s", self.serial, "shell", "am", "force-stop", RADIO_APP])
+    torq_output = self.run_torq(f"torq --serial {self.serial} -e app-startup "
+                                f"-a {RADIO_APP} -d {dur_sec * 1000} --no-ui "
+                                f"-o {self.test_run_dir}")
+    self.validate_perfetto_output(torq_output)
+
+    with BatchTraceProcessor([self.get_trace_path()]) as btp:
+      self.validate_trace_duration(btp, dur_sec)
+      self.validate_app_startup(btp, RADIO_APP)
 
   def test_torq_basic_perfetto(self):
     dur_sec = 3
@@ -142,19 +162,19 @@ class TorqIntegrationTest(unittest.TestCase):
     with BatchTraceProcessor([self.get_trace_path()]) as btp:
       self.validate_trace_duration(btp, dur_sec)
 
-  def test_torq_app_startup_event(self):
+  def test_torq_multiple_app_startup_events(self):
+    num_runs = 3
     dur_sec = 3
-    package = "com.android.car.settings"
     subprocess.run(
-        ["adb", "-s", self.serial, "shell", "am", "force-stop", package])
+        ["adb", "-s", self.serial, "shell", "am", "force-stop", RADIO_APP])
     torq_output = self.run_torq(f"torq --serial {self.serial} -e app-startup "
-                                f"-a {package} -d {dur_sec * 1000} --no-ui "
-                                f"-o {self.test_run_dir}")
-    self.validate_perfetto_output(torq_output)
+                                f"-a {RADIO_APP} -d {dur_sec * 1000} --no-ui "
+                                f"-o {self.test_run_dir} -r {num_runs}")
+    self.validate_perfetto_output(torq_output, num_traces=num_runs)
 
     with BatchTraceProcessor([self.get_trace_path()]) as btp:
       self.validate_trace_duration(btp, dur_sec)
-      self.validate_app_startup(btp, package)
+      self.validate_app_startup(btp, RADIO_APP)
 
 
 if __name__ == "__main__":
