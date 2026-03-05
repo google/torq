@@ -169,9 +169,21 @@ These are the arguments `torq trigger` subcommand.
 
 ## Testing Torq
 
-To run **torq**'s test, do:
+To run all **torq**'s tests, do:
+```bash
+./tools/torq_test --all
+```
+
+To run only **torq**'s unit tests, do:
 ```bash
 ./tools/torq_test
+(OR)
+./tools/torq_test --unit
+```
+
+To run only **torq**'s integration tests, do:
+```bash
+./tools/torq_test --integration
 ```
 
 ## Contributing to Torq
