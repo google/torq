@@ -407,7 +407,7 @@ class QnxDevice(Device):
     self.kill_process("tracelogger")
     self.kill_process("traced_relay")
     self.kill_process("traced")
-    producer_ports = f"PERFETTO_PRODUCER_SOCK_NAME=/tmp/perfetto-producer"
+    producer_ports = "PERFETTO_PRODUCER_SOCK_NAME=/tmp/perfetto-producer"
     enable_relay = ""
     if relay_producer_port is not None:
       producer_ports += f",{relay_producer_port}"

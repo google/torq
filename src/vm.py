@@ -233,11 +233,14 @@ def traced_relay_execute(command, device):
   if command.subcommand == 'enable':
     match device.os():
       case OsCodes.OS_ANDROID:
+        # TODO(jahdiel): Standardize the device API with the
+        # set_traced_relay method. Eliminates the need for the match
+        # statement.
         if len(device.get_prop(TRACED_HYPERVISOR_PROP)) == 0:
           # Traced_relay can only be used in virtualized environments,
           # therefore set the |TRACED_HYPERVISOR_PROP| to true if
           # enabling traced_relay.
-          print(f"Setting sysprop \"{TRACED_HYPERVISOR_PROP}\" to \"true\"")
+          print(f"Setting sysprop \"{TRACED_HYPERVISOR_PROP}\" to \"true\".")
           device.set_prop(TRACED_HYPERVISOR_PROP, "true")
         device.set_prop(TRACED_RELAY_PORT_PROP, command.relay_port)
         device.set_prop(TRACED_ENABLE_PROP, "2")
@@ -255,6 +258,9 @@ def traced_relay_execute(command, device):
 def relay_producer_execute(command, device, machine_name=None):
   match device.os():
     case OsCodes.OS_ANDROID:
+      # TODO(jahdiel): Standardize the device API with the
+      # set_traced_producer_relay_port method. Eliminates the need
+      # for the match statement.
       device.set_prop(TRACED_ENABLE_PROP, "0")
       if command.subcommand == 'enable':
         if machine_name is not None:
