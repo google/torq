@@ -19,6 +19,7 @@ import unittest
 import os
 import shutil
 import time
+import subprocess
 
 from pathlib import Path
 from contextlib import redirect_stderr, redirect_stdout
@@ -29,6 +30,10 @@ from perfetto.batch_trace_processor.api import BatchTraceProcessor
 BTP_QUERY = {
     "trace_duration":
         "SELECT (end_ts - start_ts) / 1e9 AS duration_sec FROM trace_bounds",
+    "app_startup":
+        "INCLUDE PERFETTO MODULE android.startup.startups;\n"
+        "SELECT startup_id FROM android_startups\n"
+        "WHERE package = '{package}'"
 }
 
 DUR_TOLERANCE = 0.05
@@ -69,14 +74,16 @@ class TorqIntegrationTest(unittest.TestCase):
     self.test_run_dir = self.parent_tmp_dir / self._testMethodName
     self.test_run_dir.mkdir(parents=True, exist_ok=True)
 
-  def test_torq_basic_perfetto(self):
+  def get_trace_path(self):
+    return str(list(self.test_run_dir.glob("*.perfetto-trace"))[0])
+
+  def run_torq(self, command):
     output_io = io.StringIO()
-    dur_sec = 3
+    output_text = ""
 
     try:
       with redirect_stdout(output_io), redirect_stderr(output_io):
-        run_cli(f"torq --serial {self.serial} -d {dur_sec * 1000}  "
-                f"--no-ui -o {self.test_run_dir}")
+        run_cli(command)
     except SystemExit as e:
       if e.code != 0:
         self.fail(f"Torq exited with error code {e.code}."
@@ -86,10 +93,13 @@ class TorqIntegrationTest(unittest.TestCase):
     finally:
       output_text = output_io.getvalue()
 
+    return output_text
+
+  def validate_perfetto_output(self, output_text, num_traces=1):
     error_keywords = ["Error:", "Exception:", "Failed to", "adb: error:"]
-    for keyword in error_keywords:
+    for error in error_keywords:
       self.assertNotIn(
-          keyword, output_text, f"Found '{keyword}' in output.\n"
+          error, output_text, f"Found '{error}' in output.\n"
           f"Full Logs: {output_text}")
 
     self.assertIn("Performing run ", output_text)
@@ -97,24 +107,54 @@ class TorqIntegrationTest(unittest.TestCase):
     trace_files = list(self.test_run_dir.glob("*.perfetto-trace"))
 
     self.assertEqual(
-        len(trace_files), 1,
-        f"Expected 1 .perfetto-trace file in {self.test_run_dir}, found {len(trace_files)}"
-    )
+        len(trace_files), num_traces,
+        f"Expected {num_traces} .perfetto-trace file(s) in "
+        f"{self.test_run_dir}, found {len(trace_files)}")
 
-    trace = trace_files[0]
-    trace_path = str(trace)
-    self.assertGreater(trace.stat().st_size, 0,
-                       f"Trace file {trace.name} is empty.")
+    for trace in trace_files:
+      self.assertGreater(trace.stat().st_size, 0,
+                         f"Trace file {trace.name} is empty.")
 
-    with BatchTraceProcessor([trace_path]) as btp:
-      results = btp.query(BTP_QUERY["trace_duration"])
-      self.assertIsNotNone(results[0]['duration_sec'].iloc[0])
-      actual_duration = results[0]['duration_sec'].iloc[0]
-      self.assertAlmostEqual(
-          actual_duration,
-          dur_sec,
-          delta=DUR_TOLERANCE * dur_sec,
-          msg=f"Trace should be ~{dur_sec} sec")
+  def validate_trace_duration(self, btp, dur_sec):
+    results = btp.query(BTP_QUERY["trace_duration"])
+    self.assertIsNotNone(results[0]['duration_sec'].iloc[0])
+    actual_duration = results[0]['duration_sec'].iloc[0]
+    self.assertAlmostEqual(
+        actual_duration,
+        dur_sec,
+        delta=DUR_TOLERANCE * dur_sec,
+        msg=f"Trace should be ~{dur_sec} sec")
+
+  def validate_app_startup(self, btp, package):
+    results = btp.query(BTP_QUERY["app_startup"].format(package=package))
+    self.assertGreater(
+        len(results[0]), 0, f"No valid startup_id for {package} in the trace.")
+
+    startup_id = results[0]['startup_id'].iloc[0]
+    self.assertIsNotNone(startup_id, "Startup ID should not be null")
+
+  def test_torq_basic_perfetto(self):
+    dur_sec = 3
+    torq_output = self.run_torq(f"torq --serial {self.serial} --no-ui -d "
+                                f"{dur_sec * 1000} -o {self.test_run_dir}")
+
+    self.validate_perfetto_output(torq_output)
+    with BatchTraceProcessor([self.get_trace_path()]) as btp:
+      self.validate_trace_duration(btp, dur_sec)
+
+  def test_torq_app_startup_event(self):
+    dur_sec = 3
+    package = "com.android.car.settings"
+    subprocess.run(
+        ["adb", "-s", self.serial, "shell", "am", "force-stop", package])
+    torq_output = self.run_torq(f"torq --serial {self.serial} -e app-startup "
+                                f"-a {package} -d {dur_sec * 1000} --no-ui "
+                                f"-o {self.test_run_dir}")
+    self.validate_perfetto_output(torq_output)
+
+    with BatchTraceProcessor([self.get_trace_path()]) as btp:
+      self.validate_trace_duration(btp, dur_sec)
+      self.validate_app_startup(btp, package)
 
 
 if __name__ == "__main__":
