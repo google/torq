@@ -553,10 +553,44 @@ def build_memory_config(command, android_sdk_version):
       extra_configs=extra_configs)
 
 
+def build_qnx_config(command, android_sdk_version):
+  buffers = f'''
+    buffers: {{
+      size_kb: 260096
+      fill_policy: RING_BUFFER
+    }}'''
+
+  extra_configs = f'''
+    # Enable qnx data sources
+    data_sources {{
+      config {{
+        name: "qnx.kernel"
+      }}
+    }}'''
+
+  # QNX config does not use Android specific data sources
+  return build_predefined_config(
+      command,
+      android_sdk_version,
+      predefined_ftrace_events=[],
+      sys_stats_events="",
+      predefined_atrace_events="",
+      buffers=buffers,
+      linux_process_stats="",
+      android_logs="",
+      android_packages="",
+      sys_stats="",
+      surface_flinger="",
+      ftrace="",
+      metatrace="",
+      extra_configs=extra_configs)
+
+
 PREDEFINED_PERFETTO_CONFIGS = {
     'default': build_default_config,
     'lightweight': build_lightweight_config,
-    'memory': build_memory_config
+    'memory': build_memory_config,
+    'qnx': build_qnx_config
 }
 
 
