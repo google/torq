@@ -655,10 +655,7 @@ class ProfilerCommandExecutor(CommandExecutor):
     return None
 
   def cleanup(self, command, device):
-    error = None
-    if command.profiler == "perfetto":
-      error = device.teardown_perfetto()
-    return error
+    return None
 
   def signal_handler(self, sig, frame):
     self.trace_cancelled = True

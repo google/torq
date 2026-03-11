@@ -110,10 +110,6 @@ class Device(ABC):
     raise NotImplementedError
 
   @abstractmethod
-  def teardown_perfetto(self):
-    raise NotImplementedError
-
-  @abstractmethod
   def start_perfetto_trace(self, config):
     raise NotImplementedError
 
@@ -155,10 +151,6 @@ class AndroidDevice(Device):
   def start_perfetto_trace(self, config):
     return self.shell.popen("shell perfetto -c - --txt -o "
                             f"{PERFETTO_TRACE_FILE} " + config)
-
-  def teardown_perfetto(self):
-    # Perfetto runs by default in Android, no need to teardown
-    pass
 
   def trigger_perfetto(self, trigger_name):
     self.shell.run(["shell", "trigger_perfetto", trigger_name])
@@ -327,8 +319,7 @@ class AndroidDevice(Device):
 
 
 class QnxDevice(Device):
-  # TODO(jahdiel): Remove /userdata/bin from this list, added only for testing
-  QNX_PATH_ENV = "PATH=$PATH:/ifs/bin:/mnt/bin:/userdata/bin"
+  QNX_PATH_ENV = "PATH=$PATH:/ifs/bin:/mnt/bin:/usr/bin"
 
   def id(self):
     return self.shell.id()
@@ -360,7 +351,7 @@ class QnxDevice(Device):
     return results[1] if len(results) > 1 else ""
 
   def kill_process(self, process_name):
-    self.send_signal(process_name, "SIGKILL")
+    self.send_signal(process_name, "SIGTERM")
 
   def file_exists(self, filepath):
     output = self.shell.run([f"{QnxDevice.QNX_PATH_ENV}; ls {filepath}"],
@@ -386,10 +377,21 @@ class QnxDevice(Device):
     raise NotImplementedError
 
   def setup_perfetto(self):
+    # Collecting a perfetto trace on a QNX device. Use the running
+    # processes or launch new ones since Perfetto isn't launched by default.
     self.kill_process("tracelogger")
+    self.kill_process("traced_relay")
     if not self.is_process_running("traced"):
-      self.shell.popen(f"{QnxDevice.QNX_PATH_ENV}; traced", stderr=DEVNULL)
-    if not self.is_process_running("traced_qnx_probes"):
+      self.shell.popen(
+          f"{QnxDevice.QNX_PATH_ENV};"
+          "PERFETTO_PRODUCER_SOCK_NAME=/tmp/perfetto-producer traced",
+          stderr=DEVNULL)
+      self.kill_process("traced_qnx_probes")
+      self.shell.popen(
+          f"{QnxDevice.QNX_PATH_ENV}; traced_qnx_probes",
+          stdout=DEVNULL,
+          stderr=DEVNULL)
+    elif not self.is_process_running("traced_qnx_probes"):
       self.shell.popen(
           f"{QnxDevice.QNX_PATH_ENV}; traced_qnx_probes",
           stdout=DEVNULL,
@@ -401,6 +403,39 @@ class QnxDevice(Device):
         f"{PERFETTO_TRACE_FILE} " + config,
         stderr=DEVNULL)
 
-  def teardown_perfetto(self):
-    self.kill_process("traced_qnx_probes")
+  def set_traced_producer_relay_port(self, relay_producer_port):
+    self.kill_process("tracelogger")
+    self.kill_process("traced_relay")
     self.kill_process("traced")
+    producer_ports = "PERFETTO_PRODUCER_SOCK_NAME=/tmp/perfetto-producer"
+    enable_relay = ""
+    if relay_producer_port is not None:
+      producer_ports += f",{relay_producer_port}"
+      enable_relay = "--enable-relay-endpoint"
+    self.shell.popen(
+        f"{QnxDevice.QNX_PATH_ENV}; {producer_ports} traced {enable_relay}",
+        stderr=DEVNULL)
+    self.kill_process("traced_qnx_probes")
+    self.shell.popen(
+        f"{QnxDevice.QNX_PATH_ENV}; traced_qnx_probes",
+        stdout=DEVNULL,
+        stderr=DEVNULL)
+
+  def set_traced_relay(self, relay_port):
+    self.kill_process("tracelogger")
+    self.kill_process("traced")
+    self.kill_process("traced_relay")
+    if relay_port is not None:
+      self.shell.popen(
+          f"{QnxDevice.QNX_PATH_ENV}; PERFETTO_RELAY_SOCK_NAME={relay_port} traced_relay",
+          stderr=DEVNULL)
+    else:
+      self.shell.popen(
+          f"{QnxDevice.QNX_PATH_ENV};"
+          "PERFETTO_PRODUCER_SOCK_NAME=/tmp/perfetto-producer traced",
+          stderr=DEVNULL)
+    self.kill_process("traced_qnx_probes")
+    self.shell.popen(
+        f"{QnxDevice.QNX_PATH_ENV}; traced_qnx_probes",
+        stdout=DEVNULL,
+        stderr=DEVNULL)

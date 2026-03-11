@@ -1,3 +1,4 @@
 .venv
 /bazel-*
 .vscode
+__pycache__/
