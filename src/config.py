@@ -28,7 +28,7 @@ def add_config_parser(subparsers):
   common_config_args = argparse.ArgumentParser(add_help=False)
   common_config_args.add_argument(
       'config_name',
-      choices=['lightweight', 'default', 'memory'],
+      choices=['lightweight', 'default', 'memory', 'qnx'],
       help='Name of the predefined config to copy')
 
   common_profiler_args = create_common_config_parser()

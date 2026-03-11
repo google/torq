@@ -438,6 +438,8 @@ class ProfilerCommand(Command):
   def validate(self, device):
     print("Further validating arguments of ProfilerCommand.")
     if self.profiler == "perfetto":
+      if self.perfetto_config == "default" and device.os() == OsCodes.OS_QNX:
+        self.perfetto_config = "qnx"
       error = self.validate_trace_folder(device)
       if error is not None:
         return error
