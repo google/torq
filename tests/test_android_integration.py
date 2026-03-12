@@ -137,7 +137,7 @@ class TorqIntegrationTest(unittest.TestCase):
   def test_torq_multiple_app_startup_events(self):
     num_runs = 3
     dur_sec = 3
-    package = "com.android.car.radio"
+    package = "com.android.car.settings"
     subprocess.run(
         ["adb", "-s", self.serial, "shell", "am", "force-stop", package])
     torq_output = self.run_torq(f"torq --serial {self.serial} -e app-startup "
