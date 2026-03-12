@@ -1,0 +1,5 @@
+# This file define code owners for GitHub pull requests
+# NOTE: The last matching rule is the one that defines the owner.
+
+# General repo-wide owners
+* @jahdiel-alvarez
