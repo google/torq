@@ -74,8 +74,8 @@ class TorqIntegrationTest(unittest.TestCase):
     self.test_run_dir = self.parent_tmp_dir / self._testMethodName
     self.test_run_dir.mkdir(parents=True, exist_ok=True)
 
-  def get_trace_path(self):
-    return str(list(self.test_run_dir.glob("*.perfetto-trace"))[0])
+  def get_trace_files(self):
+    return [str(f) for f in self.test_run_dir.glob("*.perfetto-trace")]
 
   def run_torq(self, command):
     output_io = io.StringIO()
@@ -131,7 +131,7 @@ class TorqIntegrationTest(unittest.TestCase):
                                 f"{dur_sec * 1000} -o {self.test_run_dir}")
 
     self.validate_perfetto_output(torq_output)
-    with BatchTraceProcessor([self.get_trace_path()]) as btp:
+    with BatchTraceProcessor(self.get_trace_files()) as btp:
       self.validate_trace_duration(btp, dur_sec)
 
   def test_torq_multiple_app_startup_events(self):
@@ -145,7 +145,7 @@ class TorqIntegrationTest(unittest.TestCase):
                                 f"{self.test_run_dir} -r {num_runs}")
     self.validate_perfetto_output(torq_output, num_traces=num_runs)
 
-    with BatchTraceProcessor([self.get_trace_path()]) as btp:
+    with BatchTraceProcessor(self.get_trace_files()) as btp:
       self.validate_trace_duration(btp, dur_sec)
       results = btp.query(BTP_QUERY["app_startup"].format(package=package))
 
