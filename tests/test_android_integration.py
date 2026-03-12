@@ -34,7 +34,10 @@ BTP_QUERY = {
     "app_startup":
         "INCLUDE PERFETTO MODULE android.startup.startups;\n"
         "SELECT startup_id FROM android_startups\n"
-        "WHERE package = '{package}'"
+        "WHERE package = '{package}'",
+    "user_switch_event":
+        "SELECT count(*) as count FROM slice WHERE name LIKE '%user_switch%' "
+        "OR name LIKE '%StartUser%' OR name LIKE '%switchUser%'"
 }
 
 DUR_TOLERANCE = 0.05
@@ -187,6 +190,36 @@ class TorqIntegrationTest(unittest.TestCase):
 
     with BatchTraceProcessor(trace_files) as btp:
       self.validate_trace_duration(btp, dur_sec)
+
+  def test_torq_user_switch(self):
+    dur_sec = 5
+    user_id = None
+
+    user_output = subprocess.check_output(
+        ["adb", "-s", self.serial, "shell", "pm", "create-user", "TestUser"],
+        text=True)
+    user_id = user_output.strip().split()[-1]
+
+    torq_output = self.run_torq(
+        f"torq --serial {self.serial} -e user-switch --to-user {user_id} "
+        f"-d {dur_sec * 1000} --no-ui -o {self.test_run_dir}")
+
+    trace_files = self.validate_perfetto_output(torq_output)
+    with BatchTraceProcessor(trace_files) as btp:
+      self.validate_trace_duration(btp, dur_sec)
+
+      results = btp.query(BTP_QUERY["user_switch_event"])
+      event_count = results[0]['count'].iloc[0]
+      self.assertGreater(
+          event_count, 0,
+          "No user-switch related slices found in the Perfetto trace.")
+      current_user = subprocess.check_output(
+          ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
+          text=True).strip()
+      self.assertNotEqual(user_id, current_user)
+
+      subprocess.run(
+          ["adb", "-s", self.serial, "shell", "pm", "remove-user", user_id])
 
 
 if __name__ == "__main__":
