@@ -24,7 +24,7 @@ from .base import ValidationError
 from .handle_input import HandleInput
 from .utils import poll_is_task_completed, POLLING_INTERVAL_SECS, run_subprocess, ShellExitCodes
 
-WAIT_FOR_DEVICE_TIME_OUT_SECS = 5
+WAIT_FOR_DEVICE_TIME_OUT_SECS = 90
 
 
 @enum.unique
