@@ -74,8 +74,8 @@ class TorqIntegrationTest(unittest.TestCase):
     self.test_run_dir = self.parent_tmp_dir / self._testMethodName
     self.test_run_dir.mkdir(parents=True, exist_ok=True)
 
-  def get_trace_path(self):
-    return str(list(self.test_run_dir.glob("*.perfetto-trace"))[0])
+  def get_trace_files(self):
+    return [str(f) for f in self.test_run_dir.glob("*.perfetto-trace")]
 
   def run_torq(self, command):
     output_io = io.StringIO()
@@ -125,36 +125,41 @@ class TorqIntegrationTest(unittest.TestCase):
         delta=DUR_TOLERANCE * dur_sec,
         msg=f"Trace should be ~{dur_sec} sec")
 
-  def validate_app_startup(self, btp, package):
-    results = btp.query(BTP_QUERY["app_startup"].format(package=package))
-    self.assertGreater(
-        len(results[0]), 0, f"No valid startup_id for {package} in the trace.")
-
-    startup_id = results[0]['startup_id'].iloc[0]
-    self.assertIsNotNone(startup_id, "Startup ID should not be null")
-
   def test_torq_basic_perfetto(self):
     dur_sec = 3
     torq_output = self.run_torq(f"torq --serial {self.serial} --no-ui -d "
                                 f"{dur_sec * 1000} -o {self.test_run_dir}")
 
     self.validate_perfetto_output(torq_output)
-    with BatchTraceProcessor([self.get_trace_path()]) as btp:
+    with BatchTraceProcessor(self.get_trace_files()) as btp:
       self.validate_trace_duration(btp, dur_sec)
 
-  def test_torq_app_startup_event(self):
+  def test_torq_multiple_app_startup_events(self):
+    num_runs = 3
     dur_sec = 3
     package = "com.android.car.settings"
     subprocess.run(
         ["adb", "-s", self.serial, "shell", "am", "force-stop", package])
     torq_output = self.run_torq(f"torq --serial {self.serial} -e app-startup "
-                                f"-a {package} -d {dur_sec * 1000} --no-ui "
-                                f"-o {self.test_run_dir}")
-    self.validate_perfetto_output(torq_output)
+                                f"-a {package} -d {dur_sec * 1000} --no-ui -o "
+                                f"{self.test_run_dir} -r {num_runs}")
+    self.validate_perfetto_output(torq_output, num_traces=num_runs)
 
-    with BatchTraceProcessor([self.get_trace_path()]) as btp:
+    with BatchTraceProcessor(self.get_trace_files()) as btp:
       self.validate_trace_duration(btp, dur_sec)
-      self.validate_app_startup(btp, package)
+      results = btp.query(BTP_QUERY["app_startup"].format(package=package))
+
+      self.assertEqual(
+          len(results), num_runs,
+          f"Expected {num_runs} traces, got {len(results)}")
+
+      for i, df in enumerate(results):
+        self.assertGreater(
+            len(df), 0,
+            f"No valid startup_id for {package} in trace index {i}.")
+
+        self.assertIsNotNone(df['startup_id'].iloc[0],
+                             f"Startup ID should not be null in trace {i}")
 
 
 if __name__ == "__main__":
