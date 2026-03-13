@@ -25,7 +25,6 @@ from pathlib import Path
 from contextlib import redirect_stderr, redirect_stdout
 from src.shell import AdbShell
 from tests.test_utils import run_cli
-from src.validate_simpleperf import verify_simpleperf_args
 from perfetto.batch_trace_processor.api import BatchTraceProcessor
 
 BTP_QUERY = {

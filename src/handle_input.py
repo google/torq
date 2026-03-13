@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import sys
-
 from .base import ValidationError
 
 
@@ -42,12 +40,7 @@ class HandleInput:
   def handle_input(self):
     i = 0
     while i < self.max_attempts:
-      try:
-        response = input(self.input_msg).lower()
-      except EOFError:
-        if self.default_choice is not None:
-          return self.choices[self.default_choice]()
-        break
+      response = input(self.input_msg).lower()
 
       if response == "" and self.default_choice is not None:
         return self.choices[self.default_choice]()
