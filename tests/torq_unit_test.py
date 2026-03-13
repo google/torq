@@ -343,17 +343,19 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(error.message, ("Command is invalid because"
                                      " --perfetto-config is not a"
                                      " valid file path: unexisting-file"))
-    self.assertEqual(error.suggestion, ("Predefined perfetto configs can be"
-                                        " used:\n"
-                                        "\t torq --perfetto-config default\n"
-                                        "\t torq --perfetto-config"
-                                        " lightweight\n"
-                                        "\t torq --perfetto-config memory\n"
-                                        "\t torq --perfetto-config qnx\n"
-                                        "\t A filepath with a config can also"
-                                        " be used:\n"
-                                        "\t torq --perfetto-config"
-                                        " <config-filepath>"))
+    self.assertEqual(error.suggestion,
+                     ("Predefined perfetto configs can be"
+                      " used:\n"
+                      "\t torq --perfetto-config default\n"
+                      "\t torq --perfetto-config"
+                      " lightweight\n"
+                      "\t torq --perfetto-config memory\n"
+                      "\t torq --perfetto-config qnx\n"
+                      "\t torq --perfetto-config android-qnx\n"
+                      "\t A filepath with a config can also"
+                      " be used:\n"
+                      "\t torq --perfetto-config"
+                      " <config-filepath>"))
 
     args = parse_cli("torq --perfetto-config mock-directory")
 
@@ -362,17 +364,19 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(error.message, ("Command is invalid because"
                                      " --perfetto-config is not a"
                                      " valid file path: mock-directory"))
-    self.assertEqual(error.suggestion, ("Predefined perfetto configs can be"
-                                        " used:\n"
-                                        "\t torq --perfetto-config default\n"
-                                        "\t torq --perfetto-config"
-                                        " lightweight\n"
-                                        "\t torq --perfetto-config memory\n"
-                                        "\t torq --perfetto-config qnx\n"
-                                        "\t A filepath with a config can also"
-                                        " be used:\n"
-                                        "\t torq --perfetto-config"
-                                        " <config-filepath>"))
+    self.assertEqual(error.suggestion,
+                     ("Predefined perfetto configs can be"
+                      " used:\n"
+                      "\t torq --perfetto-config default\n"
+                      "\t torq --perfetto-config"
+                      " lightweight\n"
+                      "\t torq --perfetto-config memory\n"
+                      "\t torq --perfetto-config qnx\n"
+                      "\t torq --perfetto-config android-qnx\n"
+                      "\t A filepath with a config can also"
+                      " be used:\n"
+                      "\t torq --perfetto-config"
+                      " <config-filepath>"))
 
   def test_verify_args_from_user_and_event_valid_dependency(self):
     args = parse_cli(("torq -e user-switch --from-user 0"
