@@ -571,7 +571,6 @@ def build_qnx_config(command, android_sdk_version):
   # QNX config does not use Android specific data sources
   return build_predefined_config(
       command,
-      android_sdk_version=None,
       predefined_ftrace_events=[],
       sys_stats_events="",
       predefined_atrace_events="",
