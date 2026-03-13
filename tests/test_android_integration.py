@@ -81,25 +81,6 @@ class TorqIntegrationTest(unittest.TestCase):
   def get_simpleperf_data(self):
     return [str(f) for f in self.test_run_dir.glob("*.data")]
 
-  def _get_android_symbols_path(self):
-    product_out = os.environ.get('ANDROID_PRODUCT_OUT')
-
-    # Check if the variable even reached the test
-    if not product_out:
-      print("\n[DEBUG] ANDROID_PRODUCT_OUT is MISSING from environment!")
-      return verify_simpleperf_args(None)
-
-    symbols_dir = Path(product_out) / "symbols"
-    if symbols_dir.exists():
-      print(f"\n[DEBUG] Found local symbols at: {symbols_dir}")
-      return str(symbols_dir), None
-    else:
-      print(
-          f"\n[DEBUG] ANDROID_PRODUCT_OUT is set, but path does not exist: {symbols_dir}"
-      )
-
-    return verify_simpleperf_args(None)
-
   def run_torq(self, command):
     output_io = io.StringIO()
     output_text = ""
@@ -195,12 +176,10 @@ class TorqIntegrationTest(unittest.TestCase):
 
   def test_torq_basic_simpleperf(self):
     dur_sec = 3
-    symbols_path, error = self._get_android_symbols_path()
-    self.assertIsNotNone(symbols_path, error)
 
     torq_output = self.run_torq(
         f"torq --serial {self.serial} -p simpleperf -s cpu-clock --no-ui "
-        f"-d {dur_sec * 1000} -o {self.test_run_dir} --symbols {symbols_path}")
+        f"-d {dur_sec * 1000} -o {self.test_run_dir}")
     self.validate_simpleperf_output(torq_output)
 
     with BatchTraceProcessor(self.get_simpleperf_data()) as btp:
