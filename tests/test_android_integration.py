@@ -25,6 +25,7 @@ from pathlib import Path
 from contextlib import redirect_stderr, redirect_stdout
 from src.shell import AdbShell
 from tests.test_utils import run_cli
+from src.validate_simpleperf import verify_simpleperf_args
 from perfetto.batch_trace_processor.api import BatchTraceProcessor
 
 BTP_QUERY = {
@@ -80,41 +81,24 @@ class TorqIntegrationTest(unittest.TestCase):
   def get_simpleperf_data(self):
     return [str(f) for f in self.test_run_dir.glob("*.data")]
 
-  def _get_symbols_via_adb_device(self, aosp_root):
-    try:
-      product = subprocess.check_output(
-          ["adb", "-s", self.serial, "shell", "getprop", "ro.build.product"],
-          text=True).strip()
-
-      symbols = aosp_root / "out" / "target" / "product" / product / "symbols"
-      if symbols.exists():
-        return str(symbols)
-    except Exception:
-      out_dir = aosp_root / "out" / "target" / "product"
-      if out_dir.exists():
-        dirs = [d for d in out_dir.iterdir() if (d / "symbols").exists()]
-        if dirs:
-          return str(max(dirs, key=os.path.getmtime) / "symbols")
-
-    return None
-
   def _get_android_symbols_path(self):
     product_out = os.environ.get('ANDROID_PRODUCT_OUT')
-    if product_out and (Path(product_out) / "symbols").exists():
-      return str(Path(product_out) / "symbols")
 
-    curr = Path(__file__).resolve()
-    while curr.parent != curr:
-      if (curr / "build" / "envsetup.sh").exists():
-        return self._get_symbols_via_adb_device(curr)
-      curr = curr.parent
+    # Check if the variable even reached the test
+    if not product_out:
+      print("\n[DEBUG] ANDROID_PRODUCT_OUT is MISSING from environment!")
+      return verify_simpleperf_args(None)
 
-    adb_path = subprocess.check_output(["which", "adb"], text=True).strip()
-    path = Path(adb_path).resolve()
-    if "out/host" in str(path):
-      return self._get_symbols_via_adb_device(path.parents[4])
+    symbols_dir = Path(product_out) / "symbols"
+    if symbols_dir.exists():
+      print(f"\n[DEBUG] Found local symbols at: {symbols_dir}")
+      return str(symbols_dir), None
+    else:
+      print(
+          f"\n[DEBUG] ANDROID_PRODUCT_OUT is set, but path does not exist: {symbols_dir}"
+      )
 
-    return None
+    return verify_simpleperf_args(None)
 
   def run_torq(self, command):
     output_io = io.StringIO()
@@ -158,10 +142,10 @@ class TorqIntegrationTest(unittest.TestCase):
     trace_files = list(self.test_run_dir.glob("*.perfetto-trace"))
     self.validate_trace_metadata(trace_files, num_traces)
 
-  def validate_simpleperf_output(self, output_text):
+  def validate_simpleperf_output(self, output_text, num_traces=1):
     self.validate_torq_output(output_text)
     trace_files = list(self.test_run_dir.glob("perf*.data*"))
-    self.validate_trace_metadata(trace_files)
+    self.validate_trace_metadata(trace_files, num_traces)
 
   def validate_trace_duration(self, btp, dur_sec):
     results = btp.query(BTP_QUERY["trace_duration"])
@@ -211,9 +195,8 @@ class TorqIntegrationTest(unittest.TestCase):
 
   def test_torq_basic_simpleperf(self):
     dur_sec = 3
-    symbols_path = self._get_android_symbols_path()
-    self.assertIsNotNone(symbols_path,
-                         "Could not find Android symbols directory.")
+    symbols_path, error = self._get_android_symbols_path()
+    self.assertIsNotNone(symbols_path, error)
 
     torq_output = self.run_torq(
         f"torq --serial {self.serial} -p simpleperf -s cpu-clock --no-ui "
