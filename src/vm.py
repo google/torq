@@ -78,11 +78,12 @@ def add_vm_parser(subparsers):
       '--primary',
       action=UniqueStore,
       help='Primary machine. Accepts the following formats: '
-      '<android-serial> or '
-      '<perfetto-machine-name>=<android-serial>. '
-      'Where <perfetto-machine-name> is an arbitrary name used to '
-      'specify a particular machine in Perfetto config\'s machine name'
-      ' filter.')
+      '<device-serial-or-uri> or '
+      '<perfetto-machine-name>=<device-serial-or-uri>. '
+      'Where <device-serial-or-uri> is an Android serial or an SSH URI '
+      '(e.g. ssh://user@host), and <perfetto-machine-name> is an arbitrary '
+      'name used to specify a particular machine in Perfetto config\'s '
+      'machine name filter.')
 
   configure_parser.add_argument(
       '--primary-cid',
@@ -116,8 +117,8 @@ def name_format_error(value):
   return ValidationError(
       ("Invalid format used in either --primary or --secondary argument: "
        f"'{value}'"), (f"The correct format is one of:\n\t"
-                       "  - <device-serial>\n\t"
-                       "  - <perfetto-machine-name>=<device-serial>\n\n"
+                       "  - <device-serial-or-uri>\n\t"
+                       "  - <perfetto-machine-name>=<device-serial-or-uri>\n\n"
                        f"\tDid you meant to use '{alt_value}'?\n"))
 
 

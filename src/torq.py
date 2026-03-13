@@ -79,8 +79,10 @@ def create_parser():
   parser.add_argument(
       '--serial',
       nargs=1,
-      help=(('Specifies serial of the device that will be'
-             ' used.')))
+      help=((
+          'Specifies serial of the device that will be'
+          ' used. Supports Android serials and SSH URIs (e.g. ssh://user@host).'
+      )))
 
   subparsers = parser.add_subparsers(dest='subcommands', help='Subcommands')
 
