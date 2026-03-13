@@ -61,38 +61,9 @@ use cases. This list of commands demonstrates just that.
 | `torq open trace.perfetto-trace` | Open a trace in the perfetto UI. |
 | `torq -d 10000 --exclude-ftrace-event power/cpu_idle` | Run a custom event for 10 seconds, using the "default" predefined Perfetto config, in which the ftrace event, power/cpu_idle, is not collected. |
 
-## Profiling with Torq
+## CLI Reference
 
-This is the command-line interface for *torq*'s profiler subcommand. This is
-the default subcommand in the case where no subcommand is provided. The same
-data outlined in the table can viewed via the `torq profiler --help` command.
-
-| Argument | Description | Currently Supported Arguments | Default |
-|----------|-------------|-------------------------------|---------|
-| `-e, --event` | The event to trace/profile. | `boot`, `user-switch`,`app-startup`, `custom` | `custom` |
-| `-p, --profiler` | The performance data profiler. | `perfetto`, (`simpleperf` coming soon) | `perfetto` |
-| `-o, --out-dir` | The path to the output directory. | Any local path | Current directory: `.` |
-| `-d, --dur-ms` | The duration (ms) of the event. Determines when to stop collecting performance data. | Float >= `3000` | Indefinite until CTRL+C |
-| `-a, --app` | The package name of the app to start.<br/>(Requires use of `-e app-startup`) | Any package on connected device ||
-| `-r, --runs` | The amount of times to run the event and capture the performance data. | Integer >= `1` | `1` |
-| `-s, --simpleperf-event` | Simpleperf supported events that should be collected. Can be defined multiple times in a command. (Requires use of `-p simpleperf`). | Any supported simpleperf event<br/>(e.g., `cpu-cycles`, `instructions`) | `cpu-clock` |
-| `--serial` | The serial of the connected device that you want to use.<br/>(If not provided, the ANDROID_SERIAL environment variable is used. If ANDROID_SERIAL is also not set and there is only one device connected, the device is chosen.) |||
-| `--perfetto-config` | The local file path of the user's Perfetto config or used to specify a predefined Perfetto configs. | `default`, any local perfetto config,<br/>(`lightweight`, `memory` coming soon) | `default` |
-| `--between-dur-ms` | The amount of time (ms) to wait between different runs.<br/>(Requires that `--r` is set to a value greater than 1) | Float >= `3000` | `10000` |
-| `--ui` | Specifies opening of UI visualization tool after profiling is complete.<br/>(Requires that `-r` is not set to a value greater than 1) | `--ui`, `--no-ui` | `ui` if `runs` is `1` |
-| `--exclude-ftrace-event` | Excludes the ftrace event from the Perfetto config. Can be defined multiple times in a command.<br/>(Requires use of `-p perfetto`)<br/>(Currently only works with `--perfetto-config default`,<br/>support for local Perfetto configs, `lightweight`, and `memory` coming soon) | Any supported perfetto ftrace event<br/>(e.g., `power/cpu_idle`, `sched/sched_process_exit`) | Empty list |
-| `--include-ftrace-event` | Includes the ftrace event in the Perfetto config. Can be defined multiple times in a command.<br/>(Requires use of `-p perfetto`)<br/>(Currently only works with `--perfetto-config default`,<br/>support for any local Perfetto configs, `lightweight`, and `memory` coming soon) | Any supported perfetto ftrace event<br/>(e.g., `power/cpu_idle`, `sched/sched_process_exit`) | Empty list |
-| `--from-user` | The user ID from which to start the user switch. (Requires use of `-e user-switch`) | ID of any user on connected device | Current user on the device |
-| `--to-user` | The user ID of user that device is switching to. (Requires use of `-e user-switch`). | ID of any user on connected device ||
-| `--symbols` | The device symbols library. (Requires use of `-p simpleperf`). | Path to a device symbols library ||
-| `--trigger-names <name<sub>1</sub>> ... <name<sub>n</sub>>` | Adds multiple trigger names. Must be used with Perfetto. |||
-| `--trigger-stop-delay-ms <delay<sub>1</sub>> ... <delay<sub>n</sub>>` | Amount of time in milliseconds to continue tracing after a trigger is received. Must be used with Perfetto and --trigger-names. || 1000 |
-| `--trigger-timeout-ms <timeout>` | Amount of time in milliseconds Perfetto will wait for a trigger before timing out. Must be used with Perfetto and --trigger-names. || 604800000 |
-| `--trigger-mode <mode>` | Sets trigger tracing mode. `stop`/`STOP_TRACING` waits for a trigger and ends tracing `stop-delay-ms` amount of time after a trigger is received, returning all data in the buffer. `start`/`START_TRACING` waits for a trigger and begins tracing when one is received, ending tracing after `stop-delay-ms` amount of time. `clone`/`CLONE_SNAPSHOT` traces until `timeout-ms`, returning a trace with all data in the buffer every time a trigger is received. Must be used with Perfetto and --trigger-names. | `stop`, `start`, `clone`, `STOP_TRACING`, `START_TRACING`, `CLONE_SNAPSHOT` | `STOP_TRACING` |
-| `config list` | Subcommand to list the predefined Perfetto configs (`default`, `lightweight`, `memory`). |||
-| `config show <config-name>` | Subcommand to print the contents of a predefined Perfetto config to the terminal. | `default`, `lightweight`, `memory` ||
-| `config pull <config-name> [file-path]` | Subcommand to download a predefined Perfetto config to a specified local file path. | <config-name>: `default`, `lightweight`, `memory`<br/> [file-path]: Any local file path | [file-path]: `./<config-name>.txtpb` |
-| `open <file-path> [--use_trace_processor]` | Subcommand to open a Perfetto or Simpleperf trace in the Perfetto UI. --use_trace_processor specifies that the trace should be opened with the trace_processor binary regardless of its size. | Any local path to a Perfetto or Simpleperf trace file | [--use_trace_processor]: false |
+For a complete list of all the `torq` subcommands and flags, please refer to the [CLI Reference](docs/REFERENCE.md).
 
 ## Configure perfetto in virtualized Android
 
@@ -111,14 +82,7 @@ torq vm relay-producer enable
 
 ### CLI Arguments
 
-These are the arguments for the `torq vm` CLI subcommand.
-
-| Argument | Description | Currently Supported Arguments | Default |
-|----------|-------------|-------------------------------|---------|
-| `traced-relay enable <socket-address>` | Enables traced_relay and uses the *<socket-address>* as the relay socket to communicate with the central traced VM. |    |    |
-| `traced-relay disable` | Disables traced_relay and switches to traced. |    |    |
-| `relay-producer enable [--address <relay_producer_socket>]` | Enables traced's relay producer support. The `--address` specifies the relay producer socket to use. |    | --address: `vsock://-1:30001`  |
-| `relay-producer disable` | Disables traced's relay producer support. |    |    |
+For a complete list of arguments for the `torq vm` subcommand, please refer to the [CLI Reference](docs/REFERENCE.md#subcommand-vm).
 
 ## Configure trigger configs for perfetto
 
@@ -145,12 +109,7 @@ torq trigger <trigger-name>
 
 ### CLI Arguments
 
-These are the arguments that work with the `torq trigger` subcommand. For the
-trigger options that work with Perfetto, see 'Profiling with Torq'.
-
-| Argument | Description | Currently Supported Arguments | Default |
-|----------|-------------|-------------------------------|---------|
-| `trigger <name>` | Subcommand that sends a trigger to Perfetto using the trigger_perfetto binary. |    |    |
+For a complete list of arguments for the `torq trigger` subcommand, please refer to the [CLI Reference](docs/REFERENCE.md#subcommand-trigger).
 
 ## Activate Perfetto triggers
 
@@ -161,11 +120,7 @@ for a trigger included in a Perfetto config.
 
 ### CLI Arguments
 
-These are the arguments `torq trigger` subcommand.
-
-| Argument         | Description                                                                    | Currently Supported Arguments | Default       |
-|------------------|--------------------------------------------------------------------------------|-|---------------|
-| `trigger <name>` | Subcommand that sends a trigger to Perfetto using the trigger_perfetto binary. | | |
+For a complete list of arguments for the `torq trigger` subcommand, please refer to the [CLI Reference](docs/REFERENCE.md#subcommand-trigger).
 
 ## Testing Torq
 
