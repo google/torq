@@ -145,7 +145,7 @@ def create_trigger_config(trigger_names, trigger_mode, trigger_timeout_ms,
 
 
 def build_predefined_config(command,
-                            android_sdk_version,
+                            android_sdk_version=None,
                             predefined_ftrace_events=None,
                             sys_stats_events=None,
                             predefined_atrace_events=None,
@@ -260,7 +260,7 @@ def build_predefined_config(command,
     return None, error
 
   cpufreq_period_string = "cpufreq_period_ms: 500"
-  if android_sdk_version < ANDROID_SDK_VERSION_T:
+  if android_sdk_version is None or android_sdk_version < ANDROID_SDK_VERSION_T:
     cpufreq_period_string = ""
 
   trigger_config = ""
@@ -571,7 +571,7 @@ def build_qnx_config(command, android_sdk_version):
   # QNX config does not use Android specific data sources
   return build_predefined_config(
       command,
-      android_sdk_version,
+      android_sdk_version=None,
       predefined_ftrace_events=[],
       sys_stats_events="",
       predefined_atrace_events="",
@@ -586,11 +586,29 @@ def build_qnx_config(command, android_sdk_version):
       extra_configs=extra_configs)
 
 
+def build_android_qnx_config(command, android_sdk_version):
+  # Android-QNX config merges Android default with QNX config
+  extra_configs = f'''
+    data_sources {{
+      config {{
+        name: "qnx.kernel"
+        target_buffer: 2
+      }}
+    }}
+
+    trace_all_machines: true
+    '''
+
+  return build_predefined_config(
+      command, android_sdk_version, extra_configs=extra_configs)
+
+
 PREDEFINED_PERFETTO_CONFIGS = {
     'default': build_default_config,
     'lightweight': build_lightweight_config,
     'memory': build_memory_config,
-    'qnx': build_qnx_config
+    'qnx': build_qnx_config,
+    'android-qnx': build_android_qnx_config
 }
 
 

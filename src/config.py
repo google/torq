@@ -19,6 +19,7 @@ from pathlib import Path
 
 from .base import ANDROID_SDK_VERSION_T, Command, ValidationError
 from .config_builder import create_common_config_parser, PREDEFINED_PERFETTO_CONFIGS
+from .device import OsCodes
 from .handle_input import HandleInput
 from .profiler import verify_trigger_args
 from .utils import run_subprocess, TEXTPROTO_FILE_EXTENSIONS
@@ -28,7 +29,7 @@ def add_config_parser(subparsers):
   common_config_args = argparse.ArgumentParser(add_help=False)
   common_config_args.add_argument(
       'config_name',
-      choices=['lightweight', 'default', 'memory', 'qnx'],
+      choices=['lightweight', 'default', 'memory', 'qnx', 'android-qnx'],
       help='Name of the predefined config to copy')
 
   common_profiler_args = create_common_config_parser()
@@ -132,7 +133,7 @@ def create_config_command(args):
 
 def execute_show_or_pull_command(command, device):
   android_sdk_version = ANDROID_SDK_VERSION_T
-  if device is not None:
+  if device is not None and device.os() == OsCodes.OS_ANDROID:
     device.root_device()
     android_sdk_version = device.get_android_sdk_version()
 
