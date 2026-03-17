@@ -217,26 +217,21 @@ def configure_execute(args):
     if error is not None:
       return error
     secondary_device.root_device()
-    match secondary_device.os():
-      case OsCodes.OS_ANDROID:
-        if machine_name is not None:
-          secondary_device.set_prop(TRACED_MACHINE_NAME_PROP, machine_name)
-      case OsCodes.OS_QNX:
-        # TODO(jahdiel): Allow QNX devices to specify a MACHINE_NAME
-        pass
     command = VmCommand('traced-relay', 'enable', net_addr, None)
-    if (error := traced_relay_execute(command, secondary_device)):
+    if (error := traced_relay_execute(command, secondary_device, machine_name)):
       return error
   return None
 
 
-def traced_relay_execute(command, device):
+def traced_relay_execute(command, device, machine_name=None):
   if command.subcommand == 'enable':
     match device.os():
       case OsCodes.OS_ANDROID:
         # TODO(jahdiel): Standardize the device API with the
         # set_traced_relay method. Eliminates the need for the match
         # statement.
+        if machine_name is not None:
+          device.set_prop(TRACED_MACHINE_NAME_PROP, machine_name)
         if len(device.get_prop(TRACED_HYPERVISOR_PROP)) == 0:
           # Traced_relay can only be used in virtualized environments,
           # therefore set the |TRACED_HYPERVISOR_PROP| to true if
@@ -246,7 +241,7 @@ def traced_relay_execute(command, device):
         device.set_prop(TRACED_RELAY_PORT_PROP, command.relay_port)
         device.set_prop(TRACED_ENABLE_PROP, "2")
       case OsCodes.OS_QNX:
-        device.set_traced_relay(command.relay_port)
+        device.set_traced_relay(command.relay_port, machine_name)
   else:  # disable
     match device.os():
       case OsCodes.OS_ANDROID:
@@ -273,7 +268,8 @@ def relay_producer_execute(command, device, machine_name=None):
       device.set_prop(TRACED_ENABLE_PROP, "1")
     case OsCodes.OS_QNX:
       if command.subcommand == 'enable':
-        device.set_traced_producer_relay_port(command.relay_prod_port)
+        device.set_traced_producer_relay_port(command.relay_prod_port,
+                                              machine_name)
       else:  # disable
         device.set_traced_producer_relay_port(None)
 
