@@ -269,7 +269,7 @@ class VmUnitTest(unittest.TestCase):
     mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_qnx_device.set_traced_producer_relay_port.assert_called_once_with(
-        DEFAULT_VSOCK_ADDR)
+        DEFAULT_VSOCK_ADDR, None)
 
   @mock.patch('src.vm.get_device', autospec=True)
   def test_set_secondary_qnx(self, mock_vm_get_device):
@@ -280,7 +280,7 @@ class VmUnitTest(unittest.TestCase):
     mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_qnx_device.set_traced_relay.assert_called_once_with(
-        "vsock://4:30001")
+        "vsock://4:30001", None)
 
   @mock.patch('src.torq.get_device', autospec=True)
   def test_vm_relay_producer_enable_qnx(self, mock_get_device):
@@ -290,7 +290,7 @@ class VmUnitTest(unittest.TestCase):
 
     mock_get_device.assert_called_once_with(TEST_SERIAL, False)
     self.mock_qnx_device.set_traced_producer_relay_port.assert_called_once_with(
-        DEFAULT_VSOCK_ADDR)
+        DEFAULT_VSOCK_ADDR, None)
 
   @mock.patch('src.torq.get_device', autospec=True)
   def test_vm_relay_producer_disable_qnx(self, mock_get_device):
@@ -311,7 +311,7 @@ class VmUnitTest(unittest.TestCase):
 
     mock_get_device.assert_called_once_with(TEST_SERIAL, False)
     self.mock_qnx_device.set_traced_relay.assert_called_once_with(
-        "vsock://4:30001")
+        "vsock://4:30001", None)
 
   @mock.patch('src.torq.get_device', autospec=True)
   def test_vm_traced_relay_disable_qnx(self, mock_get_device):
