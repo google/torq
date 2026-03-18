@@ -26,6 +26,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from src.shell import AdbShell
 from tests.test_utils import run_cli
 from perfetto.batch_trace_processor.api import BatchTraceProcessor
+from unittest.mock import patch
 
 BTP_QUERY = {
     "trace_duration":
@@ -176,10 +177,14 @@ class TorqIntegrationTest(unittest.TestCase):
   def test_torq_basic_simpleperf(self):
     dur_sec = 3
 
-    torq_output = self.run_torq(
-        f"torq --serial {self.serial} -p simpleperf -s cpu-clock --no-ui "
-        f"-d {dur_sec * 1000} -o {self.test_run_dir}")
-    self.validate_simpleperf_output(torq_output)
+    if not os.environ.get('ANDROID_PRODUCT_OUT'):
+      self.fail(f"ANDROID_PRODUCT_OUT missing in environment variables!")
+
+    with patch('builtins.input', return_value='y'):
+      torq_output = self.run_torq(
+          f"torq --serial {self.serial} -p simpleperf -s cpu-clock --no-ui "
+          f"-d {dur_sec * 1000} -o {self.test_run_dir}")
+      self.validate_simpleperf_output(torq_output)
 
     with BatchTraceProcessor(self.get_simpleperf_data()) as btp:
       self.validate_trace_duration(btp, dur_sec)
