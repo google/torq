@@ -26,6 +26,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from src.shell import AdbShell
 from tests.test_utils import run_cli
 from perfetto.batch_trace_processor.api import BatchTraceProcessor
+from unittest.mock import patch
 
 BTP_QUERY = {
     "trace_duration":
@@ -74,8 +75,8 @@ class TorqIntegrationTest(unittest.TestCase):
     self.test_run_dir = self.parent_tmp_dir / self._testMethodName
     self.test_run_dir.mkdir(parents=True, exist_ok=True)
 
-  def get_trace_files(self):
-    return [str(f) for f in self.test_run_dir.glob("*.perfetto-trace")]
+  def get_glob_files(self, pattern):
+    return [str(f) for f in self.test_run_dir.glob(pattern)]
 
   def run_torq(self, command):
     output_io = io.StringIO()
@@ -95,7 +96,7 @@ class TorqIntegrationTest(unittest.TestCase):
 
     return output_text
 
-  def validate_perfetto_output(self, output_text, num_traces=1):
+  def validate_torq_output(self, output_text):
     error_keywords = ["Error:", "Exception:", "Failed to", "adb: error:"]
     for error in error_keywords:
       self.assertNotIn(
@@ -104,16 +105,23 @@ class TorqIntegrationTest(unittest.TestCase):
 
     self.assertIn("Performing run ", output_text)
 
-    trace_files = list(self.test_run_dir.glob("*.perfetto-trace"))
-
+  def validate_trace_metadata(self, trace_files, num_traces=1):
     self.assertEqual(
         len(trace_files), num_traces,
         f"Expected {num_traces} .perfetto-trace file(s) in "
         f"{self.test_run_dir}, found {len(trace_files)}")
 
-    for trace in trace_files:
+    for trace_file in trace_files:
+      trace = Path(trace_file)
       self.assertGreater(trace.stat().st_size, 0,
                          f"Trace file {trace.name} is empty.")
+
+  def validate_perfetto_output(self, output_text, num_traces=1):
+    self.validate_torq_output(output_text)
+    trace_files = self.get_glob_files("*.perfetto-trace")
+    self.validate_trace_metadata(trace_files, num_traces)
+
+    return trace_files
 
   def validate_trace_duration(self, btp, dur_sec):
     results = btp.query(BTP_QUERY["trace_duration"])
@@ -130,8 +138,8 @@ class TorqIntegrationTest(unittest.TestCase):
     torq_output = self.run_torq(f"torq --serial {self.serial} --no-ui -d "
                                 f"{dur_sec * 1000} -o {self.test_run_dir}")
 
-    self.validate_perfetto_output(torq_output)
-    with BatchTraceProcessor(self.get_trace_files()) as btp:
+    trace_files = self.validate_perfetto_output(torq_output)
+    with BatchTraceProcessor(trace_files) as btp:
       self.validate_trace_duration(btp, dur_sec)
 
   def test_torq_multiple_app_startup_events(self):
@@ -143,9 +151,10 @@ class TorqIntegrationTest(unittest.TestCase):
     torq_output = self.run_torq(f"torq --serial {self.serial} -e app-startup "
                                 f"-a {package} -d {dur_sec * 1000} --no-ui -o "
                                 f"{self.test_run_dir} -r {num_runs}")
-    self.validate_perfetto_output(torq_output, num_traces=num_runs)
+    trace_files = self.validate_perfetto_output(
+        torq_output, num_traces=num_runs)
 
-    with BatchTraceProcessor(self.get_trace_files()) as btp:
+    with BatchTraceProcessor(trace_files) as btp:
       self.validate_trace_duration(btp, dur_sec)
       results = btp.query(BTP_QUERY["app_startup"].format(package=package))
 
@@ -160,6 +169,24 @@ class TorqIntegrationTest(unittest.TestCase):
 
         self.assertIsNotNone(df['startup_id'].iloc[0],
                              f"Startup ID should not be null in trace {i}")
+
+  def test_torq_basic_simpleperf(self):
+    dur_sec = 3
+
+    if not os.environ.get('ANDROID_PRODUCT_OUT'):
+      self.fail(f"ANDROID_PRODUCT_OUT missing in environment variables!")
+
+    with patch('builtins.input', return_value='y'):
+      torq_output = self.run_torq(
+          f"torq --serial {self.serial} -p simpleperf -s cpu-clock --no-ui "
+          f"-d {dur_sec * 1000} -o {self.test_run_dir}")
+
+      self.validate_torq_output(torq_output)
+      trace_files = self.get_glob_files("perf*.data*")
+      self.validate_trace_metadata(trace_files)
+
+    with BatchTraceProcessor(trace_files) as btp:
+      self.validate_trace_duration(btp, dur_sec)
 
 
 if __name__ == "__main__":

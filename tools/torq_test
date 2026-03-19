@@ -64,7 +64,9 @@ def run_tests(args):
       cmd.append(f"--test_tag_filters={args.test_mode}")
 
     if args.test_mode == "integration" or args.test_mode == "all":
-        cmd.extend([f"--action_env=PATH={os.environ.get('PATH', '')}",])
+        cmd.extend([f"--action_env=PATH={os.environ.get('PATH', '')}",
+                    f"--action_env=ANDROID_PRODUCT_OUT="
+                    f"{os.environ.get('ANDROID_PRODUCT_OUT', '')}",])
 
     cmd.extend(args.remaining if args.remaining else ["//:all"])
 
