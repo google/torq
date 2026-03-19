@@ -75,11 +75,8 @@ class TorqIntegrationTest(unittest.TestCase):
     self.test_run_dir = self.parent_tmp_dir / self._testMethodName
     self.test_run_dir.mkdir(parents=True, exist_ok=True)
 
-  def get_perfetto_traces(self):
-    return [str(f) for f in self.test_run_dir.glob("*.perfetto-trace")]
-
-  def get_simpleperf_data(self):
-    return [str(f) for f in self.test_run_dir.glob("*.data")]
+  def get_glob_files(self, pattern):
+    return [str(f) for f in self.test_run_dir.glob(pattern)]
 
   def run_torq(self, command):
     output_io = io.StringIO()
@@ -114,19 +111,17 @@ class TorqIntegrationTest(unittest.TestCase):
         f"Expected {num_traces} .perfetto-trace file(s) in "
         f"{self.test_run_dir}, found {len(trace_files)}")
 
-    for trace in trace_files:
+    for trace_file in trace_files:
+      trace = Path(trace_file)
       self.assertGreater(trace.stat().st_size, 0,
                          f"Trace file {trace.name} is empty.")
 
   def validate_perfetto_output(self, output_text, num_traces=1):
     self.validate_torq_output(output_text)
-    trace_files = list(self.test_run_dir.glob("*.perfetto-trace"))
+    trace_files = self.get_glob_files("*.perfetto-trace")
     self.validate_trace_metadata(trace_files, num_traces)
 
-  def validate_simpleperf_output(self, output_text, num_traces=1):
-    self.validate_torq_output(output_text)
-    trace_files = list(self.test_run_dir.glob("perf*.data*"))
-    self.validate_trace_metadata(trace_files, num_traces)
+    return trace_files
 
   def validate_trace_duration(self, btp, dur_sec):
     results = btp.query(BTP_QUERY["trace_duration"])
@@ -143,8 +138,8 @@ class TorqIntegrationTest(unittest.TestCase):
     torq_output = self.run_torq(f"torq --serial {self.serial} --no-ui -d "
                                 f"{dur_sec * 1000} -o {self.test_run_dir}")
 
-    self.validate_perfetto_output(torq_output)
-    with BatchTraceProcessor(self.get_perfetto_traces()) as btp:
+    trace_files = self.validate_perfetto_output(torq_output)
+    with BatchTraceProcessor(trace_files) as btp:
       self.validate_trace_duration(btp, dur_sec)
 
   def test_torq_multiple_app_startup_events(self):
@@ -156,9 +151,10 @@ class TorqIntegrationTest(unittest.TestCase):
     torq_output = self.run_torq(f"torq --serial {self.serial} -e app-startup "
                                 f"-a {package} -d {dur_sec * 1000} --no-ui -o "
                                 f"{self.test_run_dir} -r {num_runs}")
-    self.validate_perfetto_output(torq_output, num_traces=num_runs)
+    trace_files = self.validate_perfetto_output(
+        torq_output, num_traces=num_runs)
 
-    with BatchTraceProcessor(self.get_perfetto_traces()) as btp:
+    with BatchTraceProcessor(trace_files) as btp:
       self.validate_trace_duration(btp, dur_sec)
       results = btp.query(BTP_QUERY["app_startup"].format(package=package))
 
@@ -184,9 +180,12 @@ class TorqIntegrationTest(unittest.TestCase):
       torq_output = self.run_torq(
           f"torq --serial {self.serial} -p simpleperf -s cpu-clock --no-ui "
           f"-d {dur_sec * 1000} -o {self.test_run_dir}")
-      self.validate_simpleperf_output(torq_output)
 
-    with BatchTraceProcessor(self.get_simpleperf_data()) as btp:
+      self.validate_torq_output(torq_output)
+      trace_files = self.get_glob_files("perf*.data*")
+      self.validate_trace_metadata(trace_files)
+
+    with BatchTraceProcessor(trace_files) as btp:
       self.validate_trace_duration(btp, dur_sec)
 
 
