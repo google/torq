@@ -36,8 +36,10 @@ BTP_QUERY = {
         "SELECT startup_id FROM android_startups\n"
         "WHERE package = '{package}'",
     "user_switch_event":
-        "SELECT count(*) as count FROM slice WHERE name LIKE '%user_switch%' "
-        "OR name LIKE '%StartUser%' OR name LIKE '%switchUser%'"
+        "INCLUDE PERFETTO MODULE android.auto.multiuser;\n"
+        "SELECT event_start_user_id, event_end_name "
+        "FROM android_auto_multiuser_timing "
+        "WHERE event_end_name LIKE 'finishUserStopped%'"
 }
 
 DUR_TOLERANCE = 0.05
@@ -192,34 +194,57 @@ class TorqIntegrationTest(unittest.TestCase):
       self.validate_trace_duration(btp, dur_sec)
 
   def test_torq_user_switch(self):
-    dur_sec = 5
-    user_id = None
+    dur_sec = 6
+    from_user = 10
 
     user_output = subprocess.check_output(
         ["adb", "-s", self.serial, "shell", "pm", "create-user", "TestUser"],
         text=True)
-    user_id = user_output.strip().split()[-1]
+    to_user = user_output.strip().split()[-1]
 
     torq_output = self.run_torq(
-        f"torq --serial {self.serial} -e user-switch --to-user {user_id} "
-        f"-d {dur_sec * 1000} --no-ui -o {self.test_run_dir}")
+        f"torq --serial {self.serial} -e user-switch --to-user {to_user} "
+        f"--from-user {from_user} -d {dur_sec * 1000} --no-ui "
+        f"-o {self.test_run_dir}")
 
     trace_files = self.validate_perfetto_output(torq_output)
     with BatchTraceProcessor(trace_files) as btp:
       self.validate_trace_duration(btp, dur_sec)
 
       results = btp.query(BTP_QUERY["user_switch_event"])
-      event_count = results[0]['count'].iloc[0]
       self.assertGreater(
-          event_count, 0,
-          "No user-switch related slices found in the Perfetto trace.")
-      current_user = subprocess.check_output(
-          ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
-          text=True).strip()
-      self.assertNotEqual(user_id, current_user)
+          len(results[0]), 0, "No user-switch events found in trace.")
+
+      event = results[0].iloc[0]
+      start_user = str(event['event_start_user_id'])
+      event_name = event['event_end_name']
+
+      try:
+        stop_user = int(event_name.split('-')[1])
+      except (IndexError, ValueError):
+        self.fail(f"Failed to parse target user from {event_name}")
+
+      self.assertEqual(
+          from_user, stop_user,
+          f"The trace shows user {from_user} was stopped, "
+          f"but we expected {stop_user}")
+
+      self.assertEqual(
+          start_user, to_user,
+          f"The trace shows user was switched to {start_user}, "
+          f"but we expected {to_user}")
+
+      current_user = int(
+          subprocess.check_output(
+              ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
+              text=True).strip())
+      self.assertEqual(
+          from_user, current_user,
+          f"The trace shows current user as {current_user}, "
+          f"but expected {from_user}")
 
       subprocess.run(
-          ["adb", "-s", self.serial, "shell", "pm", "remove-user", user_id])
+          ["adb", "-s", self.serial, "shell", "pm", "remove-user", to_user])
 
 
 if __name__ == "__main__":
