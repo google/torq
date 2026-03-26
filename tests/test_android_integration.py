@@ -51,15 +51,8 @@ DUR_TOLERANCE = 0.1
 class TorqIntegrationTest(unittest.TestCase):
 
   @classmethod
-  def _get_adb_device(cls):
-    devices = AdbShell.get_adb_devices()
-
-    if not devices:
-      return None
-
-    selected_device = devices[0]
-    print(f"INFO: Found {len(devices)} device(s). Targeting: {selected_device}")
-    return selected_device
+  def _get_adb_devices(cls):
+    return AdbShell.get_adb_devices()
 
   @classmethod
   def setUpClass(cls):
@@ -67,9 +60,12 @@ class TorqIntegrationTest(unittest.TestCase):
       raise RuntimeError(
           "Missing required executable: adb. Ensure it is in your PATH.")
 
-    cls.serial = cls._get_adb_device()
-    if not cls.serial:
+    cls.serials = cls._get_adb_devices()
+    if not cls.serials:
       raise RuntimeError("No active adb devices found via 'adb devices'.")
+    cls.serial = cls.serials[0]
+    if len(cls.serials) > 1:
+      cls.secondary_serial = cls.serials[1]
 
     base_path = Path(os.environ.get('TEST_TMPDIR', '/tmp'))
     cls.parent_tmp_dir = base_path / f"torq-integration-test-{time.time_ns()}"
@@ -252,8 +248,9 @@ class TorqIntegrationTest(unittest.TestCase):
 
   def test_torq_boot_event(self):
     dur_sec = 60
+    pre_boot_serial = self.serial
 
-    self.run_torq(f"torq --serial {self.serial} -e boot "
+    self.run_torq(f"torq --serial {pre_boot_serial} -e boot "
                   f"-d {dur_sec * 1000} --no-ui -o {self.test_run_dir}")
 
     subprocess.run([
@@ -262,8 +259,9 @@ class TorqIntegrationTest(unittest.TestCase):
     ],
                    timeout=90)
 
-    current_serial = self._get_adb_device()
-    self.assertIsNotNone(current_serial, "Device not online post boot.")
+    current_serials = self._get_adb_devices()
+    self.assertIn(pre_boot_serial, current_serials,
+                  "Device not online post boot.")
 
     trace_files = self.get_glob_files("*.perfetto-trace")
     with BatchTraceProcessor(trace_files) as btp:
