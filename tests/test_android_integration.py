@@ -253,24 +253,17 @@ class TorqIntegrationTest(unittest.TestCase):
   def test_torq_boot_event(self):
     dur_sec = 60
 
-    self.run_torq(f"torq --serial {self.serial} -e boot "
-                  f"-d {dur_sec * 1000} --no-ui -o {self.test_run_dir}")
-
-    subprocess.run([
-        "adb", "-s", self.serial, "wait-for-device", "shell",
-        "while [ $(getprop sys.boot_completed) != 1 ]; do sleep 1; done"
-    ],
-                   timeout=90)
-
-    current_serial = self._get_adb_device()
-    self.assertIsNotNone(current_serial, "Device not online post boot.")
+    self.run_torq(f"torq --serial {self.serial} -e boot --no-ui -d "
+                  f"{dur_sec * 1000} -o {self.test_run_dir} --boot-timeout 90")
 
     trace_files = self.get_glob_files("*.perfetto-trace")
     with BatchTraceProcessor(trace_files) as btp:
       self.validate_trace_duration(btp, dur_sec)
-      results = btp.query(BTP_QUERY["boot_events"])[0]['count'].iloc[0]
+      boot_complete_logs = btp.query(
+          BTP_QUERY["boot_events"])[0]['count'].iloc[0]
 
-      self.assertGreater(results, 0, "Boot completion log not found.")
+      self.assertGreater(boot_complete_logs, 0,
+                         "Boot completion log not found.")
 
 
 if __name__ == "__main__":
