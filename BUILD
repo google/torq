@@ -43,6 +43,12 @@ py_binary(
     deps = [":torq_lib"],
 )
 
+py_binary(
+    name = "torq-serial",
+    srcs = ["serial/serial.py"],
+    main = "serial/serial.py",
+)
+
 py_library(
     name = "torq_test_lib",
     srcs = ["tests/test_utils.py"],
