@@ -149,7 +149,7 @@ def main():
       "--timeout",
       type=float,
       default=0.0,
-      help="Timeout in seconds to wait for output (0 = wait forever, default: 0.0)"
+      help="Timeout in seconds to wait for output (0 = wait forever, default: 0)"
   )
 
   args = parser.parse_args()
@@ -187,7 +187,7 @@ def main():
         to_print = output[printed_upto:safe_idx]
         if to_print:
           print(to_print.decode('utf-8', errors='replace'), end='', flush=True)
-          printed_upto += len(to_print)
+          printed_upto = safe_idx + 1
 
       if args.timeout > 0 and (time.time() - start_time) > args.timeout:
         print(
