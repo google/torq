@@ -223,9 +223,9 @@ class AdbShell(Shell):
                           cwd, timeout, encoding, errors, text, env,
                           universal_newlines)
 
-  def wait_for_device(self):
+  def wait_for_device(self, timeout=WAIT_FOR_DEVICE_TIME_OUT_SECS):
     return poll_is_task_completed(
-        WAIT_FOR_DEVICE_TIME_OUT_SECS, POLLING_INTERVAL_SECS,
+        timeout, POLLING_INTERVAL_SECS,
         lambda: self.serial in AdbShell.get_adb_devices())
 
 

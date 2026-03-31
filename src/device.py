@@ -209,7 +209,7 @@ class AndroidDevice(Device):
 
   def reboot(self):
     self.shell.run(["reboot"])
-    if not self.shell.wait_for_device():
+    if not self.shell.wait_for_device(timeout=BOOT_COMPLETED_TIME_OUT_SECS):
       raise Exception(("Device with serial %s took too long to start"
                        " rebooting." % self.shell.id()))
 
