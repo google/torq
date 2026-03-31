@@ -207,9 +207,9 @@ class AndroidDevice(Device):
   def clear_prop(self, prop):
     self.shell.run(["shell", "setprop", prop, "\"\""])
 
-  def reboot(self, timeout=BOOT_COMPLETED_TIME_OUT_SECS):
+  def reboot(self):
     self.shell.run(["reboot"])
-    if not self.shell.wait_for_device(timeout=timeout):
+    if not self.shell.wait_for_device(timeout=BOOT_COMPLETED_TIME_OUT_SECS):
       raise Exception(("Device with serial %s took too long to start"
                        " rebooting." % self.shell.id()))
 
@@ -221,8 +221,9 @@ class AndroidDevice(Device):
                                     capture_output=True)
     return command_output.stdout.decode("utf-8").strip() == "1"
 
-  def wait_for_boot_to_complete(self, timeout=BOOT_COMPLETED_TIME_OUT_SECS):
-    if not poll_is_task_completed(timeout, POLLING_INTERVAL_SECS,
+  def wait_for_boot_to_complete(self):
+    if not poll_is_task_completed(BOOT_COMPLETED_TIME_OUT_SECS,
+                                  POLLING_INTERVAL_SECS,
                                   self.is_boot_completed):
       raise Exception(("Device with serial %s took too long to finish"
                        " rebooting." % self.shell.id()))

@@ -23,8 +23,7 @@ from .base import (ANDROID_SDK_VERSION_T, Command, CommandExecutor,
                    ValidationError)
 from .config_builder import (build_custom_config, create_common_config_parser,
                              PREDEFINED_PERFETTO_CONFIGS)
-from .device import (OsCodes, SIMPLEPERF_TRACE_FILE,
-                     BOOT_COMPLETED_TIME_OUT_SECS)
+from .device import OsCodes, SIMPLEPERF_TRACE_FILE
 from .handle_input import HandleInput
 from .open_ui_utils import open_trace, WEB_UI_ADDRESS
 from .utils import (convert_simpleperf_to_gecko, poll_is_task_completed,
@@ -111,11 +110,6 @@ def add_profiler_parser(subparsers):
       help='The user id of user that system is switching to.')
   profiler_parser.add_argument(
       '--symbols', help='Specifies path to symbols library.')
-  profiler_parser.add_argument(
-      '--boot-timeout',
-      type=int,
-      default=BOOT_COMPLETED_TIME_OUT_SECS,
-      help='Timeout in seconds to wait for the device to reboot.')
 
 
 def verify_profiler_args(args):
@@ -399,8 +393,7 @@ def execute_profiler_command(args, device):
       args.between_dur_ms, args.ui, args.excluded_ftrace_events,
       args.included_ftrace_events, args.from_user, args.to_user,
       args.scripts_path, args.symbols, args.trigger_names,
-      args.trigger_timeout_ms, args.trigger_stop_delay_ms, args.trigger_mode,
-      args.boot_timeout)
+      args.trigger_timeout_ms, args.trigger_stop_delay_ms, args.trigger_mode)
 
   executor = get_executor(command.event)
 
@@ -412,29 +405,11 @@ class ProfilerCommand(Command):
   Represents commands which profile and trace the system.
   """
 
-  def __init__(self,
-               type,
-               event,
-               profiler,
-               out_dir,
-               dur_ms,
-               app,
-               runs,
-               simpleperf_event,
-               perfetto_config,
-               between_dur_ms,
-               ui,
-               excluded_ftrace_events,
-               included_ftrace_events,
-               from_user,
-               to_user,
-               scripts_path,
-               symbols,
-               trigger_names,
-               trigger_timeout_ms,
-               trigger_stop_delay_ms,
-               trigger_mode,
-               boot_timeout=None):
+  def __init__(self, type, event, profiler, out_dir, dur_ms, app, runs,
+               simpleperf_event, perfetto_config, between_dur_ms, ui,
+               excluded_ftrace_events, included_ftrace_events, from_user,
+               to_user, scripts_path, symbols, trigger_names,
+               trigger_timeout_ms, trigger_stop_delay_ms, trigger_mode):
     super().__init__(type)
     self.event = event
     self.profiler = profiler
@@ -456,7 +431,6 @@ class ProfilerCommand(Command):
     self.trigger_timeout_ms = trigger_timeout_ms
     self.trigger_stop_delay_ms = trigger_stop_delay_ms
     self.trigger_mode = trigger_mode
-    self.boot_timeout = boot_timeout
 
     if self.event == "user-switch":
       self.original_user = None
@@ -764,10 +738,7 @@ class BootCommandExecutor(ProfilerCommandExecutor):
     return None
 
   def trigger_system_event(self, command, device):
-    if command.event == "boot":
-      custom_timeout = getattr(command, 'boot_timeout',
-                               BOOT_COMPLETED_TIME_OUT_SECS)
-      device.reboot(timeout=custom_timeout)
+    device.reboot()
 
   def retrieve_perf_data(self, command, device, host_raw_trace_filename,
                          host_gecko_trace_filename):

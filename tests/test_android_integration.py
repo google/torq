@@ -254,7 +254,7 @@ class TorqIntegrationTest(unittest.TestCase):
     dur_sec = 60
 
     self.run_torq(f"torq --serial {self.serial} -e boot --no-ui -d "
-                  f"{dur_sec * 1000} -o {self.test_run_dir} --boot-timeout 90")
+                  f"{dur_sec * 1000} -o {self.test_run_dir}")
 
     trace_files = self.get_glob_files("*.perfetto-trace")
     with BatchTraceProcessor(trace_files) as btp:
