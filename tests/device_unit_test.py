@@ -351,7 +351,7 @@ class DeviceUnitTest(unittest.TestCase):
     command = ProfilerCommand("profiler", "custom", None, None, 10000, None,
                               None, ["cpu-cycles"], None, None, None, None,
                               None, None, None, None, None, None, None, None,
-                              None)
+                              None, "trace")
     mock_process = device.start_simpleperf_trace(command)
 
     # No exception is expected to be thrown
@@ -364,7 +364,7 @@ class DeviceUnitTest(unittest.TestCase):
     command = ProfilerCommand("profiler", "custom", None, None, 10000, None,
                               None, ["cpu-cycles"], None, None, None, None,
                               None, None, None, None, None, None, None, None,
-                              None)
+                              None, "trace")
 
     with self.assertRaises(Exception) as e:
       device.start_simpleperf_trace(command)

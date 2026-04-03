@@ -50,7 +50,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
                                    DEFAULT_OUT_DIR, DEFAULT_DUR_MS, None, 1,
                                    None, DEFAULT_PERFETTO_CONFIG, None, False,
                                    None, None, None, None, None, None, None,
-                                   None, None, None)
+                                   None, None, None, "trace")
     self.executor = get_executor("custom")
     if profiler == "simpleperf":
       self.command.symbols = "/"
@@ -323,7 +323,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
                                    profiler, DEFAULT_OUT_DIR, DEFAULT_DUR_MS,
                                    None, 1, None, DEFAULT_PERFETTO_CONFIG, None,
                                    False, None, None, None, None, None, None,
-                                   None, None, None, None)
+                                   None, None, None, None, "trace")
     self.executor = get_executor("user-switch")
     self.current_user = TEST_USER_ID_3
     if profiler == "simpleperf":
@@ -500,7 +500,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
                                    DEFAULT_OUT_DIR, TEST_DURATION, None, 1,
                                    None, DEFAULT_PERFETTO_CONFIG, TEST_DURATION,
                                    False, None, None, None, None, None, None,
-                                   None, None, None, None)
+                                   None, None, None, None, "trace")
     self.executor = get_executor("boot")
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.is_process_running.return_value = False
@@ -630,7 +630,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
                                    TEST_PACKAGE_1, 1, None,
                                    DEFAULT_PERFETTO_CONFIG, None, False, None,
                                    None, None, None, None, None, None, None,
-                                   None, None)
+                                   None, None, "trace")
     self.executor = get_executor("app-startup")
     if profiler == "simpleperf":
       self.command.symbols = "/"
