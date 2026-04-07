@@ -61,8 +61,7 @@ def create_dumper(filepath, command):
 
   try:
     dump_dir = os.path.dirname(os.path.abspath(filepath))
-    if dump_dir:
-      os.makedirs(dump_dir, exist_ok=True)
+    os.makedirs(dump_dir, exist_ok=True)
     dump_file = open(filepath, 'ab')
   except Exception as e:
     raise ValueError(f"Failed to create dump file at {filepath}: {e}")
