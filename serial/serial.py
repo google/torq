@@ -34,6 +34,45 @@ CTRL_C = b'\x03'
 SHELL_PROMPTS = [b'$ ', b'# ']
 
 
+def create_dumper(filepath, command):
+  """Setup a dump file and return a logging function and a close function."""
+  dump_file = None
+
+  def dump_log(data):
+    nonlocal filepath
+    if not filepath:
+      return
+    if isinstance(data, str):
+      data = data.encode('utf-8')
+    nonlocal dump_file
+    dump_file.write(data)
+    dump_file.flush()
+
+  def close_dumper():
+    nonlocal filepath
+    if not filepath:
+      return
+    dump_log(f"\n--- END COMMAND: {command} ---\n")
+    nonlocal dump_file
+    dump_file.close()
+
+  if not filepath:
+    return dump_log, close_dumper
+
+  try:
+    dump_dir = os.path.dirname(os.path.abspath(filepath))
+    if dump_dir:
+      os.makedirs(dump_dir, exist_ok=True)
+    dump_file = open(filepath, 'ab')
+  except Exception as e:
+    raise ValueError(f"Failed to create dump file at {filepath}: {e}")
+
+  dump_file.write(f"--- COMMAND: {command} ---\n".encode('utf-8'))
+  dump_file.flush()
+
+  return dump_log, close_dumper
+
+
 @contextmanager
 def tty_open(device):
   """Context manager to open and close a TTY device."""
@@ -75,26 +114,41 @@ def tty_setup(fd, baudrate=115200):
   attrs[6][termios.VTIME] = 0
 
   # Set attributes
-  termios.tcsetattr(fd, termios.TCSANOW, attrs)
+  termios.tcsetattr(fd, termios.TCSADRAIN, attrs)
 
 
-def tty_read(fd, output, timeout=0.1):
+def tty_read(fd, output, dump_log=lambda x: None):
   """Reads data from the TTY device and appends it to the output bytearray."""
-  r, _, _ = select.select([fd], [], [], timeout)
+  r, _, _ = select.select([fd], [], [], 0.1)
   if fd in r:
     try:
       chunk = os.read(fd, 4096)
+      if not chunk:
+        print("\nError: TTY device disconnected (EOF).", file=sys.stderr)
+        sys.exit(1)
       if chunk:
         output.extend(chunk)
+        dump_log(chunk)
     except BlockingIOError:
       pass
+    except OSError as e:
+      print(f"\nError reading from TTY device: {e}", file=sys.stderr)
+      sys.exit(1)
 
 
 def tty_write(fd, data):
   """Writes data to the TTY device and waits for it to be transmitted."""
   if isinstance(data, str):
     data = data.encode('utf-8')
-  os.write(fd, data)
+
+  written = 0
+  while written < len(data):
+    try:
+      written += os.write(fd, data[written:])
+    except BlockingIOError:
+      # Wait a tiny bit for the output buffer to drain
+      select.select([], [fd], [], 0.01)
+
   termios.tcdrain(fd)
 
 
@@ -112,9 +166,6 @@ def sigint_handler(fd):
 def find_shell_prompt_idx(output):
   """Finds the index of a shell prompt in the output, or -1 if not found."""
   for prompt in SHELL_PROMPTS:
-    if output.endswith(prompt):
-      return len(output) - len(prompt)
-
     idx = output.find(b'\n' + prompt)
     if idx != -1:
       return idx + 1
@@ -151,8 +202,15 @@ def main():
       default=0.0,
       help="Timeout in seconds to wait for output (0 = wait forever, default: 0)"
   )
+  parser.add_argument(
+      "--dump",
+      type=str,
+      help="Filepath to dump exactly the chunks being read. File will be created if it doesn't exist."
+  )
 
   args = parser.parse_args()
+
+  dump_log, close_dumper = create_dumper(args.dump, args.command)
 
   with tty_open(args.device) as fd:
     tty_setup(fd, args.baud)
@@ -161,18 +219,52 @@ def main():
     signal.signal(signal.SIGINT, sigint_handler(fd))
 
     # Clear buffer before sending
+    termios.tcdrain(fd)
     termios.tcflush(fd, termios.TCIOFLUSH)
+
+    # Send a newline and wait for a prompt to clear any pending output or
+    # messages from previous background processes. This is a hack to flush
+    # any pending none relevant output from the TTY device (e.g terminated
+    # process output).
+    tty_write(fd, '\n')
+    sync_output = bytearray()
+    while find_shell_prompt_idx(sync_output) == -1:
+      tty_read(fd, sync_output)
 
     # Write command
     tty_write(fd, args.command + '\n')
 
+    # For multi-line commands, the shell echoes the first line, then uses
+    # secondary prompts ('> ') for the rest. We only skip the first line's echo.
+    first_line_cmd = args.command.splitlines()[0].encode('utf-8')
+
     output = bytearray()
     start_time = time.time()
     printed_upto = 0
+    echo_skipped = False
 
     # Wait for the command to finish
     while True:
-      tty_read(fd, output)
+      if args.timeout > 0 and (time.time() - start_time) > args.timeout:
+        print(
+            f"\nError: Command timed out after {args.timeout} seconds.",
+            file=sys.stderr)
+        tty_write(fd, CTRL_C)
+        args.timeout = 0  # To avoid sending CTRL_C continously
+
+      tty_read(fd, output, dump_log)
+
+      # Skip the TTY device echoing the first line of the command.
+      if not echo_skipped:
+        cmd_idx = output.find(first_line_cmd)
+        if cmd_idx != -1:
+          newline_idx = output.find(b'\n', cmd_idx + len(first_line_cmd))
+          if newline_idx == -1:
+            continue
+          printed_upto = newline_idx + 1
+          echo_skipped = True
+        else:
+          continue
 
       prompt_idx = find_shell_prompt_idx(output)
 
@@ -183,25 +275,20 @@ def main():
         break
       else:
         # No prompt yet. Print what is safe (keep last 2 bytes).
-        safe_idx = max(0, len(output) - 2)
+        safe_idx = max(printed_upto, len(output) - 2)
         to_print = output[printed_upto:safe_idx]
         if to_print:
           print(to_print.decode('utf-8', errors='replace'), end='', flush=True)
-          printed_upto = safe_idx + 1
+          printed_upto = safe_idx
 
-      if args.timeout > 0 and (time.time() - start_time) > args.timeout:
-        print(
-            f"\nError: Command timed out after {args.timeout} seconds.",
-            file=sys.stderr)
-        tty_write(fd, CTRL_C)
-        args.timeout = 0  # To avoid sending CTRL_C continously
+    dump_log(f"\n  -- GET EXIT CODE --\n")
 
     # Get the exit code
     tty_write(fd, b"echo $?\n")
     output = bytearray()  # Reset output to capture only the exit code
 
     while True:
-      tty_read(fd, output)
+      tty_read(fd, output, dump_log)
 
       if b'\n' in output or b'\r' in output:
         decoded_output = output.decode('utf-8', errors='replace').strip()
@@ -210,6 +297,7 @@ def main():
         for line in reversed(lines):
           line = line.strip()
           if line.isdigit():
+            close_dumper()
             sys.exit(int(line))
 
 
