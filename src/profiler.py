@@ -676,7 +676,7 @@ class ProfilerCommandExecutor(CommandExecutor):
       device.kill_process(name)
 
   def is_trace_cancelled(self, profiler, device, process):
-    return process.poll() is not None or self.trace_cancelled
+    return not process.is_running() or self.trace_cancelled
 
 
 class UserSwitchCommandExecutor(ProfilerCommandExecutor):

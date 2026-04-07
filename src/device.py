@@ -383,8 +383,9 @@ class QnxDevice(Device):
     self.kill_process("traced_relay")
     if not self.is_process_running("traced"):
       self.shell.popen(
-          f"{QnxDevice.QNX_PATH_ENV};"
+          f"{QnxDevice.QNX_PATH_ENV}; "
           "PERFETTO_PRODUCER_SOCK_NAME=/tmp/perfetto-producer traced",
+          stdout=DEVNULL,
           stderr=DEVNULL)
       self.kill_process("traced_qnx_probes")
       self.shell.popen(
@@ -401,6 +402,7 @@ class QnxDevice(Device):
     return self.shell.popen(
         f"{QnxDevice.QNX_PATH_ENV}; perfetto -c - --txt -o "
         f"{PERFETTO_TRACE_FILE} " + config,
+        stdout=DEVNULL,
         stderr=DEVNULL)
 
   def set_traced_producer_relay_port(self,

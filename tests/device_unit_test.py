@@ -330,7 +330,7 @@ class DeviceUnitTest(unittest.TestCase):
     mock_process = device.start_perfetto_trace("")
 
     # No exception is expected to be thrown
-    self.assertEqual(mock_process, mock_subprocess_popen.return_value)
+    self.assertEqual(mock_process.process, mock_subprocess_popen.return_value)
 
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_start_perfetto_trace_failure(self, mock_subprocess_popen):
@@ -355,7 +355,7 @@ class DeviceUnitTest(unittest.TestCase):
     mock_process = device.start_simpleperf_trace(command)
 
     # No exception is expected to be thrown
-    self.assertEqual(mock_process, mock_subprocess_popen.return_value)
+    self.assertEqual(mock_process.process, mock_subprocess_popen.return_value)
 
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_start_simpleperf_trace_failure(self, mock_subprocess_popen):

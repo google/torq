@@ -56,6 +56,25 @@ def get_shell(serial):
   return AdbShell(serial), None
 
 
+class Process(ABC):
+  """
+  Abstract class representing a process
+  """
+
+  @abstractmethod
+  def is_running(self):
+    raise NotImplementedError
+
+
+class ShellProcess(Process):
+
+  def __init__(self, process):
+    self.process = process
+
+  def is_running(self):
+    return self.process.poll() is None
+
+
 class Shell(ABC):
   """
   Abstract base class for the communication channel to a device
@@ -199,8 +218,9 @@ class AdbShell(Shell):
     is_list = isinstance(args, list)
     prefix = ["adb", "-s", self.serial]
     cmd = prefix + args if is_list else f"{' '.join(prefix)} {args}"
-    return subprocess.Popen(
-        cmd, shell=(not is_list), stdout=stdout, stderr=stderr)
+    return ShellProcess(
+        subprocess.Popen(
+            cmd, shell=(not is_list), stdout=stdout, stderr=stderr))
 
   def run(self,
           args,
@@ -268,7 +288,7 @@ class SshShell(Shell):
       ssh_cmd.extend(args)
     else:
       ssh_cmd.append(args)
-    return subprocess.Popen(ssh_cmd, stdout=stdout, stderr=stderr)
+    return ShellProcess(subprocess.Popen(ssh_cmd, stdout=stdout, stderr=stderr))
 
   def run(self,
           args,
