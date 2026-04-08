@@ -360,9 +360,7 @@ class QnxDevice(Device):
     return not output.returncode
 
   def pull_file(self, filepath, host_file):
-    if isinstance(self.shell, SshShell):
-      return self.shell.pull_file(filepath, host_file)
-    raise NotImplementedError
+    return self.shell.pull_file(filepath, host_file)
 
   def remove_file(self, filepath):
     output = self.shell.run([f"{QnxDevice.QNX_PATH_ENV}; rm {filepath}"],
