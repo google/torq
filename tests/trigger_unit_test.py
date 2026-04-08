@@ -59,6 +59,11 @@ class ProfilerTriggerUnitTest(unittest.TestCase):
     self.mock_device.remove_file.return_value = False
     self.mock_device.pull_file.return_value = False
     self.mock_device.trigger_perfetto.return_value = None
+
+    mock_process = mock.Mock()
+    mock_process.is_running.return_value = False
+    self.mock_device.start_perfetto_trace.return_value = mock_process
+
     self.mock_sleep_patcher = mock.patch.object(
         time, 'sleep', return_value=None)
     self.mock_sleep_patcher.start()
