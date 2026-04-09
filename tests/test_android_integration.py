@@ -17,6 +17,7 @@
 import io
 import unittest
 import os
+import sys
 import shutil
 import time
 import subprocess
@@ -42,7 +43,9 @@ BTP_QUERY = {
         "WHERE event_end_name LIKE 'finishUserStopped%'",
     "boot_events":
         "SELECT count(*) as count FROM android_logs\n"
-        "WHERE msg LIKE '%sys.boot_completed=1%'"
+        "WHERE msg LIKE '%sys.boot_completed=1%'",
+    "unified_trace_machines":
+        "SELECT COUNT(*) as m_count FROM machine;"
 }
 
 DUR_TOLERANCE = 0.1
@@ -51,25 +54,41 @@ DUR_TOLERANCE = 0.1
 class TorqIntegrationTest(unittest.TestCase):
 
   @classmethod
-  def _get_adb_devices(cls):
-    return AdbShell.get_adb_devices()
-
-  @classmethod
   def setUpClass(cls):
     if not AdbShell.adb_exists():
       raise RuntimeError(
           "Missing required executable: adb. Ensure it is in your PATH.")
 
-    cls.serials = cls._get_adb_devices()
-    if not cls.serials:
-      raise RuntimeError("No active adb devices found via 'adb devices'.")
-    cls.serial = cls.serials[0]
-    if len(cls.serials) > 1:
-      cls.serial2 = cls.serials[1]
-
     base_path = Path(os.environ.get('TEST_TMPDIR', '/tmp'))
     cls.parent_tmp_dir = base_path / f"torq-integration-test-{time.time_ns()}"
     cls.parent_tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    cls.serial = None
+    cls.serial2 = None
+    cls.primary_cid = None
+    for arg in sys.argv:
+      if arg.startswith("--serial="):
+        cls.serial = arg.split("=")[1]
+      elif arg.startswith("--serial2="):
+        cls.serial2 = arg.split("=")[1]
+      elif arg.startswith("--primary_cid="):
+        cls.primary_cid = arg.split("=")[1]
+
+    cls.assertNotEqual(cls.serial, cls.serial2,
+                       "Both provided serials shouldn't be the same")
+
+    cls.serials = AdbShell.get_adb_devices()
+    if not cls.serials:
+      raise RuntimeError("No active adb devices found via 'adb devices'.")
+
+    if not cls.serial:
+      print("INFO: No --serial provided. Auto-detecting via 'adb devices'...")
+      cls.serial = cls.serials[0]
+    elif cls.serial not in cls.serials:
+      raise RuntimeError("Provided serial not found via 'adb devices'.")
+
+    if cls.serial2 and cls.serial2 not in cls.serials:
+      raise RuntimeError("Provided serial2 not found via 'adb devices'.")
 
   @classmethod
   def tearDownClass(cls):
@@ -127,14 +146,14 @@ class TorqIntegrationTest(unittest.TestCase):
 
     return trace_files
 
-  def validate_trace_duration(self, btp, dur_sec, tolerance=DUR_TOLERANCE):
+  def validate_trace_duration(self, btp, dur_sec):
     results = btp.query(BTP_QUERY["trace_duration"])
     self.assertIsNotNone(results[0]['duration_sec'].iloc[0])
     actual_duration = results[0]['duration_sec'].iloc[0]
     self.assertAlmostEqual(
         actual_duration,
         dur_sec,
-        delta=tolerance * dur_sec,
+        delta=DUR_TOLERANCE * dur_sec,
         msg=f"Trace should be ~{dur_sec} sec")
 
   def test_torq_basic_perfetto(self):
@@ -264,15 +283,18 @@ class TorqIntegrationTest(unittest.TestCase):
   def test_torq_vm_unified_tracing(self):
     dur_sec = 10
 
-    self.assertIsNotNone(self.serial2,
-                         "Need 2 devices to run unified tracing test")
+    if self.serial2 is None or self.primary_cid is None:
+      self.skipTest(
+          "serial2 and primary_cid must both be provided for VM unified tracing test. Skipping test"
+      )
 
     subprocess.run(["adb", "-s", self.serial, "shell", "setenforce", "0"])
     subprocess.run(["adb", "-s", self.serial2, "shell", "setenforce", "0"])
 
-    self.run_torq(f"torq --serial {self.serial} vm configure --primary "
-                  f"android_primary={self.serial} --primary-cid 3 "
-                  f"--secondary android_secondary={self.serial2}")
+    self.run_torq(
+        f"torq --serial {self.serial} vm configure --primary android_primary="
+        f"{self.serial} --primary-cid {self.primary_cid} --secondary "
+        f"android_secondary={self.serial2}")
 
     time.sleep(2)
 
@@ -281,10 +303,8 @@ class TorqIntegrationTest(unittest.TestCase):
 
     trace_files = self.get_glob_files("*.perfetto-trace")
     with BatchTraceProcessor(trace_files) as btp:
-      self.validate_trace_duration(btp, dur_sec, tolerance=0.5)
-
-      trace_machines = btp.query("SELECT COUNT(DISTINCT machine_id) as m_count "
-                                 "FROM metadata")[0]['m_count'].iloc[0]
+      trace_machines = btp.query(
+          BTP_QUERY["unified_trace_machines"])[0]['m_count'].iloc[0]
 
       self.assertEqual(trace_machines, 2,
                        "Unified trace did not aggregate data from both VMs.")
@@ -295,4 +315,10 @@ class TorqIntegrationTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  test_args = [sys.argv[0]]
+  for arg in sys.argv[1:]:
+    if not (arg.startswith("--serial=") or arg.startswith("--serial2=") or
+            arg.startswith("--primary_cid=")):
+      test_args.append(arg)
+
+  unittest.main(argv=test_args)

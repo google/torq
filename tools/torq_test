@@ -31,6 +31,8 @@ Unit tests can be run with:
 
 You can filter to only run specific unit tests with:
     ./torq_test --unit torq_unit_test device_unit_test
+
+For more details, refer to docs/TORQ_TESTING.md.
 """
 
 import os
@@ -50,6 +52,12 @@ def parse_args():
                        const='all', help="Run all tests (unit + integration).")
     parser.set_defaults(test_mode='unit')
 
+    parser.add_argument("--serial", type=str, help="Serial of the primary device.")
+    parser.add_argument("--serial2", type=str,
+                        help="Serial of the secondary device (for VM unified tracing).")
+    parser.add_argument("--primary-cid", type=int,
+                        help="The VSOCK Context ID for the primary VM (for VM unified tracing).")
+
     parser.add_argument(
         "remaining",
         nargs="*",
@@ -58,7 +66,7 @@ def parse_args():
     return parser.parse_args()
 
 def run_tests(args):
-    cmd = ["bazel", "test", "--test_output=errors"]
+    cmd = ["bazel", "test", "--test_output=all"]
 
     if args.test_mode != "all":
       cmd.append(f"--test_tag_filters={args.test_mode}")
@@ -67,6 +75,15 @@ def run_tests(args):
         cmd.extend([f"--action_env=PATH={os.environ.get('PATH', '')}",
                     f"--action_env=ANDROID_PRODUCT_OUT="
                     f"{os.environ.get('ANDROID_PRODUCT_OUT', '')}",])
+
+    if args.serial:
+        cmd.append(f"--test_arg=--serial={args.serial}")
+
+    if args.serial2:
+        cmd.append(f"--test_arg=--serial2={args.serial2}")
+
+    if args.primary_cid:
+        cmd.append(f"--test_arg=--primary_cid={args.primary_cid}")
 
     cmd.extend(args.remaining if args.remaining else ["//:all"])
 
