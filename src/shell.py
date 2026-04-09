@@ -350,7 +350,8 @@ class TtyShell(Shell):
                       ])
     if result.returncode != 0:
       raise Exception(
-          f"TtyShell: failed to get the os: error: {result.returncode}")
+          f"TtyShell: failed to get the OS (exitcode: {result.returncode}):"
+          f"{result.stderr.decode('utf-8')}")
 
     os_name = result.stdout.decode("utf-8").strip().split(
         "\n")[0].strip().lower()

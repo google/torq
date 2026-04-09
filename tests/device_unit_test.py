@@ -1004,7 +1004,7 @@ class DeviceUnitTest(unittest.TestCase):
       run_cli("torq --serial tty:///dev/ttyUSB0")
 
     self.assertEqual(e.exception.args[0],
-                     "TtyShell: failed to get the os: error: 1")
+                     "TtyShell: failed to get the OS (exitcode: 1):\n")
 
 
 if __name__ == '__main__':
