@@ -908,7 +908,7 @@ class DeviceUnitTest(unittest.TestCase):
 
     output = tmp_stderr.getvalue()
     self.assertIn("The URI scheme 'http' is not supported.", output)
-    self.assertIn("The only supported URI scheme is 'ssh'.", output)
+    self.assertIn("The only supported URI schemes are 'ssh' and 'tty'.", output)
 
   @mock.patch("src.torq.execute_command", autospec=True)
   @mock.patch("src.shell.run_subprocess", autospec=True)
@@ -957,6 +957,54 @@ class DeviceUnitTest(unittest.TestCase):
 
     self.assertEqual(e.exception.args[0],
                      "SshShell: failed to get the os: error: 1")
+
+  @mock.patch("src.torq.execute_command", autospec=True)
+  @mock.patch("src.shell.run_subprocess", autospec=True)
+  def test_tty_shell_get_os_qnx(self, mock_run_subprocess,
+                                mock_execute_command):
+    mock_run_subprocess.return_value = generate_mock_completed_process(b"QNX\n")
+    mock_execute_command.return_value = None
+
+    tmp_stderr = io.StringIO()
+    with redirect_stderr(tmp_stderr):
+      run_cli("torq --serial tty:///dev/ttyUSB0")
+
+    output = tmp_stderr.getvalue()
+    self.assertEqual(output, "")
+
+    mock_run_subprocess.assert_called_with(
+        ["torq-serial", "-d", "/dev/ttyUSB0", "-c", "uname"],
+        [ShellExitCodes.EX_FAILURE, ShellExitCodes.EX_NOTFOUND], None, None,
+        None, None, True, False, None, None, None, None, None, None, None)
+
+    self.assertTrue(mock_execute_command.called)
+    self.assertIsInstance(mock_execute_command.call_args[0][1], QnxDevice)
+
+  @mock.patch("src.shell.run_subprocess", autospec=True)
+  def test_tty_shell_get_os_unknown(self, mock_run_subprocess):
+    mock_run_subprocess.return_value = generate_mock_completed_process(
+        b"Linux\n")
+
+    tmp_stderr = io.StringIO()
+    with redirect_stderr(tmp_stderr):
+      run_cli("torq --serial tty:///dev/ttyUSB0")
+
+    output = tmp_stderr.getvalue()
+    self.assertIn(
+        "Device 'tty:///dev/ttyUSB0' runs an unsupported operating system.",
+        output)
+    self.assertIn("The supported operating systems are: Android, Qnx", output)
+
+  @mock.patch("src.shell.run_subprocess", autospec=True)
+  def test_tty_shell_get_os_failure(self, mock_run_subprocess):
+    mock_run_subprocess.return_value = generate_mock_completed_process(
+        returncode=ShellExitCodes.EX_FAILURE.value)
+
+    with self.assertRaises(Exception) as e:
+      run_cli("torq --serial tty:///dev/ttyUSB0")
+
+    self.assertEqual(e.exception.args[0],
+                     "TtyShell: failed to get the OS (exitcode: 1):\n")
 
 
 if __name__ == '__main__':

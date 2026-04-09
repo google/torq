@@ -18,6 +18,7 @@ import enum
 import os
 import subprocess
 import sys
+import tempfile
 from abc import ABC, abstractmethod
 from urllib.parse import urlsplit
 from .base import ValidationError
@@ -47,9 +48,11 @@ def get_shell(serial):
   if parsed_serial.scheme != "":
     if parsed_serial.scheme == "ssh":
       return SshShell(parsed_serial), None
+    if parsed_serial.scheme == "tty":
+      return TtyShell(parsed_serial), None
     return None, ValidationError(
         f"The URI scheme '{parsed_serial.scheme}' is not supported.",
-        "The only supported URI scheme is 'ssh'.")
+        "The only supported URI schemes are 'ssh' and 'tty'.")
   error = AdbShell.verify_serial(serial)
   if error:
     return None, error
@@ -321,3 +324,134 @@ class SshShell(Shell):
         capture_output=True,
         ignore_returncodes=[ShellExitCodes.EX_FAILURE])
     return not output.returncode
+
+
+class TtyShell(Shell):
+
+  def __init__(self, uri):
+    self.uri = uri
+    # For tty:///dev/ttyUSB0, netloc is empty and path is /dev/ttyUSB0
+    # For tty://dev/ttyUSB0, netloc is dev and path is /ttyUSB0
+    self.tty_device = self.uri.netloc + self.uri.path
+    self.base_cmd = ["torq-serial", "-d", self.tty_device, "-c"]
+    self.os = None
+
+  def id(self):
+    return self.tty_device
+
+  def get_os(self):
+    if self.os is not None:
+      return self.os
+
+    result = self.run(["uname"],
+                      capture_output=True,
+                      ignore_returncodes=[
+                          ShellExitCodes.EX_FAILURE, ShellExitCodes.EX_NOTFOUND
+                      ])
+    if result.returncode != 0:
+      raise Exception(
+          f"TtyShell: failed to get the OS (exitcode: {result.returncode}):"
+          f"{result.stderr.decode('utf-8')}")
+
+    os_name = result.stdout.decode("utf-8").strip().split(
+        "\n")[0].strip().lower()
+    if os_name == "qnx":
+      self.os = OsCodes.OS_QNX
+    else:
+      self.os = OsCodes.OS_UNKNOWN
+
+    return self.os
+
+  def popen(self, args, stdout=None, stderr=None):
+    assert isinstance(args, str), "args must be a string"
+    # Given TTY is a one channel communication protocol, popen commands need
+    # to be pushed to the background so they don't block the rest of the
+    # communication with the TTY device.
+    # We need to insert the '&' before the first newline/carriage return
+    # to correctly background multi-line commands.
+    newline_idx = next((i for i, char in enumerate(args) if char in '\n\r'), -1)
+    if newline_idx != -1:
+      args = args[:newline_idx] + " &" + args[newline_idx:]
+    else:
+      args += " &"
+    # We run the command and then fetch the PID ($!)
+    self.run([args], stdout=stdout, stderr=stderr)
+
+    output = self.run(["echo $!"],
+                      capture_output=True,
+                      ignore_returncodes=[
+                          ShellExitCodes.EX_FAILURE, ShellExitCodes.EX_NOTFOUND
+                      ]).stdout.decode("utf-8").strip()
+    pid = None
+    for line in reversed(output.splitlines()):
+      line = line.strip()
+      if line.isdigit():
+        pid = line
+        break
+
+    if pid is None:
+      raise Exception(
+          f"TtyShell: failed to capture remote PID for Popen process")
+
+    return self.TtyProcess(self, pid)
+
+  def run(self,
+          args,
+          ignore_returncodes=[],
+          stdin=None,
+          input=None,
+          stdout=None,
+          stderr=None,
+          capture_output=False,
+          shell=False,
+          cwd=None,
+          timeout=None,
+          encoding=None,
+          errors=None,
+          text=None,
+          env=None,
+          universal_newlines=None):
+    return run_subprocess(self.base_cmd + args, ignore_returncodes, stdin,
+                          input, stdout, stderr, capture_output, shell, cwd,
+                          timeout, encoding, errors, text, env,
+                          universal_newlines)
+
+  def wait_for_device(self):
+    raise NotImplementedError
+
+  def pull_file(self, filepath, host_file):
+    with tempfile.NamedTemporaryFile() as uuencoded_file:
+      # Since base64 binary isn't supported in QNX SDP 7.1, we will use
+      # uuencode instead for binary file transmission
+      self.run([f"uuencode {filepath} /dev/stdout"], stdout=uuencoded_file)
+      # Decode on the host machine
+      output = run_subprocess(
+          ["uudecode", "-o", host_file, uuencoded_file.name],
+          capture_output=True)
+
+      return output.returncode == 0
+
+  class TtyProcess(Process):
+
+    def __init__(self, shell, pid):
+      self.shell = shell
+      self.pid = pid
+
+    def is_running(self):
+      if self.shell.get_os() == OsCodes.OS_QNX:
+        results = self.shell.run([f"pidin -p {self.pid} -f a"],
+                                 capture_output=True,
+                                 ignore_returncodes=[
+                                     ShellExitCodes.EX_FAILURE
+                                 ]).stdout.decode("utf-8").strip().split("\n")
+        # We have to account for the header in the output
+        return len(results) > 1
+
+      # Rest of POSIX OSes
+      result = self.shell.run(["ps", "--no-headers", "-p", self.pid],
+                              capture_output=True,
+                              ignore_returncodes=[
+                                  ShellExitCodes.EX_FAILURE,
+                                  ShellExitCodes.EX_NOTFOUND
+                              ])
+      return result.returncode == 0
