@@ -66,7 +66,7 @@ def parse_args():
     return parser.parse_args()
 
 def run_tests(args):
-    cmd = ["bazel", "test", "--test_output=all"]
+    cmd = ["bazel", "test", "--test_output=errors"]
 
     if args.test_mode != "all":
       cmd.append(f"--test_tag_filters={args.test_mode}")
