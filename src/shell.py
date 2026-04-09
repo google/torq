@@ -429,7 +429,7 @@ class TtyShell(Shell):
           ["uudecode", "-o", host_file, uuencoded_file.name],
           capture_output=True)
 
-      return not output.returncode
+      return output.returncode == 0
 
   class TtyProcess(Process):
 
