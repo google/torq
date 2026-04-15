@@ -6,7 +6,7 @@ This document provides detailed instructions on how to set up and run tests for 
 
 Torq has three main categories of tests:
 1. **Unit Tests:** Test individual components in isolation.
-2. **Integration Tests:** Test android events functionality using 1 real or emulated Android device.
+2. **Integration Tests:** Test Android events functionality using 1 real or emulated Android device.
 3. **Advanced Integration Tests:** Test end-to-end unified vm tracing involving 2 real or emulated Android devices.
 
 The `tools/torq_test` script is the recommended entry point for running all tests.
@@ -45,7 +45,7 @@ Root Access: adbd must be running as root on the target device(s).
 
 Environment: ANDROID_PRODUCT_OUT should be set if testing simpleperf or specific binary pushing.
 
-One device: Launch at least one android device or Cuttlefish instance.
+One device: Launch at least one Android device or Cuttlefish instance.
 
 ### Running all integration tests:
 ```bash
@@ -59,8 +59,7 @@ If you have multiple devices connected and want to specify which device to use, 
 ./tools/torq_test --integration --serial <primary-serial>
 ```
 
-If no serial is provided through --serial flag, first adb device detected will be used for the test.
-
+If no serial is provided with the --serial flag, the first adb device detected will be used in the test.
 
 ## 3. Advanced Integration Tests
 Some integration tests have specific hardware or environment requirements.
@@ -70,15 +69,13 @@ Torq can aggregate trace data from two different virtual machines using VSOCK/IP
 
 ### Setup Requirements:
 
-Two devices: Launch 2 android devices or Cuttlefish instances on the same network.
+Two devices: Launch 2 Android devices or Cuttlefish instances on the same network.
 
 VSOCK Support: Ensure the kernel supports /dev/vsock.
 
 Primary CID: Use --primary-cid flag to provide the VSOCK guest CID of one of the launched instances to be used as primary.
 
-Execution: The test is automatically skipped unless both --serial2 and --primary-cid are provided.
-
-If either of the two flags --serial2 and --primary-cid is missing, the test is skipped.
+Execution: If either --serial2 or --primary-cid is missing, the test is skipped.
 
 ### Example:
 ```bash
@@ -90,21 +87,18 @@ If either of the two flags --serial2 and --primary-cid is missing, the test is s
 
 ### Troubleshooting
 ##### 1. "Machine count is 1" in Unified Tracing Test:
-
-- Ensure the traced-relay process is running on the secondary VM.
+- Ensure the traced-relay process is running on the secondary VM using:
 ```bash
 adb shell ls /system/bin/traced_relay
 ```
 
-- Check secondary device to confirm the VSOCK connection is ESTABLISHED using:
+- Check secondary device to confirm the VSOCK connection is established using:
 
 ```bash
 adb shell netstat -an | grep <primary-cid>
 ```
 
 ##### 2. "Permission Denied" errors
-
-- Verify setenforce 0 has been applied to both VMs
 Ensure the devices are in permissive mode as Integration tests often require interacting with system daemons like traced.
 
 Ensure that the device is running as root, if not make it root by running
