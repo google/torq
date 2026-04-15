@@ -99,8 +99,6 @@ adb shell netstat -an | grep <primary-cid>
 ```
 
 ##### 2. "Permission Denied" errors
-Ensure the devices are in permissive mode as Integration tests often require interacting with system daemons like traced.
-
 Ensure that the device is running as root, if not make it root by running
 ```bash
 adb root
