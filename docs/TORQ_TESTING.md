@@ -1,14 +1,13 @@
 # Testing Torq
 
-This document provides detailed instructions on how to  set up and run tests for `torq`.
+This document provides detailed instructions on how to set up and run tests for `torq`.
 
 ## Test Suites
 
 Torq has three main categories of tests:
 1. **Unit Tests:** Test individual components in isolation.
-2. **Integration Tests:** Test android events functionality involving real or emulated Android device.
-2. **Advanced Integration Tests:** Test unified end-to-end vm tracing involving 2 real or emulated Android devices.
-
+2. **Integration Tests:** Test android events functionality using 1 real or emulated Android device.
+3. **Advanced Integration Tests:** Test end-to-end unified vm tracing involving 2 real or emulated Android devices.
 
 The `tools/torq_test` script is the recommended entry point for running all tests.
 
@@ -37,7 +36,7 @@ Unit tests do not require an Android device and are the fastest way to verify co
 ```
 
 ## 2. Integration Tests
-Integration tests require at least one (and sometimes two) active Android devices or Cuttlefish (CVD) instances.
+Integration tests require at least one active Android device or Cuttlefish (CVD) instance.
 
 ### Prerequisites
 ADB: Installed and available in your PATH.
@@ -46,7 +45,7 @@ Root Access: adbd must be running as root on the target device(s).
 
 Environment: ANDROID_PRODUCT_OUT should be set if testing simpleperf or specific binary pushing.
 
-One CVD Instances: Launch at least one Cuttlefish instance.
+One device: Launch at least one android device or Cuttlefish instance.
 
 ### Running all integration tests:
 ```bash
@@ -54,11 +53,14 @@ One CVD Instances: Launch at least one Cuttlefish instance.
 ```
 
 ### Targeting Specific Devices
-If you have multiple devices connected, or want to specify which device to use, provide the --serial flags:
+If you have multiple devices connected and want to specify which device to use, provide the --serial flags:
 
 ```bash
 ./tools/torq_test --integration --serial <primary-serial>
 ```
+
+If no serial is provided through --serial flag, first adb device detected will be used for the test.
+
 
 ## 3. Advanced Integration Tests
 Some integration tests have specific hardware or environment requirements.
@@ -68,13 +70,15 @@ Torq can aggregate trace data from two different virtual machines using VSOCK/IP
 
 ### Setup Requirements:
 
-Two CVD Instances: Launch Cuttlefish with at least two instances on same network.
+Two devices: Launch 2 android devices or Cuttlefish instances on the same network.
 
 VSOCK Support: Ensure the kernel supports /dev/vsock.
 
-Primary CID: VSOCK guest CID of one of the launched instances to be used as primary.
+Primary CID: Use --primary-cid flag to provide the VSOCK guest CID of one of the launched instances to be used as primary.
 
-Execution: Test automatically skipped unless --serial2 and --primary-cid are provided:
+Execution: The test is automatically skipped unless both --serial2 and --primary-cid are provided.
+
+If either of the two flags --serial2 and --primary-cid is missing, the test is skipped.
 
 ### Example:
 ```bash
@@ -85,20 +89,35 @@ Execution: Test automatically skipped unless --serial2 and --primary-cid are pro
 ```
 
 ### Troubleshooting
-If you encounter "Machine count is 1" in Unified Tracing:
+##### 1. "Machine count is 1" in Unified Tracing Test:
 
-Ensure the traced-relay process is running on the secondary VM.
+- Ensure the traced-relay process is running on the secondary VM.
+```bash
+adb shell ls /system/bin/traced_relay
+```
 
-Verify setenforce 0 has been applied to both VMs.
+- Check secondary device to confirm the VSOCK connection is ESTABLISHED using:
 
-Check secondary device to confirm the VSOCK connection is ESTABLISHED using:
 ```bash
 adb shell netstat -an | grep <primary-cid>
 ```
 
-### SELinux
-Integration tests often require interacting with system daemons like traced. If you encounter "Permission Denied" errors, ensure the devices are in permissive mode:
+##### 2. "Permission Denied" errors
 
+- Verify setenforce 0 has been applied to both VMs
+Ensure the devices are in permissive mode as Integration tests often require interacting with system daemons like traced.
+
+Ensure that the device is running as root, if not make it root by running
+```bash
+adb root
+```
+
+To check current device enforcing state, run:
+```bash
+adb shell getenforce
+```
+
+If they are in "Enforcing" mode, run the following command to switch them to "Permissive" mode:
 ```bash
 adb shell setenforce 0
 ```

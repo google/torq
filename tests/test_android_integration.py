@@ -75,7 +75,7 @@ class TorqIntegrationTest(unittest.TestCase):
         cls.primary_cid = arg.split("=")[1]
 
     cls.assertNotEqual(cls.serial, cls.serial2,
-                       "Both provided serials shouldn't be the same")
+                       "Primary and secondary serial should not be identical.")
 
     cls.serials = AdbShell.get_adb_devices()
     if not cls.serials:

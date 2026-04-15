@@ -124,7 +124,7 @@ For a complete list of arguments for the `torq trigger` subcommand, please refer
 
 ## Testing Torq
 
-For a detailed guide on test setup, VM requirements, and troubleshooting, please refer to [Torq Testing doc](docs/TORQ_TESTING.md)
+For a detailed guide on test setup, VM requirements, and troubleshooting, please refer to [Torq Testing Doc](docs/TORQ_TESTING.md)
 
 ## Contributing to Torq
 
