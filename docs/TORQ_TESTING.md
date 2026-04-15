@@ -85,7 +85,7 @@ Execution: If either --serial2 or --primary-cid is missing, the test is skipped.
     --primary-cid 3
 ```
 
-### Troubleshooting
+### Troubleshooting VM Unified Tracing Test failures
 ##### 1. "Machine count is 1" in Unified Tracing Test:
 - Ensure the traced-relay process is running on the secondary VM using:
 ```bash
@@ -99,17 +99,20 @@ adb shell netstat -an | grep <primary-cid>
 ```
 
 ##### 2. "Permission Denied" errors
-Ensure that the device is running as root, if not make it root by running
+Ensure that both devices are running as root, if they aren't then make them root using:
 ```bash
-adb root
+adb -s <serial> root
+adb -s <serial2> root
 ```
 
-To check current device enforcing state, run:
+Curent enforcing state of the devices can be checked using:
 ```bash
-adb shell getenforce
+adb -s <serial> shell getenforce
+adb -s <serial2> shell getenforce
 ```
 
-If they are in "Enforcing" mode, run the following command to switch them to "Permissive" mode:
+If the devices are in "Enforcing" mode, devices can be switched to "Permissive" mode using:
 ```bash
-adb shell setenforce 0
+adb -s <serial> shell setenforce 0
+adb -s <serial2> shell setenforce 0
 ```
