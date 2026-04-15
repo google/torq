@@ -105,7 +105,7 @@ adb -s <serial> root
 adb -s <serial2> root
 ```
 
-- The curent enforcing state of the devices can be checked using:
+- The current enforcing state of the devices can be checked using:
 ```bash
 adb -s <serial> shell getenforce
 adb -s <serial2> shell getenforce
