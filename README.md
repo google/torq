@@ -124,22 +124,7 @@ For a complete list of arguments for the `torq trigger` subcommand, please refer
 
 ## Testing Torq
 
-To run all **torq**'s tests, do:
-```bash
-./tools/torq_test --all
-```
-
-To run only **torq**'s unit tests, do:
-```bash
-./tools/torq_test
-(OR)
-./tools/torq_test --unit
-```
-
-To run only **torq**'s integration tests, do:
-```bash
-./tools/torq_test --integration
-```
+For a detailed guide on test setup, VM requirements, and troubleshooting, please refer to the [Torq Testing Doc](docs/TORQ_TESTING.md)
 
 ## Contributing to Torq
 
