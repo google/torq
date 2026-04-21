@@ -222,44 +222,45 @@ class TorqIntegrationTest(unittest.TestCase):
         text=True)
     expected_to_user = user_output.strip().split()[-1]
 
-    torq_output = self.run_torq(
-        f"torq --serial {self.serial} -e user-switch --to-user {expected_to_user} "
-        f"--from-user {expected_from_user} -d {dur_sec * 1000} --no-ui "
-        f"-o {self.test_run_dir}")
+    try:
+      torq_output = self.run_torq(
+          f"torq --serial {self.serial} -e user-switch --to-user {expected_to_user} "
+          f"--from-user {expected_from_user} -d {dur_sec * 1000} --no-ui "
+          f"-o {self.test_run_dir}")
 
-    trace_files = self.validate_perfetto_output(torq_output)
-    with BatchTraceProcessor(trace_files) as btp:
-      self.validate_trace_duration(btp, dur_sec)
+      trace_files = self.validate_perfetto_output(torq_output)
+      with BatchTraceProcessor(trace_files) as btp:
+        self.validate_trace_duration(btp, dur_sec)
 
-      results = btp.query(BTP_QUERY["user_switch_event"])
-      self.assertGreater(
-          len(results[0]), 0, "No user-switch events found in trace.")
+        results = btp.query(BTP_QUERY["user_switch_event"])
+        self.assertGreater(
+            len(results[0]), 0, "No user-switch events found in trace.")
 
-      event = results[0].iloc[0]
-      actual_to_user = str(event['event_start_user_id'])
-      event_name = event['event_end_name']
+        event = results[0].iloc[0]
+        actual_to_user = str(event['event_start_user_id'])
+        event_name = event['event_end_name']
 
-      actual_from_user = event_name.split('-')[1]
+        actual_from_user = event_name.split('-')[1]
 
-      self.assertEqual(
-          actual_from_user, expected_from_user,
-          f"The trace shows user {actual_from_user} was stopped, "
-          f"but expected user {expected_from_user}")
+        self.assertEqual(
+            actual_from_user, expected_from_user,
+            f"The trace shows user {actual_from_user} was stopped, "
+            f"but expected user {expected_from_user}")
 
-      self.assertEqual(
-          actual_to_user, expected_to_user,
-          f"The trace shows user was switched to {actual_to_user}, "
-          f"but we expected {expected_to_user}")
+        self.assertEqual(
+            actual_to_user, expected_to_user,
+            f"The trace shows user was switched to {actual_to_user}, "
+            f"but we expected {expected_to_user}")
 
-      current_user = subprocess.check_output(
-          ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
-          text=True).strip()
-      self.assertEqual(
-          expected_from_user, current_user,
-          f"The trace shows current user as {current_user}, "
-          f"but expected {expected_from_user}")
+        current_user = subprocess.check_output(
+            ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
+            text=True).strip()
+        self.assertEqual(
+            expected_from_user, current_user,
+            f"The trace shows current user as {current_user}, "
+            f"but expected {expected_from_user}")
 
-      # Cleanup created user
+    finally:
       subprocess.run([
           "adb", "-s", self.serial, "shell", "pm", "remove-user",
           expected_to_user
