@@ -97,6 +97,15 @@ class TorqIntegrationTest(unittest.TestCase):
   def setUp(self):
     self.test_run_dir = self.parent_tmp_dir / self._testMethodName
     self.test_run_dir.mkdir(parents=True, exist_ok=True)
+    self.expected_to_user = None
+
+  def tearDown(self):
+    if self.expected_to_user is not None:
+      # Cleanup created user
+      subprocess.run([
+          "adb", "-s", self.serial, "shell", "pm", "remove-user",
+          self.expected_to_user
+      ])
 
   def get_glob_files(self, pattern):
     return [str(f) for f in self.test_run_dir.glob(pattern)]
@@ -220,10 +229,10 @@ class TorqIntegrationTest(unittest.TestCase):
     user_output = subprocess.check_output(
         ["adb", "-s", self.serial, "shell", "pm", "create-user", "TestUser"],
         text=True)
-    expected_to_user = user_output.strip().split()[-1]
+    self.expected_to_user = user_output.strip().split()[-1]
 
     torq_output = self.run_torq(
-        f"torq --serial {self.serial} -e user-switch --to-user {expected_to_user} "
+        f"torq --serial {self.serial} -e user-switch --to-user {self.expected_to_user} "
         f"--from-user {expected_from_user} -d {dur_sec * 1000} --no-ui "
         f"-o {self.test_run_dir}")
 
@@ -247,9 +256,9 @@ class TorqIntegrationTest(unittest.TestCase):
           f"but expected user {expected_from_user}")
 
       self.assertEqual(
-          actual_to_user, expected_to_user,
+          actual_to_user, self.expected_to_user,
           f"The trace shows user was switched to {actual_to_user}, "
-          f"but we expected {expected_to_user}")
+          f"but we expected {self.expected_to_user}")
 
       current_user = subprocess.check_output(
           ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
@@ -258,12 +267,6 @@ class TorqIntegrationTest(unittest.TestCase):
           expected_from_user, current_user,
           f"The trace shows current user as {current_user}, "
           f"but expected {expected_from_user}")
-
-      # Cleanup created user
-      subprocess.run([
-          "adb", "-s", self.serial, "shell", "pm", "remove-user",
-          expected_to_user
-      ])
 
   def test_torq_boot_event(self):
     dur_sec = 60
