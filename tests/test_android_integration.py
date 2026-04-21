@@ -212,7 +212,7 @@ class TorqIntegrationTest(unittest.TestCase):
       self.validate_trace_duration(btp, dur_sec)
 
   def test_torq_user_switch(self):
-    dur_sec = 6
+    dur_sec = 15
     expected_from_user = subprocess.check_output(
         ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
         text=True).strip()
