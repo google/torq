@@ -252,13 +252,13 @@ class TorqIntegrationTest(unittest.TestCase):
             f"The trace shows user was switched to {actual_to_user}, "
             f"but we expected {expected_to_user}")
 
-      current_user = subprocess.check_output(
-          ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
-          text=True).strip()
-      self.assertEqual(
-          expected_from_user, current_user,
-          f"The trace shows current user as {current_user}, "
-          f"but expected {expected_from_user}")
+        current_user = subprocess.check_output(
+            ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
+            text=True).strip()
+        self.assertEqual(
+            expected_from_user, current_user,
+            f"The trace shows current user as {current_user}, "
+            f"but expected {expected_from_user}")
 
     finally:
       subprocess.run([
