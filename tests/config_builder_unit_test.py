@@ -614,7 +614,7 @@ class ConfigBuilderUnitTest(unittest.TestCase):
     self.command = ProfilerCommand(None, "custom", None, None, DEFAULT_DUR_MS,
                                    None, None, "test-path", None, None, None,
                                    None, None, None, None, None, None, None,
-                                   None, None, None)
+                                   None, None, None, "trace")
 
   def test_build_default_config_setting_valid_dur_ms(self):
     self.command.dur_ms = TEST_DUR_MS

@@ -55,6 +55,15 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(args.perfetto_config, "default")
     self.assertEqual(args.dur_ms, None)
     self.assertEqual(args.between_dur_ms, DEFAULT_DUR_MS)
+    self.assertEqual(args.prefix, "trace")
+
+  def test_create_parser_prefix(self):
+    args = parse_cli("torq --prefix mock-prefix")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.prefix, "mock-prefix")
 
   def test_create_parser_valid_event_names(self):
     args = parse_cli("torq -e custom")

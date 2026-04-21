@@ -109,6 +109,8 @@ def add_profiler_parser(subparsers):
       type=int,
       help='The user id of user that system is switching to.')
   profiler_parser.add_argument(
+      '--prefix', default='trace', help='The prefix for the trace file.')
+  profiler_parser.add_argument(
       '--symbols', help='Specifies path to symbols library.')
 
 
@@ -393,7 +395,8 @@ def execute_profiler_command(args, device):
       args.between_dur_ms, args.ui, args.excluded_ftrace_events,
       args.included_ftrace_events, args.from_user, args.to_user,
       args.scripts_path, args.symbols, args.trigger_names,
-      args.trigger_timeout_ms, args.trigger_stop_delay_ms, args.trigger_mode)
+      args.trigger_timeout_ms, args.trigger_stop_delay_ms, args.trigger_mode,
+      args.prefix)
 
   executor = get_executor(command.event)
 
@@ -409,7 +412,7 @@ class ProfilerCommand(Command):
                simpleperf_event, perfetto_config, between_dur_ms, ui,
                excluded_ftrace_events, included_ftrace_events, from_user,
                to_user, scripts_path, symbols, trigger_names,
-               trigger_timeout_ms, trigger_stop_delay_ms, trigger_mode):
+               trigger_timeout_ms, trigger_stop_delay_ms, trigger_mode, prefix):
     super().__init__(type)
     self.event = event
     self.profiler = profiler
@@ -427,6 +430,7 @@ class ProfilerCommand(Command):
     self.to_user = to_user
     self.scripts_path = scripts_path
     self.symbols = symbols
+    self.prefix = prefix
     self.trigger_names = trigger_names
     self.trigger_timeout_ms = trigger_timeout_ms
     self.trigger_stop_delay_ms = trigger_stop_delay_ms
@@ -536,10 +540,10 @@ class ProfilerCommandExecutor(CommandExecutor):
     for run in range(1, command.runs + 1):
       timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
       if command.profiler == "perfetto":
-        host_raw_trace_filename = f"{command.out_dir}/trace-{timestamp}.perfetto-trace"
+        host_raw_trace_filename = f"{command.out_dir}/{command.prefix}-{timestamp}.perfetto-trace"
       else:
-        host_raw_trace_filename = f"{command.out_dir}/perf-{timestamp}.data"
-        host_gecko_trace_filename = f"{command.out_dir}/perf-{timestamp}.json"
+        host_raw_trace_filename = f"{command.out_dir}/{command.prefix}-{timestamp}.data"
+        host_gecko_trace_filename = f"{command.out_dir}/{command.prefix}-{timestamp}.json"
       error = self.prepare_device_for_run(command, device)
       if error is not None:
         return error

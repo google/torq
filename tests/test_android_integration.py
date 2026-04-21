@@ -205,7 +205,7 @@ class TorqIntegrationTest(unittest.TestCase):
           f"-d {dur_sec * 1000} -o {self.test_run_dir}")
 
       self.validate_torq_output(torq_output)
-      trace_files = self.get_glob_files("perf*.data*")
+      trace_files = self.get_glob_files("trace*.data*")
       self.validate_trace_metadata(trace_files)
 
     with BatchTraceProcessor(trace_files) as btp:
