@@ -217,12 +217,12 @@ class TorqIntegrationTest(unittest.TestCase):
         ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
         text=True).strip()
 
-    try:
-      user_output = subprocess.check_output(
-          ["adb", "-s", self.serial, "shell", "pm", "create-user", "TestUser"],
-          text=True)
-      expected_to_user = user_output.strip().split()[-1]
+    user_output = subprocess.check_output(
+        ["adb", "-s", self.serial, "shell", "pm", "create-user", "TestUser"],
+        text=True)
+    expected_to_user = user_output.strip().split()[-1]
 
+    try:
       torq_output = self.run_torq(
           f"torq --serial {self.serial} -e user-switch --to-user {expected_to_user} "
           f"--from-user {expected_from_user} -d {dur_sec * 1000} --no-ui "
