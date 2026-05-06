@@ -49,6 +49,7 @@ BTP_QUERY = {
 }
 
 DUR_TOLERANCE = 0.1
+TRACED_RELAY_FILE = "/system/bin/traced_relay"
 
 
 class TorqIntegrationTest(unittest.TestCase):
@@ -288,6 +289,22 @@ class TorqIntegrationTest(unittest.TestCase):
       self.skipTest(
           "serial2 and primary_cid must both be provided for VM unified tracing test. Skipping test"
       )
+
+    traced_relay_exists = subprocess.run(
+        ["adb", "-s", self.serial2, "shell", "test", "-e", TRACED_RELAY_FILE])
+    if traced_relay_exists.returncode != 0:
+      self.skipTest(
+          f"traced_relay binary is missing on secondary VM ({self.serial2}). "
+          f"The secondary VM's Android build does not include traced_relay. "
+          f"Skipping VM unified tracing test.")
+
+    traced_relay_executable = subprocess.run(
+        ["adb", "-s", self.serial2, "shell", "test", "-x", TRACED_RELAY_FILE])
+    if traced_relay_executable.returncode != 0:
+      self.skipTest(
+          f"traced_relay binary is not executable on secondary VM ({self.serial2}). "
+          f"The traced_relay binary exists but lacks executable permissions. "
+          f"Skipping VM unified tracing test.")
 
     subprocess.run(["adb", "-s", self.serial, "shell", "setenforce", "0"])
     subprocess.run(["adb", "-s", self.serial2, "shell", "setenforce", "0"])
