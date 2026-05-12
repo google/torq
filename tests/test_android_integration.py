@@ -298,9 +298,9 @@ class TorqIntegrationTest(unittest.TestCase):
           f"The secondary VM's Android build does not include traced_relay. "
           f"Skipping VM unified tracing test.")
 
-    traced_relay_executable = subprocess.run(
+    is_traced_relay_executable = subprocess.run(
         ["adb", "-s", self.serial2, "shell", "test", "-x", TRACED_RELAY_FILE])
-    if traced_relay_executable.returncode != 0:
+    if is_traced_relay_executable.returncode != 0:
       self.skipTest(
           f"traced_relay binary is not executable on secondary VM ({self.serial2}). "
           f"The traced_relay binary exists but lacks executable permissions. "
