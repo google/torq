@@ -26,6 +26,7 @@ TRACED_MACHINE_NAME_PROP = "traced.machine_name"
 TRACED_RELAY_PRODUCER_PORT_PROP = "traced.relay_producer_port"
 TRACED_RELAY_PORT_PROP = "traced_relay.relay_port"
 TRACED_HYPERVISOR_PROP = "ro.traced.hypervisor"
+TRACED_RELAY_FILE = "/system/bin/traced_relay"
 
 
 def add_vm_parser(subparsers):
@@ -230,6 +231,19 @@ def traced_relay_execute(command, device, machine_name=None):
         # TODO(jahdiel): Standardize the device API with the
         # set_traced_relay method. Eliminates the need for the match
         # statement.
+
+        if not device.file_exists(TRACED_RELAY_FILE):
+          return ValidationError(
+              "traced_relay binary is missing on secondary VM.",
+              "The secondary VM's Android build does not include traced_relay. Skipping VM unified tracing configuration."
+          )
+
+        if not device.is_executable(TRACED_RELAY_FILE):
+          return ValidationError(
+              "traced_relay binary is not executable on secondary VM.",
+              "The traced_relay binary exists but lacks executable permissions. Skipping VM unified tracing configuration."
+          )
+
         if machine_name is not None:
           device.set_prop(TRACED_MACHINE_NAME_PROP, machine_name)
         if len(device.get_prop(TRACED_HYPERVISOR_PROP)) == 0:

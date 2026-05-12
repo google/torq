@@ -144,6 +144,12 @@ class AndroidDevice(Device):
                             ignore_returncodes=[ShellExitCodes.EX_FAILURE])
     return not output.returncode
 
+  def is_executable(self, filepath):
+    output = self.shell.run(["shell", "test", "-x", filepath],
+                            capture_output=True,
+                            ignore_returncodes=[ShellExitCodes.EX_FAILURE])
+    return not output.returncode
+
   def setup_perfetto(self):
     # Perfetto runs by default in Android
     pass
