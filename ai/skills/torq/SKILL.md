@@ -23,7 +23,7 @@ then the trace will continue indefinitely until `Ctrl+C` is pressed to stop the 
 
 > [!Note]
 > In the case that Ctrl+C doesn't kill the torq process (might be running in the background), then
-> you can run `ps aux | grep torq` get the PID for the torq process and send a SIGINT to it.
+> you can run `ps aux | grep torq` to get the PID for the torq process and send a SIGINT to it.
 
 By default the trace files are opened in the browser, given it is almost always the desired behavior.
 In the case you don't want the files to be opened in the browser, you can specify `--no-ui` to skip
