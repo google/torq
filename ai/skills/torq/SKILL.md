@@ -55,6 +55,25 @@ torq -p simpleperf -d 10000
 torq -d 5000 -o /tmp/perfetto-traces
 ```
 
+### Trigger System Events
+
+With torq it is possible to trigger different system events while capturing a trace. One can specify
+the event via the `-e`/`--event` flag. You can see the supported events via `torq profiler --help`
+command.
+
+Here are some examples on how to do this:
+
+```bash
+# Capture a boottime trace
+torq -d 60000 -e boot
+
+# Capture a user switch trace
+torq -d 10000 -e user-switch --from-user 11 --to-user 12
+
+# Capture an app startup in the trace
+torq -d 4000 -e app-startup -a com.google.android.apps.maps
+```
+
 ### Help
 
 To better understand all the alternatives of the `profiler` subcommand in torq, you can always
