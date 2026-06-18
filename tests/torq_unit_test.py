@@ -16,6 +16,7 @@
 
 import unittest
 import os
+import sys
 from unittest import mock
 
 from src.config import create_config_command
@@ -93,6 +94,13 @@ class TorqUnitTest(unittest.TestCase):
 
     self.assertEqual(error, None)
     self.assertEqual(args.event, "app-startup")
+
+    args = parse_cli("torq -e script --script \"sleep 10\"")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.event, "script")
 
   def test_create_parser_invalid_event_names(self):
     parser, error = create_parser_from_cli("torq -e fake-event")
@@ -1161,6 +1169,65 @@ class TorqUnitTest(unittest.TestCase):
         error.message, "Command is invalid because %s is an "
         "invalid file path." % TEST_FILE)
     self.assertEqual(error.suggestion, "Make sure your file exists.")
+
+  @mock.patch.object(os.path, "abspath", autospec=True)
+  @mock.patch.object(os.path, "isfile", autospec=True)
+  def test_verify_args_valid_script_file(self, mock_isfile, mock_abspath):
+    mock_isfile.return_value = True
+    mock_abspath.return_value = "/absolute/path/to/mock-script.sh"
+    args = parse_cli("torq -e script --script mock-script.sh")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.event, "script")
+    self.assertEqual(args.script, "/absolute/path/to/mock-script.sh")
+    self.assertEqual(args.is_inline_script, False)
+
+  @mock.patch('src.profiler.sys.stdin')
+  def test_verify_args_valid_script_stdin(self, mock_stdin):
+    mock_stdin.isatty.return_value = False
+    mock_stdin.read.return_value = "sleep 10"
+    args = parse_cli("torq -e script")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.event, "script")
+    self.assertEqual(args.script, "sleep 10")
+    self.assertEqual(args.is_inline_script, True)
+
+  def test_verify_args_valid_script_inline(self):
+    args = parse_cli("torq -e script --script \"sleep 10\"")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.event, "script")
+    self.assertEqual(args.script, "sleep 10")
+    self.assertEqual(args.is_inline_script, True)
+
+  def test_verify_args_script_missing_event(self):
+    args = parse_cli("torq --script mock-script.sh")
+
+    args, error = verify_args(args)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(error.message,
+                     ("Command is invalid because --script is passed and"
+                      " --event is not set to script."))
+
+  @mock.patch('src.profiler.sys.stdin')
+  def test_verify_args_script_missing_script(self, mock_stdin):
+    mock_stdin.isatty.return_value = True
+    args = parse_cli("torq -e script")
+
+    args, error = verify_args(args)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(
+        error.message,
+        "Command is invalid because --event script requires a script.")
 
 
 if __name__ == '__main__':

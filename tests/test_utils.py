@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import shlex
 import subprocess
 import sys
 from src.torq import create_parser, run
@@ -56,7 +57,7 @@ def parameterized_config_builder():
 
 
 def create_parser_from_cli(command_string):
-  sys.argv = command_string.split()
+  sys.argv = shlex.split(command_string)
   return create_parser()
 
 
@@ -68,7 +69,7 @@ def parse_cli(command_string):
 
 
 def run_cli(command_string):
-  sys.argv = command_string.split()
+  sys.argv = shlex.split(command_string)
   run()
 
 

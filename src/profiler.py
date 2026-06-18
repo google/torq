@@ -17,6 +17,9 @@
 import argparse
 import datetime
 import os
+import subprocess
+import sys
+import tempfile
 import time
 
 from .base import (ANDROID_SDK_VERSION_T, Command, CommandExecutor,
@@ -54,9 +57,11 @@ def add_profiler_parser(subparsers):
   profiler_parser.add_argument(
       '-e',
       '--event',
-      choices=['boot', 'user-switch', 'app-startup', 'custom'],
+      choices=['boot', 'user-switch', 'app-startup', 'custom', 'script'],
       default='custom',
       help='The event to trace/profile.')
+  profiler_parser.add_argument(
+      '--script', help='The path to the script or the script content itself.')
   profiler_parser.add_argument(
       '-p',
       '--profiler',
@@ -166,6 +171,34 @@ def verify_profiler_args(args):
         "Command is invalid because --app is not passed.",
         ("Set --event %s --app <package> to perform an %s." %
          (args.event, args.event)))
+
+  if args.script is not None and args.event != "script":
+    return None, ValidationError(
+        ("Command is invalid because --script is passed and --event is not set"
+         " to script."), ("To profile a script run:"
+                          " torq --event script --script <path-to-script>"))
+
+  if args.event == "script":
+    if args.script is None:
+      if not sys.stdin.isatty():
+        args.script = sys.stdin.read()
+        args.is_inline_script = True
+      else:
+        return None, ValidationError(
+            "Command is invalid because --event script requires a script.",
+            "Provide a script using --script <path> or via stdin redirect.")
+    else:
+      if os.path.isfile(args.script):
+        args.script = os.path.abspath(args.script)
+        args.is_inline_script = False
+      else:
+        if '\n' in args.script or ' ' in args.script:
+          args.is_inline_script = True
+        else:
+          return None, ValidationError(f"Script file not found: {args.script}",
+                                       "Ensure the file path is correct.")
+  else:
+    args.is_inline_script = False
 
   if args.runs < 1:
     return None, ValidationError(
@@ -384,6 +417,8 @@ def get_executor(event):
       return BootCommandExecutor()
     case "app-startup":
       return AppStartupCommandExecutor()
+    case "script":
+      return ScriptCommandExecutor()
     case _:
       raise ValueError("Invalid event name was used.")
 
@@ -396,7 +431,7 @@ def execute_profiler_command(args, device):
       args.included_ftrace_events, args.from_user, args.to_user,
       args.scripts_path, args.symbols, args.trigger_names,
       args.trigger_timeout_ms, args.trigger_stop_delay_ms, args.trigger_mode,
-      args.prefix)
+      args.prefix, args.script, args.is_inline_script)
 
   executor = get_executor(command.event)
 
@@ -408,11 +443,31 @@ class ProfilerCommand(Command):
   Represents commands which profile and trace the system.
   """
 
-  def __init__(self, type, event, profiler, out_dir, dur_ms, app, runs,
-               simpleperf_event, perfetto_config, between_dur_ms, ui,
-               excluded_ftrace_events, included_ftrace_events, from_user,
-               to_user, scripts_path, symbols, trigger_names,
-               trigger_timeout_ms, trigger_stop_delay_ms, trigger_mode, prefix):
+  def __init__(self,
+               type,
+               event,
+               profiler,
+               out_dir,
+               dur_ms,
+               app,
+               runs,
+               simpleperf_event,
+               perfetto_config,
+               between_dur_ms,
+               ui,
+               excluded_ftrace_events,
+               included_ftrace_events,
+               from_user,
+               to_user,
+               scripts_path,
+               symbols,
+               trigger_names,
+               trigger_timeout_ms,
+               trigger_stop_delay_ms,
+               trigger_mode,
+               prefix,
+               script=None,
+               is_inline_script=False):
     super().__init__(type)
     self.event = event
     self.profiler = profiler
@@ -435,6 +490,8 @@ class ProfilerCommand(Command):
     self.trigger_timeout_ms = trigger_timeout_ms
     self.trigger_stop_delay_ms = trigger_stop_delay_ms
     self.trigger_mode = trigger_mode
+    self.script = script
+    self.is_inline_script = is_inline_script
 
     if self.event == "user-switch":
       self.original_user = None
@@ -773,3 +830,54 @@ class AppStartupCommandExecutor(ProfilerCommandExecutor):
 
   def trigger_system_event(self, command, device):
     return device.start_package(command.app)
+
+
+class ScriptCommandExecutor(ProfilerCommandExecutor):
+
+  def trigger_system_event(self, command, device):
+    print("Executing script...")
+    env = os.environ.copy()
+    if device.id():
+      env["ANDROID_SERIAL"] = device.id()
+
+    if command.is_inline_script:
+      with tempfile.NamedTemporaryFile(
+          mode='w', suffix='.sh', delete=False) as temp_file:
+        script_content = command.script
+        if not script_content.startswith("#!"):
+          script_content = "#!/bin/sh\n" + script_content
+        temp_file.write(script_content)
+        temp_file_path = temp_file.name
+
+      try:
+        os.chmod(temp_file_path, 0o755)
+        subprocess.run([temp_file_path], env=env, check=True)
+      except subprocess.CalledProcessError as e:
+        return ValidationError(
+            f"Script execution failed with return code {e.returncode}", None)
+      finally:
+        os.remove(temp_file_path)
+    else:
+      try:
+        try:
+          os.chmod(command.script, 0o755)
+        except OSError:
+          pass
+
+        has_shebang = False
+        try:
+          with open(command.script, 'rb') as f:
+            has_shebang = f.read(2) == b'#!'
+        except IOError:
+          pass
+
+        if has_shebang:
+          subprocess.run([command.script], env=env, check=True)
+        else:
+          subprocess.run(["/bin/sh", command.script], env=env, check=True)
+      except subprocess.CalledProcessError as e:
+        return ValidationError(
+            f"Script execution failed with return code {e.returncode}", None)
+
+    self.stop_process(device, command.profiler)
+    return None
