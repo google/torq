@@ -428,6 +428,7 @@ class QnxDevice(Device):
 
     self.shell.popen(
         f"{QnxDevice.QNX_PATH_ENV}; {' '.join(env_vars)} traced {enable_relay}",
+        stdout=DEVNULL,
         stderr=DEVNULL)
     self.kill_process("traced_qnx_probes")
     self.shell.popen(
@@ -448,6 +449,7 @@ class QnxDevice(Device):
       env_vars.append(f"PERFETTO_RELAY_SOCK_NAME={relay_port}")
       self.shell.popen(
           f"{QnxDevice.QNX_PATH_ENV}; {' '.join(env_vars)} traced_relay",
+          stdout=DEVNULL,
           stderr=DEVNULL)
     else:
       env_vars.append("PERFETTO_PRODUCER_SOCK_NAME=/tmp/perfetto-producer")
