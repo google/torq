@@ -34,6 +34,7 @@ The `profiler` subcommand is used to trace and profile Android devices. It is th
 | `--included-ftrace-events`| Includes specified ftrace event in the Perfetto config events. Can be defined multiple times. | Any supported ftrace event | |
 | `--from-user` | The user ID from which to start the user switch. (Requires `-e user-switch`) | Valid User ID | Current User |
 | `--to-user` | The user ID of user that the system is switching to. (Requires `-e user-switch`) | Valid User ID | |
+| `--prefix` | The prefix for the trace file. | Any valid filename prefix | `trace` |
 | `--symbols` | Specifies the path to the symbols library. (Requires `-p simpleperf`) | Path to symbols | |
 | `--trigger-names` | Specifies the names of triggers for Perfetto background tracing. Adds multiple trigger names. | `<name1> ... <nameN>` | |
 | `--trigger-timeout-ms` | Specifies the time in milliseconds for Perfetto to wait for a trigger before ending. | Integer | 604800000 (1 week) |
