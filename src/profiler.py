@@ -17,6 +17,7 @@
 import argparse
 import datetime
 import os
+import pathlib
 import subprocess
 import sys
 import tempfile
@@ -57,11 +58,15 @@ def add_profiler_parser(subparsers):
   profiler_parser.add_argument(
       '-e',
       '--event',
-      choices=['boot', 'user-switch', 'app-startup', 'custom', 'script'],
+      choices=['boot', 'user-switch', 'app-startup', 'custom'],
       default='custom',
       help='The event to trace/profile.')
   profiler_parser.add_argument(
-      '--script', help='The path to the script or the script content itself.')
+      '--script',
+      nargs='?',
+      const='-',
+      help='The path to the script or the script content itself. Use without value to read from stdin.'
+  )
   profiler_parser.add_argument(
       '-p',
       '--profiler',
@@ -172,33 +177,29 @@ def verify_profiler_args(args):
         ("Set --event %s --app <package> to perform an %s." %
          (args.event, args.event)))
 
-  if args.script is not None and args.event != "script":
+  if args.script is not None and args.event != "custom":
     return None, ValidationError(
         ("Command is invalid because --script is passed and --event is not set"
-         " to script."), ("To profile a script run:"
-                          " torq --event script --script <path-to-script>"))
+         " to custom."), ("To profile a script run:"
+                          " torq --script <path-to-script>"))
 
-  if args.event == "script":
-    if args.script is None:
+  if args.script is not None:
+    # Handle stdin redirection if --script has no value (resolved to '-')
+    if args.script == '-':
+      # Ensure stdin is a pipe/redirect (not a TTY) to prevent hanging on read
       if not sys.stdin.isatty():
         args.script = sys.stdin.read()
-        args.is_inline_script = True
       else:
         return None, ValidationError(
-            "Command is invalid because --event script requires a script.",
-            "Provide a script using --script <path> or via stdin redirect.")
-    else:
-      if os.path.isfile(args.script):
-        args.script = os.path.abspath(args.script)
-        args.is_inline_script = False
-      else:
-        if '\n' in args.script or ' ' in args.script:
-          args.is_inline_script = True
-        else:
-          return None, ValidationError(f"Script file not found: {args.script}",
-                                       "Ensure the file path is correct.")
-  else:
-    args.is_inline_script = False
+            "Command is invalid because --script was used for stdin redirect, but stdin is a TTY.",
+            "Pipe a script into torq, e.g.: cat script.sh | torq --script")
+
+    try:
+      path = pathlib.Path(args.script)
+      if path.is_file():
+        args.script = path.resolve()
+    except Exception:
+      pass
 
   if args.runs < 1:
     return None, ValidationError(
@@ -407,9 +408,11 @@ def verify_trigger_args(args):
   return args, None
 
 
-def get_executor(event):
+def get_executor(event, script=None):
   match event:
     case "custom":
+      if script is not None:
+        return ScriptCommandExecutor()
       return ProfilerCommandExecutor()
     case "user-switch":
       return UserSwitchCommandExecutor()
@@ -417,8 +420,6 @@ def get_executor(event):
       return BootCommandExecutor()
     case "app-startup":
       return AppStartupCommandExecutor()
-    case "script":
-      return ScriptCommandExecutor()
     case _:
       raise ValueError("Invalid event name was used.")
 
@@ -431,9 +432,9 @@ def execute_profiler_command(args, device):
       args.included_ftrace_events, args.from_user, args.to_user,
       args.scripts_path, args.symbols, args.trigger_names,
       args.trigger_timeout_ms, args.trigger_stop_delay_ms, args.trigger_mode,
-      args.prefix, args.script, args.is_inline_script)
+      args.prefix, args.script)
 
-  executor = get_executor(command.event)
+  executor = get_executor(command.event, command.script)
 
   return executor.execute(command, device)
 
@@ -466,8 +467,7 @@ class ProfilerCommand(Command):
                trigger_stop_delay_ms,
                trigger_mode,
                prefix,
-               script=None,
-               is_inline_script=False):
+               script=None):
     super().__init__(type)
     self.event = event
     self.profiler = profiler
@@ -491,7 +491,6 @@ class ProfilerCommand(Command):
     self.trigger_stop_delay_ms = trigger_stop_delay_ms
     self.trigger_mode = trigger_mode
     self.script = script
-    self.is_inline_script = is_inline_script
 
     if self.event == "user-switch":
       self.original_user = None
@@ -840,44 +839,34 @@ class ScriptCommandExecutor(ProfilerCommandExecutor):
     if device.id():
       env["ANDROID_SERIAL"] = device.id()
 
-    if command.is_inline_script:
-      with tempfile.NamedTemporaryFile(
-          mode='w', suffix='.sh', delete=False) as temp_file:
-        script_content = command.script
-        if not script_content.startswith("#!"):
-          script_content = "#!/bin/sh\n" + script_content
-        temp_file.write(script_content)
-        temp_file_path = temp_file.name
-
+    if isinstance(command.script, str):
       try:
-        os.chmod(temp_file_path, 0o755)
-        subprocess.run([temp_file_path], env=env, check=True)
+        subprocess.run(["/bin/sh"],
+                       input=command.script,
+                       env=env,
+                       check=True,
+                       text=True)
       except subprocess.CalledProcessError as e:
         return ValidationError(
             f"Script execution failed with return code {e.returncode}", None)
-      finally:
-        os.remove(temp_file_path)
+      except Exception as e:
+        return ValidationError(f"Failed to execute inline script: {e}", None)
+    elif isinstance(command.script, pathlib.Path):
+      try:
+        subprocess.run([str(command.script)], env=env, check=True)
+      except subprocess.CalledProcessError as e:
+        return ValidationError(
+            f"Script execution failed with return code {e.returncode}", None)
+      except PermissionError:
+        return ValidationError(
+            f"Permission denied executing script: {command.script}",
+            "Ensure the script has execute permissions (chmod +x).")
+      except Exception as e:
+        return ValidationError(
+            f"Failed to execute script file {command.script}: {e}", None)
     else:
-      try:
-        try:
-          os.chmod(command.script, 0o755)
-        except OSError:
-          pass
-
-        has_shebang = False
-        try:
-          with open(command.script, 'rb') as f:
-            has_shebang = f.read(2) == b'#!'
-        except IOError:
-          pass
-
-        if has_shebang:
-          subprocess.run([command.script], env=env, check=True)
-        else:
-          subprocess.run(["/bin/sh", command.script], env=env, check=True)
-      except subprocess.CalledProcessError as e:
-        return ValidationError(
-            f"Script execution failed with return code {e.returncode}", None)
+      return ValidationError(f"Invalid script type: {type(command.script)}",
+                             None)
 
     self.stop_process(device, command.profiler)
     return None

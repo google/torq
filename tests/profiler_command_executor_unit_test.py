@@ -20,6 +20,7 @@ import signal
 import subprocess
 import tempfile
 import time
+import pathlib
 from unittest import mock
 from src.base import ValidationError
 from src.device import AndroidDevice
@@ -796,7 +797,7 @@ class ScriptCommandExecutorUnitTest(unittest.TestCase):
   def setUp(self):
     self.command = ProfilerCommand(
         PROFILER_COMMAND_TYPE,
-        "script",
+        "custom",
         "perfetto",
         DEFAULT_OUT_DIR,
         DEFAULT_DUR_MS,
@@ -817,9 +818,8 @@ class ScriptCommandExecutorUnitTest(unittest.TestCase):
         None,
         None,
         "trace",
-        script="mock-script.sh",
-        is_inline_script=False)
-    self.executor = get_executor("script")
+        script=pathlib.Path("mock-script.sh"))
+    self.executor = get_executor(self.command.event, self.command.script)
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.setup_perfetto.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
@@ -840,17 +840,14 @@ class ScriptCommandExecutorUnitTest(unittest.TestCase):
     self.mock_sleep_patcher.stop()
     self.mock_poll_patcher.stop()
 
-  @mock.patch("builtins.open", new_callable=mock.mock_open, read_data=b"#!")
   @mock.patch.object(subprocess, "run", autospec=True)
-  @mock.patch.object(os, "chmod", autospec=True)
-  def test_execute_script_file_success(self, mock_chmod, mock_run, mock_open):
+  def test_execute_script_file_success(self, mock_run):
     self.mock_device.start_perfetto_trace.return_value = self.mock_process
     mock_run.return_value = generate_mock_completed_process()
 
     error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
-    mock_chmod.assert_called_once_with("mock-script.sh", 0o755)
     mock_run.assert_called_once_with(["mock-script.sh"],
                                      env=mock.ANY,
                                      check=True)
@@ -858,29 +855,20 @@ class ScriptCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(kwargs['env']['ANDROID_SERIAL'], TEST_SERIAL)
     self.mock_device.kill_process.assert_called_once_with("perfetto")
 
-  @mock.patch(
-      "builtins.open", new_callable=mock.mock_open, read_data=b"sleep 10")
   @mock.patch.object(subprocess, "run", autospec=True)
-  @mock.patch.object(os, "chmod", autospec=True)
-  def test_execute_script_file_success_no_shebang(self, mock_chmod, mock_run,
-                                                  mock_open):
+  def test_execute_script_file_permission_error(self, mock_run):
     self.mock_device.start_perfetto_trace.return_value = self.mock_process
-    mock_run.return_value = generate_mock_completed_process()
+    mock_run.side_effect = PermissionError("Permission denied")
 
     error = self.executor.execute(self.command, self.mock_device)
 
-    self.assertEqual(error, None)
-    mock_chmod.assert_called_once_with("mock-script.sh", 0o755)
-    mock_run.assert_called_once_with(["/bin/sh", "mock-script.sh"],
-                                     env=mock.ANY,
-                                     check=True)
-    args, kwargs = mock_run.call_args
-    self.assertEqual(kwargs['env']['ANDROID_SERIAL'], TEST_SERIAL)
+    self.assertNotEqual(error, None)
+    self.assertTrue("Permission denied" in error.message)
+    mock_run.assert_called_once()
     self.mock_device.kill_process.assert_called_once_with("perfetto")
 
   @mock.patch.object(subprocess, "run", autospec=True)
-  @mock.patch.object(os, "chmod", autospec=True)
-  def test_execute_script_file_failure(self, mock_chmod, mock_run):
+  def test_execute_script_file_failure(self, mock_run):
     self.mock_device.start_perfetto_trace.return_value = self.mock_process
     mock_run.side_effect = subprocess.CalledProcessError(1, "mock-script.sh")
 
@@ -888,35 +876,25 @@ class ScriptCommandExecutorUnitTest(unittest.TestCase):
 
     self.assertNotEqual(error, None)
     self.assertTrue("Script execution failed" in error.message)
-    mock_chmod.assert_called_once_with("mock-script.sh", 0o755)
     mock_run.assert_called_once()
     self.mock_device.kill_process.assert_called_once_with("perfetto")
 
   @mock.patch.object(subprocess, "run", autospec=True)
-  @mock.patch.object(os, "chmod", autospec=True)
-  @mock.patch.object(os, "remove", autospec=True)
-  @mock.patch.object(tempfile, "NamedTemporaryFile")
-  def test_execute_inline_script_success(self, mock_tempfile, mock_remove,
-                                         mock_chmod, mock_run):
+  def test_execute_inline_script_success(self, mock_run):
     self.command.script = "sleep 10"
-    self.command.is_inline_script = True
-
-    mock_temp = mock.MagicMock()
-    mock_temp.name = "mock-temp-file.sh"
-    mock_tempfile.return_value.__enter__.return_value = mock_temp
-
     self.mock_device.start_perfetto_trace.return_value = self.mock_process
     mock_run.return_value = generate_mock_completed_process()
 
     error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
-    mock_temp.write.assert_called_once_with("#!/bin/sh\nsleep 10")
-    mock_chmod.assert_called_once_with("mock-temp-file.sh", 0o755)
-    mock_run.assert_called_once_with(["mock-temp-file.sh"],
+    mock_run.assert_called_once_with(["/bin/sh"],
+                                     input="sleep 10",
                                      env=mock.ANY,
-                                     check=True)
-    mock_remove.assert_called_once_with("mock-temp-file.sh")
+                                     check=True,
+                                     text=True)
+    args, kwargs = mock_run.call_args
+    self.assertEqual(kwargs['env']['ANDROID_SERIAL'], TEST_SERIAL)
     self.mock_device.kill_process.assert_called_once_with("perfetto")
 
 

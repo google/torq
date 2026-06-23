@@ -1,8 +1,10 @@
-# Host-Side Script Execution during Tracing (Script Event)
+# Host-Side Script Execution during Tracing
 
-The `script` event type in Torq allows you to execute a host-side script while a trace is being captured on the target device. This is useful for profiling specific critical user journeys (CUJs), automated UI tests, or any command-line operations where you want the trace duration to match the execution of the script.
+You can execute a host-side script while a trace is being captured on the target device by using the `--script` flag with the `custom` event. This is useful for profiling specific critical user journeys (CUJs), automated UI tests, or any command-line operations where you want the trace duration to match the execution of the script.
 
-When using the `script` event, Torq will start the profiler (Perfetto or Simpleperf) on the device, wait for it to initialize, run your host-side script, and immediately stop the profiler once your script finishes.
+When using a script, Torq will start the profiler (Perfetto or Simpleperf) on the device, wait for it to initialize, run your host-side script, and immediately stop the profiler once your script finishes.
+
+Since `custom` is the default event type in Torq, you can omit `-e custom` when using `--script`.
 
 ## Usage
 
@@ -12,33 +14,38 @@ You can specify the script in three ways:
 Pass a simple command directly as a string to the `--script` argument:
 
 ```bash
-torq --serial <device-serial> -e script --script "sleep 10"
+torq --serial <device-serial> --script "sleep 10"
 ```
 
 ### 2. Script File
-Pass the path to an existing script file to the `--script` argument. Torq automatically resolves relative paths to absolute paths to ensure the script can be found during execution:
+Pass the path to an existing executable script file to the `--script` argument. Torq automatically resolves relative paths to absolute paths to ensure the script can be found during execution:
 
 ```bash
-torq --serial <device-serial> -e script --script path/to/cuj.sh
+torq --serial <device-serial> --script path/to/cuj.sh
 ```
 
-### 3. Inline Script via Stdin (Heredoc)
-Omit the `--script` argument and pipe/redirect the script content into Torq's stdin. This is useful for multi-line inline scripts. Note that the closing `EOF` must not have leading spaces:
+If the script file is not executable, Torq will fail with a permission error and suggest making it executable using `chmod +x`.
 
+### 3. Inline Script via Stdin / Pipes
+Omit the value for `--script` and pipe or redirect the script content into Torq's stdin.
+
+Using a redirect (Heredoc):
 ```bash
-torq --serial <device-serial> -e script <<EOF
+torq --serial <device-serial> --script <<EOF
 echo "Running test commands..."
 sleep 5
 EOF
 ```
 
-## Behavior Details
+Using a pipe:
+```bash
+cat cuj.sh | torq --serial <device-serial> --script
+```
 
-### Shebang Handling
-For inline scripts and script files that lack a shebang (e.g., `#!/bin/sh` or `#!/bin/bash`), Torq will automatically execute them using `/bin/sh` to avoid "Exec format error" (`OSError: [Errno 8]`).
+## Behavior Details
 
 ### Target Device Environment
 When executing the host-side script, Torq injects the target device serial into the `ANDROID_SERIAL` environment variable. This allows any `adb` commands inside your script to automatically target the correct device without needing to specify the `-s` flag repeatedly.
 
 ### Trace Duration
-Unlike other event types where you must specify a duration using `-d`/`--dur-ms`, the `script` event duration is dynamically controlled by the execution time of the script. Torq will stop the trace immediately after the script exits.
+Unlike other event types where you must specify a duration using `-d`/`--dur-ms`, the trace duration when running a script is dynamically controlled by the execution time of the script. Torq will stop the trace immediately after the script exits.
