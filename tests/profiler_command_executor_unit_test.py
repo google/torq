@@ -23,7 +23,7 @@ import time
 import pathlib
 from unittest import mock
 from src.base import ValidationError
-from src.device import AndroidDevice
+from src.device import AndroidDevice, OsCodes
 from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR, get_executor,
                           ProfilerCommand)
 from tests.test_utils import generate_mock_completed_process, parameterized_profiler
@@ -58,6 +58,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       self.command.symbols = "/"
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.setup_perfetto.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
@@ -332,6 +333,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
       self.command.symbols = "/"
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.user_exists.return_value = None
     self.mock_device.setup_perfetto.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
@@ -505,6 +507,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
                                    None, None, None, None, "trace")
     self.executor = get_executor("boot")
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.is_process_running.return_value = False
     self.mock_device.setup_perfetto.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
@@ -638,6 +641,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
       self.command.symbols = "/"
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.get_packages.return_value = [
         TEST_PACKAGE_1, TEST_PACKAGE_2
     ]
@@ -821,6 +825,7 @@ class ScriptCommandExecutorUnitTest(unittest.TestCase):
         script=pathlib.Path("mock-script.sh"))
     self.executor = get_executor(self.command.event, self.command.script)
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.setup_perfetto.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
@@ -875,7 +880,7 @@ class ScriptCommandExecutorUnitTest(unittest.TestCase):
     error = self.executor.execute(self.command, self.mock_device)
 
     self.assertNotEqual(error, None)
-    self.assertTrue("Script execution failed" in error.message)
+    self.assertTrue("Failed to execute script file" in error.message)
     mock_run.assert_called_once()
     self.mock_device.kill_process.assert_called_once_with("perfetto")
 

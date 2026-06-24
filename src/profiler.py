@@ -20,7 +20,6 @@ import os
 import pathlib
 import subprocess
 import sys
-import tempfile
 import time
 
 from .base import (ANDROID_SDK_VERSION_T, Command, CommandExecutor,
@@ -64,7 +63,7 @@ def add_profiler_parser(subparsers):
   profiler_parser.add_argument(
       '--script',
       nargs='?',
-      const='-',
+      const=sys.stdin,
       help='The path to the script or the script content itself. Use without value to read from stdin.'
   )
   profiler_parser.add_argument(
@@ -184,22 +183,17 @@ def verify_profiler_args(args):
                           " torq --script <path-to-script>"))
 
   if args.script is not None:
-    # Handle stdin redirection if --script has no value (resolved to '-')
-    if args.script == '-':
+    if args.script is sys.stdin:
       # Ensure stdin is a pipe/redirect (not a TTY) to prevent hanging on read
-      if not sys.stdin.isatty():
-        args.script = sys.stdin.read()
-      else:
+      if sys.stdin.isatty():
         return None, ValidationError(
             "Command is invalid because --script was used for stdin redirect, but stdin is a TTY.",
             "Pipe a script into torq, e.g.: cat script.sh | torq --script")
-
-    try:
+      args.script = sys.stdin.read()
+    else:
       path = pathlib.Path(args.script)
       if path.is_file():
         args.script = path.resolve()
-    except Exception:
-      pass
 
   if args.runs < 1:
     return None, ValidationError(
@@ -836,7 +830,7 @@ class ScriptCommandExecutor(ProfilerCommandExecutor):
   def trigger_system_event(self, command, device):
     print("Executing script...")
     env = os.environ.copy()
-    if device.id():
+    if device.os() == OsCodes.OS_ANDROID and device.id():
       env["ANDROID_SERIAL"] = device.id()
 
     if isinstance(command.script, str):
@@ -846,22 +840,24 @@ class ScriptCommandExecutor(ProfilerCommandExecutor):
                        env=env,
                        check=True,
                        text=True)
-      except subprocess.CalledProcessError as e:
-        return ValidationError(
-            f"Script execution failed with return code {e.returncode}", None)
       except Exception as e:
+        if isinstance(e,
+                      subprocess.CalledProcessError) and self.trace_cancelled:
+          print("Script execution interrupted.")
+          return None
         return ValidationError(f"Failed to execute inline script: {e}", None)
     elif isinstance(command.script, pathlib.Path):
       try:
         subprocess.run([str(command.script)], env=env, check=True)
-      except subprocess.CalledProcessError as e:
-        return ValidationError(
-            f"Script execution failed with return code {e.returncode}", None)
       except PermissionError:
         return ValidationError(
             f"Permission denied executing script: {command.script}",
             "Ensure the script has execute permissions (chmod +x).")
       except Exception as e:
+        if isinstance(e,
+                      subprocess.CalledProcessError) and self.trace_cancelled:
+          print("Script execution interrupted.")
+          return None
         return ValidationError(
             f"Failed to execute script file {command.script}: {e}", None)
     else:
