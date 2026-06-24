@@ -412,7 +412,8 @@ class ProfilerCommand(Command):
                simpleperf_event, perfetto_config, between_dur_ms, ui,
                excluded_ftrace_events, included_ftrace_events, from_user,
                to_user, simpleperf_scripts_dir, symbols, trigger_names,
-               trigger_timeout_ms, trigger_stop_delay_ms, trigger_mode, prefix):
+               trigger_timeout_ms, trigger_stop_delay_ms, trigger_mode, prefix,\
+               script=None):
     super().__init__(type)
     self.event = event
     self.profiler = profiler
