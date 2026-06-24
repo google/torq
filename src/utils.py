@@ -85,21 +85,21 @@ def poll_is_task_completed(timed_out_limit, interval, check_is_completed):
       return False
 
 
-def convert_simpleperf_to_gecko(scripts_path, host_raw_trace_filename,
+def convert_simpleperf_to_gecko(simpleperf_scripts_dir, host_raw_trace_filename,
                                 host_gecko_trace_filename, symbols):
   expanded_symbols = os.path.expanduser(symbols)
-  expanded_scripts_path = os.path.expanduser(scripts_path)
+  expanded_simpleperf_scripts_dir = os.path.expanduser(simpleperf_scripts_dir)
   print("Building binary cache, please wait. If no samples were recorded,"
         " the trace will be empty.")
   run_subprocess((
       "export PYTHONPATH=$PYTHONPATH:%s && %s/binary_cache_builder.py -i %s -lib %s"
-      % (expanded_scripts_path, expanded_scripts_path, host_raw_trace_filename,
-         expanded_symbols)),
+      % (expanded_simpleperf_scripts_dir, expanded_simpleperf_scripts_dir,
+         host_raw_trace_filename, expanded_symbols)),
                  shell=True)
   run_subprocess((
       "export PYTHONPATH=$PYTHONPATH:%s && %s/gecko_profile_generator.py -i %s > %s"
-      % (expanded_scripts_path, expanded_scripts_path, host_raw_trace_filename,
-         host_gecko_trace_filename)),
+      % (expanded_simpleperf_scripts_dir, expanded_simpleperf_scripts_dir,
+         host_raw_trace_filename, host_gecko_trace_filename)),
                  shell=True)
   if not path_exists(host_gecko_trace_filename):
     raise Exception("Gecko file was not created.")

@@ -49,7 +49,7 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
 
     self.assertEqual(error, None)
     self.assertEqual(args.symbols, SYMBOLS_PATH)
-    self.assertEqual(args.scripts_path,
+    self.assertEqual(args.simpleperf_scripts_dir,
                      "%s/system/extras/simpleperf/scripts" % ANDROID_BUILD_TOP)
 
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -70,7 +70,7 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
 
     self.assertEqual(error, None)
     self.assertEqual(args.symbols, ANDROID_PRODUCT_OUT)
-    self.assertEqual(args.scripts_path,
+    self.assertEqual(args.simpleperf_scripts_dir,
                      "%s/system/extras/simpleperf/scripts" % ANDROID_BUILD_TOP)
 
   @mock.patch.dict(
@@ -153,7 +153,7 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
 
     self.assertEqual(error, None)
     self.assertEqual(args.symbols, ANDROID_PRODUCT_OUT)
-    self.assertEqual(args.scripts_path, TORQ_TEMP_DIR)
+    self.assertEqual(args.simpleperf_scripts_dir, TORQ_TEMP_DIR)
 
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)

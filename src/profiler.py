@@ -283,7 +283,7 @@ def verify_profiler_args(args):
     if error is not None:
       return None, error
   else:
-    args.scripts_path = None
+    args.simpleperf_scripts_dir = None
 
   return verify_trigger_args(args)
 
@@ -394,7 +394,7 @@ def execute_profiler_command(args, device):
       args.app, args.runs, args.simpleperf_event, args.perfetto_config,
       args.between_dur_ms, args.ui, args.excluded_ftrace_events,
       args.included_ftrace_events, args.from_user, args.to_user,
-      args.scripts_path, args.symbols, args.trigger_names,
+      args.simpleperf_scripts_dir, args.symbols, args.trigger_names,
       args.trigger_timeout_ms, args.trigger_stop_delay_ms, args.trigger_mode,
       args.prefix)
 
@@ -411,7 +411,7 @@ class ProfilerCommand(Command):
   def __init__(self, type, event, profiler, out_dir, dur_ms, app, runs,
                simpleperf_event, perfetto_config, between_dur_ms, ui,
                excluded_ftrace_events, included_ftrace_events, from_user,
-               to_user, scripts_path, symbols, trigger_names,
+               to_user, simpleperf_scripts_dir, symbols, trigger_names,
                trigger_timeout_ms, trigger_stop_delay_ms, trigger_mode, prefix):
     super().__init__(type)
     self.event = event
@@ -428,7 +428,7 @@ class ProfilerCommand(Command):
     self.included_ftrace_events = included_ftrace_events
     self.from_user = from_user
     self.to_user = to_user
-    self.scripts_path = scripts_path
+    self.simpleperf_scripts_dir = simpleperf_scripts_dir
     self.symbols = symbols
     self.prefix = prefix
     self.trigger_names = trigger_names
@@ -656,7 +656,8 @@ class ProfilerCommandExecutor(CommandExecutor):
         return ValidationError(
             f"Failed to pull {SIMPLEPERF_TRACE_FILE} from device {device.id()}.",
             None)
-      convert_simpleperf_to_gecko(command.scripts_path, host_raw_trace_filename,
+      convert_simpleperf_to_gecko(command.simpleperf_scripts_dir,
+                                  host_raw_trace_filename,
                                   host_gecko_trace_filename, command.symbols)
     return None
 
