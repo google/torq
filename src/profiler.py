@@ -176,13 +176,13 @@ def verify_profiler_args(args):
         ("Set --event %s --app <package> to perform an %s." %
          (args.event, args.event)))
 
-  if args.script is not None and args.event != "custom":
-    return None, ValidationError(
-        ("Command is invalid because --script is passed and --event is not set"
-         " to custom."), ("To profile a script run:"
-                          " torq --script <path-to-script>"))
-
   if args.script is not None:
+    if args.event != "custom":
+      return None, ValidationError((
+          "Command is invalid because --script is passed and --event is not set"
+          " to custom."), ("To profile a script run:"
+                           " torq --script <path-to-script>"))
+
     if args.script is sys.stdin:
       # Ensure stdin is a pipe/redirect (not a TTY) to prevent hanging on read
       if sys.stdin.isatty():
@@ -659,12 +659,14 @@ class ProfilerCommandExecutor(CommandExecutor):
     time.sleep(TRACE_START_DELAY_SECS)
     error = self.trigger_system_event(command, device)
     if error is not None:
-      print("Trace interrupted.")
+      print("Event execution failed. Stopping trace.")
       self.stop_process(device, command.profiler)
       return error
-    self.wait_for_trace(command, device, process)
+    error = self.wait_for_trace(command, device, process)
+    if error is not None:
+      return error
     if device.is_process_running(command.profiler):
-      print("\nTrace interrupted.")
+      print("\nTrace interrupted by user.")
       self.stop_process(device, command.profiler)
     return None
 
@@ -834,35 +836,51 @@ class ScriptCommandExecutor(ProfilerCommandExecutor):
       env["ANDROID_SERIAL"] = device.id()
 
     if isinstance(command.script, str):
-      try:
-        subprocess.run(["/bin/sh"],
-                       input=command.script,
-                       env=env,
-                       check=True,
-                       text=True)
-      except Exception as e:
-        if isinstance(e,
-                      subprocess.CalledProcessError) and self.trace_cancelled:
-          print("Script execution interrupted.")
-          return None
-        return ValidationError(f"Failed to execute inline script: {e}", None)
+      cmd = ["/bin/sh"]
+      kwargs = {"stdin": subprocess.PIPE, "text": True}
+      desc = "inline script"
     elif isinstance(command.script, pathlib.Path):
-      try:
-        subprocess.run([str(command.script)], env=env, check=True)
-      except PermissionError:
-        return ValidationError(
-            f"Permission denied executing script: {command.script}",
-            "Ensure the script has execute permissions (chmod +x).")
-      except Exception as e:
-        if isinstance(e,
-                      subprocess.CalledProcessError) and self.trace_cancelled:
-          print("Script execution interrupted.")
-          return None
-        return ValidationError(
-            f"Failed to execute script file {command.script}: {e}", None)
+      cmd = [str(command.script)]
+      kwargs = {}
+      desc = f"script file {command.script}"
     else:
       return ValidationError(f"Invalid script type: {type(command.script)}",
                              None)
 
+    try:
+      self.script_process = subprocess.Popen(cmd, env=env, **kwargs)
+      if isinstance(command.script, str):
+        self.script_process.stdin.write(command.script)
+        self.script_process.stdin.close()
+      self.script_desc = desc
+    except PermissionError:
+      return ValidationError(
+          f"Permission denied executing script: {command.script}",
+          "Ensure the script has execute permissions (chmod +x).")
+    except Exception as e:
+      return ValidationError(f"Failed to execute {desc}: {e}", None)
+
+    return None
+
+  def is_trace_cancelled(self, profiler, device, process):
+    return self.script_process.poll() is not None or self.trace_cancelled
+
+  def wait_for_trace(self, command, device, process):
+    super().wait_for_trace(command, device, process)
+
+    if self.trace_cancelled:
+      self.script_process.kill()
+      self.script_process.wait()
+      self.stop_process(device, command.profiler)
+      print("Script execution interrupted.")
+      return None
+
+    returncode = self.script_process.wait()
     self.stop_process(device, command.profiler)
+
+    if returncode != 0:
+      return ValidationError(
+          f"Failed to execute {self.script_desc}: Command returned exit status {returncode}",
+          None)
+
     return None

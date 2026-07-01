@@ -845,61 +845,68 @@ class ScriptCommandExecutorUnitTest(unittest.TestCase):
     self.mock_sleep_patcher.stop()
     self.mock_poll_patcher.stop()
 
-  @mock.patch.object(subprocess, "run", autospec=True)
-  def test_execute_script_file_success(self, mock_run):
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_script_file_success(self, mock_popen):
     self.mock_device.start_perfetto_trace.return_value = self.mock_process
-    mock_run.return_value = generate_mock_completed_process()
+    mock_process = mock.Mock()
+    mock_process.poll.side_effect = [None, 0]
+    mock_process.wait.return_value = 0
+    mock_popen.return_value = mock_process
 
     error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
-    mock_run.assert_called_once_with(["mock-script.sh"],
-                                     env=mock.ANY,
-                                     check=True)
-    args, kwargs = mock_run.call_args
-    self.assertEqual(kwargs['env']['ANDROID_SERIAL'], TEST_SERIAL)
+    mock_popen.assert_called_once_with(["mock-script.sh"], env=mock.ANY)
+    args, kwargs = mock_popen.call_args
+    self.assertEqual(kwargs["env"]["ANDROID_SERIAL"], TEST_SERIAL)
     self.mock_device.kill_process.assert_called_once_with("perfetto")
 
-  @mock.patch.object(subprocess, "run", autospec=True)
-  def test_execute_script_file_permission_error(self, mock_run):
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_script_file_permission_error(self, mock_popen):
     self.mock_device.start_perfetto_trace.return_value = self.mock_process
-    mock_run.side_effect = PermissionError("Permission denied")
+    mock_popen.side_effect = PermissionError("Permission denied")
 
     error = self.executor.execute(self.command, self.mock_device)
 
     self.assertNotEqual(error, None)
     self.assertTrue("Permission denied" in error.message)
-    mock_run.assert_called_once()
+    mock_popen.assert_called_once()
     self.mock_device.kill_process.assert_called_once_with("perfetto")
 
-  @mock.patch.object(subprocess, "run", autospec=True)
-  def test_execute_script_file_failure(self, mock_run):
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_script_file_failure(self, mock_popen):
     self.mock_device.start_perfetto_trace.return_value = self.mock_process
-    mock_run.side_effect = subprocess.CalledProcessError(1, "mock-script.sh")
+    mock_process = mock.Mock()
+    mock_process.poll.side_effect = [None, 1]
+    mock_process.wait.return_value = 1
+    mock_popen.return_value = mock_process
 
     error = self.executor.execute(self.command, self.mock_device)
 
     self.assertNotEqual(error, None)
     self.assertTrue("Failed to execute script file" in error.message)
-    mock_run.assert_called_once()
+    mock_popen.assert_called_once()
     self.mock_device.kill_process.assert_called_once_with("perfetto")
 
-  @mock.patch.object(subprocess, "run", autospec=True)
-  def test_execute_inline_script_success(self, mock_run):
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_inline_script_success(self, mock_popen):
     self.command.script = "sleep 10"
     self.mock_device.start_perfetto_trace.return_value = self.mock_process
-    mock_run.return_value = generate_mock_completed_process()
+    mock_process = mock.Mock()
+    mock_process.stdin = mock.Mock()
+    mock_process.poll.side_effect = [None, 0]
+    mock_process.wait.return_value = 0
+    mock_popen.return_value = mock_process
 
     error = self.executor.execute(self.command, self.mock_device)
 
     self.assertEqual(error, None)
-    mock_run.assert_called_once_with(["/bin/sh"],
-                                     input="sleep 10",
-                                     env=mock.ANY,
-                                     check=True,
-                                     text=True)
-    args, kwargs = mock_run.call_args
-    self.assertEqual(kwargs['env']['ANDROID_SERIAL'], TEST_SERIAL)
+    mock_popen.assert_called_once_with(["/bin/sh"],
+                                       env=mock.ANY,
+                                       stdin=subprocess.PIPE,
+                                       text=True)
+    args, kwargs = mock_popen.call_args
+    self.assertEqual(kwargs["env"]["ANDROID_SERIAL"], TEST_SERIAL)
     self.mock_device.kill_process.assert_called_once_with("perfetto")
 
 
