@@ -718,11 +718,37 @@ class BootCommandExecutor(ProfilerCommandExecutor):
 
   def prepare_device(self, command, device, config):
     device.write_to_file("/data/misc/perfetto-configs/boottrace.pbtxt", config)
+    if not device.file_exists("/data/misc/perfetto-configs/boottrace.pbtxt"):
+      return ValidationError(
+          "Failed to write boottrace config to device.",
+          "Check if device has /data/misc/perfetto-configs/ directory and is writable."
+      )
     return None
 
   def prepare_device_for_run(self, command, device):
     device.remove_file(f'{PERFETTO_BOOT_TRACE_FILE}*')
     device.set_prop("persist.debug.perfetto.boottrace", "1")
+    is_sdv = False
+    try:
+      is_sdv = device.get_prop("ro.sdv.profile").strip() != "" or "sdv" in device.get_prop("ro.product.name").lower()
+    except Exception:
+      pass
+    if is_sdv:
+      device.set_prop("persist.debug.sdv.boottrace", "1")
+
+    if device.get_prop("persist.debug.perfetto.boottrace").strip() != "1":
+      return ValidationError(
+          "Failed to set persist.debug.perfetto.boottrace to 1.",
+          "Check if device is rooted and allows setting properties."
+      )
+
+    if is_sdv:
+      if device.get_prop("persist.debug.sdv.boottrace").strip() != "1":
+        return ValidationError(
+            "Failed to set persist.debug.sdv.boottrace to 1 on SDV target.",
+            "Check if device is rooted and allows setting properties."
+        )
+    return None
 
   def execute_run(self, command, device, config, run):
     print("Performing run %s. Triggering reboot." % run)
@@ -757,6 +783,18 @@ class BootCommandExecutor(ProfilerCommandExecutor):
           f"Failed to pull {PERFETTO_BOOT_TRACE_FILE} from device {device.id()}.",
           None)
 
+    return None
+
+  def cleanup(self, command, device):
+    is_sdv = False
+    try:
+      is_sdv = device.get_prop("ro.sdv.profile").strip() != "" or "sdv" in device.get_prop("ro.product.name").lower()
+    except Exception:
+      pass
+    if is_sdv:
+      device.clear_prop("persist.debug.sdv.boottrace")
+    device.clear_prop("persist.debug.perfetto.boottrace")
+    device.remove_file("/data/misc/perfetto-configs/boottrace.pbtxt")
     return None
 
   def is_trace_cancelled(self, profiler, device, process):
