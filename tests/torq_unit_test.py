@@ -1199,6 +1199,51 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(args.script, "sleep 10")
     self.assertTrue(isinstance(args.script, str))
 
+  @mock.patch('pathlib.Path.is_file')
+  def test_verify_args_script_long_path_warning(self, mock_is_file):
+    mock_is_file.side_effect = OSError("File name too long")
+    long_script = "a" * 4096
+    args = parse_cli(f'torq --script "{long_script}"')
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.script, long_script)
+    self.assertTrue(isinstance(args.script, str))
+
+  @mock.patch('pathlib.Path.is_file')
+  def test_verify_args_script_long_filename_warning(self, mock_is_file):
+    mock_is_file.side_effect = OSError("File name too long")
+    long_filename = "a" * 300
+    args = parse_cli(f'torq --script "{long_filename}"')
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.script, long_filename)
+    self.assertTrue(isinstance(args.script, str))
+
+  @mock.patch('pathlib.Path.is_file')
+  def test_verify_args_script_os_error_handling(self, mock_is_file):
+    mock_is_file.side_effect = OSError("Permission denied")
+    args = parse_cli('torq --script "some_script.sh"')
+
+    args, error = verify_args(args)
+
+    self.assertNotEqual(error, None)
+    self.assertTrue("Failed to access script path" in error.message)
+
+  @mock.patch('pathlib.Path.is_file')
+  def test_verify_args_script_value_error_handling(self, mock_is_file):
+    mock_is_file.side_effect = ValueError("embedded null byte")
+    args = parse_cli('torq --script "some_script.sh"')
+
+    args, error = verify_args(args)
+
+    self.assertNotEqual(error, None)
+    self.assertTrue(
+        "Invalid script parameter: embedded null byte" in error.message)
+
   def test_verify_args_script_invalid_event(self):
     args = parse_cli("torq -e boot --script mock-script.sh")
 
