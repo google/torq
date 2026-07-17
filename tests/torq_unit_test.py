@@ -1230,8 +1230,9 @@ class TorqUnitTest(unittest.TestCase):
 
     args, error = verify_args(args)
 
-    self.assertNotEqual(error, None)
-    self.assertTrue("Failed to access script path" in error.message)
+    self.assertEqual(error, None)
+    self.assertEqual(args.script, "some_script.sh")
+    self.assertTrue(isinstance(args.script, str))
 
   @mock.patch('pathlib.Path.is_file')
   def test_verify_args_script_value_error_handling(self, mock_is_file):
@@ -1240,9 +1241,9 @@ class TorqUnitTest(unittest.TestCase):
 
     args, error = verify_args(args)
 
-    self.assertNotEqual(error, None)
-    self.assertTrue(
-        "Invalid script parameter: embedded null byte" in error.message)
+    self.assertEqual(error, None)
+    self.assertEqual(args.script, "some_script.sh")
+    self.assertTrue(isinstance(args.script, str))
 
   def test_verify_args_script_invalid_event(self):
     args = parse_cli("torq -e boot --script mock-script.sh")

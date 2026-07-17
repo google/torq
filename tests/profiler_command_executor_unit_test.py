@@ -832,7 +832,7 @@ class ScriptCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.id.return_value = TEST_SERIAL
     self.mock_process = mock.Mock()
     self.mock_process.is_running.return_value = False
-    self.mock_device.is_process_running.return_value = False
+    self.mock_device.is_process_running.return_value = True
 
     self.mock_sleep_patcher = mock.patch.object(
         time, 'sleep', return_value=None)

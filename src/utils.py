@@ -20,6 +20,7 @@ import os
 import signal
 import subprocess
 import sys
+import pathlib
 import time
 
 from .base import ValidationError
@@ -47,6 +48,29 @@ def path_exists(path: str):
   if path is None:
     return False
   return os.path.exists(os.path.expanduser(path))
+
+
+def is_file_path(path: str):
+  path_obj = None
+  try:
+    path_obj = pathlib.Path(path)
+    if path_obj.is_file():
+      return True
+  except ValueError as e:
+    print(
+        f"Invalid script parameter: {e}.",
+        "Ensure the script parameter does not contain invalid characters such as null bytes ('\\0')."
+    )
+  except OSError as e:
+    if len(path) >= 4096 or (path_obj is not None and
+                             len(path_obj.name) >= 256):
+      limit_type = ("path length" if len(path) >= 4096 else "filename length")
+      print(f"Warning: Script parameter exceeds system {limit_type}. "
+            "Interpreting script parameter as an inline script.")
+    else:
+      print(f"Failed to access script path '{path}': {e}",
+            "Check the script path permissions and file availability.")
+  return False
 
 
 def dir_exists(path: str):

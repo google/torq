@@ -29,9 +29,10 @@ from .config_builder import (build_custom_config, create_common_config_parser,
 from .device import OsCodes, SIMPLEPERF_TRACE_FILE
 from .handle_input import HandleInput
 from .open_ui_utils import open_trace, WEB_UI_ADDRESS
-from .utils import (convert_simpleperf_to_gecko, poll_is_task_completed,
-                    PERFETTO_BOOT_TRACE_FILE, PERFETTO_DEVICE_FOLDER,
-                    PERFETTO_TRACE_FILE, POLLING_INTERVAL_SECS)
+from .utils import (convert_simpleperf_to_gecko, is_file_path,
+                    poll_is_task_completed, PERFETTO_BOOT_TRACE_FILE,
+                    PERFETTO_DEVICE_FOLDER, PERFETTO_TRACE_FILE,
+                    POLLING_INTERVAL_SECS)
 from .validate_simpleperf import verify_simpleperf_args
 
 DEFAULT_DUR_MS = 10000
@@ -191,27 +192,9 @@ def verify_profiler_args(args):
             "Pipe a script into torq, e.g.: cat script.sh | torq --script")
       args.script = sys.stdin.read()
     else:
-      path = None
-      try:
-        path = pathlib.Path(args.script)
-        if path.is_file():
-          args.script = path.resolve()
-      except ValueError as e:
-        return None, ValidationError(
-            f"Invalid script parameter: {e}.",
-            "Ensure the script parameter does not contain invalid characters such as null bytes ('\\0')."
-        )
-      except OSError as e:
-        if len(args.script) >= 4096 or (path is not None and
-                                        len(path.name) >= 256):
-          limit_type = ("path length"
-                        if len(args.script) >= 4096 else "filename length")
-          print(f"Warning: Script parameter exceeds system {limit_type}. "
-                "Interpreting script parameter as an inline script.")
-        else:
-          return None, ValidationError(
-              f"Failed to access script path '{args.script}': {e}",
-              "Check the script path permissions and file availability.")
+      path = args.script
+      if is_file_path(path):
+        args.script = pathlib.Path(path).resolve()
 
   if args.runs < 1:
     return None, ValidationError(
@@ -684,11 +667,10 @@ class ProfilerCommandExecutor(CommandExecutor):
       print("Event execution failed. Stopping trace.")
       self.stop_process(device, command.profiler)
       return error
-    error = self.wait_for_trace(command, device, process)
-    if error is not None:
-      return error
+    self.wait_for_trace(command, device, process)
     if device.is_process_running(command.profiler):
-      print("\nTrace interrupted by user.")
+      if self.trace_cancelled:
+        print("\nTrace interrupted by user.")
       self.stop_process(device, command.profiler)
     return None
 
@@ -869,11 +851,7 @@ class ScriptCommandExecutor(ProfilerCommandExecutor):
       cmd = [str(command.script)]
       kwargs = {}
       self.script_desc = f"script file {command.script}"
-    else:
-      return ValidationError(f"Invalid script type: {type(command.script)}",
-                             None)
 
-    print("Executing script...")
     try:
       self.script_process = subprocess.Popen(cmd, env=env, **kwargs)
       if isinstance(command.script, str):
@@ -895,19 +873,15 @@ class ScriptCommandExecutor(ProfilerCommandExecutor):
 
   def cleanup_for_run(self, command, device):
     """Cleans up the host script process and profiler after each run."""
-    check_returncode = True
 
     if self.trace_cancelled:
       self.script_process.kill()
-      check_returncode = False
       print("Interrupting Script execution.")
 
     returncode = self.script_process.wait()
-    self.stop_process(device, command.profiler)
 
-    if check_returncode and returncode != 0:
+    if not self.trace_cancelled and returncode != 0:
       return ValidationError(
           f"Failed to execute {self.script_desc}: Command returned exit status {returncode}",
           None)
-
     return None
