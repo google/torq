@@ -192,9 +192,8 @@ def verify_profiler_args(args):
             "Pipe a script into torq, e.g.: cat script.sh | torq --script")
       args.script = sys.stdin.read()
     else:
-      path = args.script
-      if is_file_path(path):
-        args.script = pathlib.Path(path).resolve()
+      if is_file_path(args.script):
+        args.script = pathlib.Path(args.script).resolve()
 
   if args.runs < 1:
     return None, ValidationError(
@@ -669,8 +668,7 @@ class ProfilerCommandExecutor(CommandExecutor):
       return error
     self.wait_for_trace(command, device, process)
     if device.is_process_running(command.profiler):
-      if self.trace_cancelled:
-        print("\nTrace interrupted by user.")
+      print("\nTrace interrupted by user.")
       self.stop_process(device, command.profiler)
     return None
 
@@ -872,11 +870,8 @@ class ScriptCommandExecutor(ProfilerCommandExecutor):
         profiler, device, process) or self.script_process.poll() is not None
 
   def cleanup_for_run(self, command, device):
-    """Cleans up the host script process and profiler after each run."""
-
     if self.trace_cancelled:
       self.script_process.kill()
-      print("Interrupting Script execution.")
 
     returncode = self.script_process.wait()
 
