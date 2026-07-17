@@ -17,6 +17,9 @@
 import argparse
 import datetime
 import os
+import pathlib
+import subprocess
+import sys
 import time
 
 from .base import (ANDROID_SDK_VERSION_T, Command, CommandExecutor,
@@ -26,9 +29,10 @@ from .config_builder import (build_custom_config, create_common_config_parser,
 from .device import OsCodes, SIMPLEPERF_TRACE_FILE
 from .handle_input import HandleInput
 from .open_ui_utils import open_trace, WEB_UI_ADDRESS
-from .utils import (convert_simpleperf_to_gecko, poll_is_task_completed,
-                    PERFETTO_BOOT_TRACE_FILE, PERFETTO_DEVICE_FOLDER,
-                    PERFETTO_TRACE_FILE, POLLING_INTERVAL_SECS)
+from .utils import (convert_simpleperf_to_gecko, is_file_path,
+                    poll_is_task_completed, PERFETTO_BOOT_TRACE_FILE,
+                    PERFETTO_DEVICE_FOLDER, PERFETTO_TRACE_FILE,
+                    POLLING_INTERVAL_SECS)
 from .validate_simpleperf import verify_simpleperf_args
 
 DEFAULT_DUR_MS = 10000
@@ -57,6 +61,12 @@ def add_profiler_parser(subparsers):
       choices=['boot', 'user-switch', 'app-startup', 'custom'],
       default='custom',
       help='The event to trace/profile.')
+  profiler_parser.add_argument(
+      '--script',
+      nargs='?',
+      const=sys.stdin,
+      help='The path to the script or the script content itself. Use without value to read from stdin.'
+  )
   profiler_parser.add_argument(
       '-p',
       '--profiler',
@@ -166,6 +176,24 @@ def verify_profiler_args(args):
         "Command is invalid because --app is not passed.",
         ("Set --event %s --app <package> to perform an %s." %
          (args.event, args.event)))
+
+  if args.script is not None:
+    if args.event != "custom":
+      return None, ValidationError((
+          "Command is invalid because --script is passed and --event is not set"
+          " to custom."), ("To profile a script run:"
+                           " torq --script <path-to-script>"))
+
+    if args.script is sys.stdin:
+      # Ensure stdin is a pipe/redirect (not a TTY) to prevent hanging on read
+      if sys.stdin.isatty():
+        return None, ValidationError(
+            "Command is invalid because --script was used for stdin redirect, but stdin is a TTY.",
+            "Pipe a script into torq, e.g.: cat script.sh | torq --script")
+      args.script = sys.stdin.read()
+    else:
+      if is_file_path(args.script):
+        args.script = pathlib.Path(args.script).resolve()
 
   if args.runs < 1:
     return None, ValidationError(
@@ -374,9 +402,11 @@ def verify_trigger_args(args):
   return args, None
 
 
-def get_executor(event):
+def get_executor(event, script=None):
   match event:
     case "custom":
+      if script is not None:
+        return ScriptCommandExecutor()
       return ProfilerCommandExecutor()
     case "user-switch":
       return UserSwitchCommandExecutor()
@@ -396,9 +426,9 @@ def execute_profiler_command(args, device):
       args.included_ftrace_events, args.from_user, args.to_user,
       args.scripts_path, args.symbols, args.trigger_names,
       args.trigger_timeout_ms, args.trigger_stop_delay_ms, args.trigger_mode,
-      args.prefix)
+      args.prefix, args.script)
 
-  executor = get_executor(command.event)
+  executor = get_executor(command.event, command.script)
 
   return executor.execute(command, device)
 
@@ -408,11 +438,30 @@ class ProfilerCommand(Command):
   Represents commands which profile and trace the system.
   """
 
-  def __init__(self, type, event, profiler, out_dir, dur_ms, app, runs,
-               simpleperf_event, perfetto_config, between_dur_ms, ui,
-               excluded_ftrace_events, included_ftrace_events, from_user,
-               to_user, scripts_path, symbols, trigger_names,
-               trigger_timeout_ms, trigger_stop_delay_ms, trigger_mode, prefix):
+  def __init__(self,
+               type,
+               event,
+               profiler,
+               out_dir,
+               dur_ms,
+               app,
+               runs,
+               simpleperf_event,
+               perfetto_config,
+               between_dur_ms,
+               ui,
+               excluded_ftrace_events,
+               included_ftrace_events,
+               from_user,
+               to_user,
+               scripts_path,
+               symbols,
+               trigger_names,
+               trigger_timeout_ms,
+               trigger_stop_delay_ms,
+               trigger_mode,
+               prefix,
+               script=None):
     super().__init__(type)
     self.event = event
     self.profiler = profiler
@@ -435,6 +484,7 @@ class ProfilerCommand(Command):
     self.trigger_timeout_ms = trigger_timeout_ms
     self.trigger_stop_delay_ms = trigger_stop_delay_ms
     self.trigger_mode = trigger_mode
+    self.script = script
 
     if self.event == "user-switch":
       self.original_user = None
@@ -553,6 +603,9 @@ class ProfilerCommandExecutor(CommandExecutor):
       error = self.execute_run(command, device, config, run)
       if error is not None:
         return error
+      error = self.cleanup_for_run(command, device)
+      if error is not None:
+        return error
       print("Run lasted for %.3f seconds." % (time.time() - start_time))
       error = self.retrieve_perf_data(command, device, host_raw_trace_filename,
                                       host_gecko_trace_filename)
@@ -607,14 +660,15 @@ class ProfilerCommandExecutor(CommandExecutor):
     else:
       process = device.start_simpleperf_trace(command)
     time.sleep(TRACE_START_DELAY_SECS)
+    # trigger_system_event should always be a non-blocking call
     error = self.trigger_system_event(command, device)
     if error is not None:
-      print("Trace interrupted.")
+      print("Event execution failed. Stopping trace.")
       self.stop_process(device, command.profiler)
       return error
     self.wait_for_trace(command, device, process)
     if device.is_process_running(command.profiler):
-      print("\nTrace interrupted.")
+      print("\nTrace interrupted by user.")
       self.stop_process(device, command.profiler)
     return None
 
@@ -661,6 +715,11 @@ class ProfilerCommandExecutor(CommandExecutor):
     return None
 
   def cleanup(self, command, device):
+    """Performs session-level cleanup after all profiling runs complete."""
+    return None
+
+  def cleanup_for_run(self, command, device):
+    """Performs per-run cleanup after an individual profiling run completes."""
     return None
 
   def signal_handler(self, sig, frame):
@@ -773,3 +832,51 @@ class AppStartupCommandExecutor(ProfilerCommandExecutor):
 
   def trigger_system_event(self, command, device):
     return device.start_package(command.app)
+
+
+class ScriptCommandExecutor(ProfilerCommandExecutor):
+
+  def trigger_system_event(self, command, device):
+    env = os.environ.copy()
+    if device.os() == OsCodes.OS_ANDROID and device.id():
+      env["ANDROID_SERIAL"] = device.id()
+
+    if isinstance(command.script, str):
+      cmd = ["/bin/sh"]
+      kwargs = {"stdin": subprocess.PIPE, "text": True}
+      self.script_desc = "inline script"
+    elif isinstance(command.script, pathlib.Path):
+      cmd = [str(command.script)]
+      kwargs = {}
+      self.script_desc = f"script file {command.script}"
+
+    try:
+      self.script_process = subprocess.Popen(cmd, env=env, **kwargs)
+      if isinstance(command.script, str):
+        self.script_process.stdin.write(command.script)
+        self.script_process.stdin.close()
+    except PermissionError:
+      return ValidationError(
+          f"Permission denied executing script: {command.script}",
+          "Ensure the script has execute permissions (chmod +x).")
+    except Exception as e:
+      return ValidationError(f"Failed to execute {self.script_desc }: {e}",
+                             None)
+
+    return None
+
+  def is_trace_cancelled(self, profiler, device, process):
+    return super().is_trace_cancelled(
+        profiler, device, process) or self.script_process.poll() is not None
+
+  def cleanup_for_run(self, command, device):
+    if self.trace_cancelled:
+      self.script_process.kill()
+
+    returncode = self.script_process.wait()
+
+    if not self.trace_cancelled and returncode != 0:
+      return ValidationError(
+          f"Failed to execute {self.script_desc}: Command returned exit status {returncode}",
+          None)
+    return None

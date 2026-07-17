@@ -57,6 +57,7 @@ use cases. This list of commands demonstrates just that.
 | `torq -p simpleperf -d 10000` | Run a custom event using the Simpleperf profiler for 10 seconds. |
 | `torq -p simpleperf -s cpu-cycles -s instructions` | Run a custom event using the Simpleperf profiler, in which the stats, cpu-cycles and instructions, are collected. |
 | `torq -d 10000 --perfetto-config lightweight` | Run a custom event for 10 seconds using the "lightweight" predefined Perfetto config. |
+| `torq --script "sleep 10"` | Run a custom event and execute a host-side sleep command, stopping the trace when the command exits. |
 | `torq config show memory` | Print the contents of the memory predefined Perfetto config to the terminal. |
 | `torq open trace.perfetto-trace` | Open a trace in the perfetto UI. |
 | `torq -d 10000 --exclude-ftrace-event power/cpu_idle` | Run a custom event for 10 seconds, using the "default" predefined Perfetto config, in which the ftrace event, power/cpu_idle, is not collected. |
@@ -64,6 +65,12 @@ use cases. This list of commands demonstrates just that.
 ## CLI Reference
 
 For a complete list of all the `torq` subcommands and flags, please refer to the [CLI Reference](docs/REFERENCE.md).
+
+## Host-Side Script Execution during Tracing
+
+Torq allows you to run a host-side script while capturing a trace on the device, dynamically controlling the trace duration. The trace stops automatically when your script exits.
+
+For a detailed guide on how to use this feature (including inline scripts, script files, and stdin redirection), please refer to the [Host-Side Script Execution Guide](docs/HOST_SCRIPT_EXECUTION.md).
 
 ## Configure perfetto in virtualized Android
 

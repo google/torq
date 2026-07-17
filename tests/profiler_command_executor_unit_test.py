@@ -18,10 +18,12 @@ import os
 import unittest
 import signal
 import subprocess
+import tempfile
 import time
+import pathlib
 from unittest import mock
 from src.base import ValidationError
-from src.device import AndroidDevice
+from src.device import AndroidDevice, OsCodes
 from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR, get_executor,
                           ProfilerCommand)
 from tests.test_utils import generate_mock_completed_process, parameterized_profiler
@@ -56,6 +58,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
       self.command.symbols = "/"
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.setup_perfetto.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
@@ -330,6 +333,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
       self.command.symbols = "/"
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.user_exists.return_value = None
     self.mock_device.setup_perfetto.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
@@ -503,6 +507,7 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
                                    None, None, None, None, "trace")
     self.executor = get_executor("boot")
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.is_process_running.return_value = False
     self.mock_device.setup_perfetto.return_value = None
     self.mock_device.get_android_sdk_version.return_value = (
@@ -636,6 +641,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
       self.command.symbols = "/"
       self.command.scripts_path = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.get_packages.return_value = [
         TEST_PACKAGE_1, TEST_PACKAGE_2
     ]
@@ -788,6 +794,120 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     else:
       self.assertEqual(self.mock_device.send_signal.call_count, 1)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+
+class ScriptCommandExecutorUnitTest(unittest.TestCase):
+
+  def setUp(self):
+    self.command = ProfilerCommand(
+        PROFILER_COMMAND_TYPE,
+        "custom",
+        "perfetto",
+        DEFAULT_OUT_DIR,
+        DEFAULT_DUR_MS,
+        None,
+        1,
+        None,
+        DEFAULT_PERFETTO_CONFIG,
+        None,
+        False,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        "trace",
+        script=pathlib.Path("mock-script.sh"))
+    self.executor = get_executor(self.command.event, self.command.script)
+    self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
+    self.mock_device.os.return_value = OsCodes.OS_ANDROID
+    self.mock_device.setup_perfetto.return_value = None
+    self.mock_device.get_android_sdk_version.return_value = (
+        ANDROID_SDK_VERSION_T)
+    self.mock_device.id.return_value = TEST_SERIAL
+    self.mock_process = mock.Mock()
+    self.mock_process.is_running.return_value = False
+    self.mock_device.is_process_running.return_value = True
+
+    self.mock_sleep_patcher = mock.patch.object(
+        time, 'sleep', return_value=None)
+    self.mock_sleep_patcher.start()
+    self.mock_poll_patcher = mock.patch(
+        'src.profiler.poll_is_task_completed', return_value=True)
+    self.mock_poll_patcher.start()
+
+  def tearDown(self):
+    self.mock_sleep_patcher.stop()
+    self.mock_poll_patcher.stop()
+
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_script_file_success(self, mock_popen):
+    self.mock_device.start_perfetto_trace.return_value = self.mock_process
+    mock_process = mock.Mock()
+    mock_process.poll.side_effect = [None, 0]
+    mock_process.wait.return_value = 0
+    mock_popen.return_value = mock_process
+
+    error = self.executor.execute(self.command, self.mock_device)
+
+    self.assertEqual(error, None)
+    mock_popen.assert_called_once_with(["mock-script.sh"], env=mock.ANY)
+    args, kwargs = mock_popen.call_args
+    self.assertEqual(kwargs["env"]["ANDROID_SERIAL"], TEST_SERIAL)
+    self.mock_device.kill_process.assert_called_once_with("perfetto")
+
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_script_file_permission_error(self, mock_popen):
+    self.mock_device.start_perfetto_trace.return_value = self.mock_process
+    mock_popen.side_effect = PermissionError("Permission denied")
+
+    error = self.executor.execute(self.command, self.mock_device)
+
+    self.assertNotEqual(error, None)
+    self.assertTrue("Permission denied" in error.message)
+    mock_popen.assert_called_once()
+    self.mock_device.kill_process.assert_called_once_with("perfetto")
+
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_script_file_failure(self, mock_popen):
+    self.mock_device.start_perfetto_trace.return_value = self.mock_process
+    mock_process = mock.Mock()
+    mock_process.poll.side_effect = [None, 1]
+    mock_process.wait.return_value = 1
+    mock_popen.return_value = mock_process
+
+    error = self.executor.execute(self.command, self.mock_device)
+
+    self.assertNotEqual(error, None)
+    self.assertTrue("Failed to execute script file" in error.message)
+    mock_popen.assert_called_once()
+    self.mock_device.kill_process.assert_called_once_with("perfetto")
+
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_execute_inline_script_success(self, mock_popen):
+    self.command.script = "sleep 10"
+    self.mock_device.start_perfetto_trace.return_value = self.mock_process
+    mock_process = mock.Mock()
+    mock_process.stdin = mock.Mock()
+    mock_process.poll.side_effect = [None, 0]
+    mock_process.wait.return_value = 0
+    mock_popen.return_value = mock_process
+
+    error = self.executor.execute(self.command, self.mock_device)
+
+    self.assertEqual(error, None)
+    mock_popen.assert_called_once_with(["/bin/sh"],
+                                       env=mock.ANY,
+                                       stdin=subprocess.PIPE,
+                                       text=True)
+    args, kwargs = mock_popen.call_args
+    self.assertEqual(kwargs["env"]["ANDROID_SERIAL"], TEST_SERIAL)
+    self.mock_device.kill_process.assert_called_once_with("perfetto")
 
 
 if __name__ == '__main__':

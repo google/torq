@@ -20,6 +20,7 @@ import os
 import signal
 import subprocess
 import sys
+import pathlib
 import time
 
 from .base import ValidationError
@@ -47,6 +48,16 @@ def path_exists(path: str):
   if path is None:
     return False
   return os.path.exists(os.path.expanduser(path))
+
+
+def is_file_path(path: str):
+  path_obj = None
+  try:
+    path_obj = pathlib.Path(path)
+    if path_obj.is_file():
+      return True
+  except Exception as e:
+    return False
 
 
 def dir_exists(path: str):

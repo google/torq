@@ -16,6 +16,8 @@
 
 import unittest
 import os
+import sys
+import pathlib
 from unittest import mock
 
 from src.config import create_config_command
@@ -1161,6 +1163,110 @@ class TorqUnitTest(unittest.TestCase):
         error.message, "Command is invalid because %s is an "
         "invalid file path." % TEST_FILE)
     self.assertEqual(error.suggestion, "Make sure your file exists.")
+
+  @mock.patch('pathlib.Path.is_file')
+  def test_verify_args_valid_script_file(self, mock_is_file):
+    mock_is_file.return_value = True
+    args = parse_cli("torq --script mock-script.sh")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.event, "custom")
+    self.assertTrue(isinstance(args.script, pathlib.Path))
+    self.assertEqual(str(args.script), os.path.abspath("mock-script.sh"))
+
+  @mock.patch('src.profiler.sys.stdin')
+  def test_verify_args_valid_script_stdin(self, mock_stdin):
+    mock_stdin.isatty.return_value = False
+    mock_stdin.read.return_value = "sleep 10"
+    args = parse_cli("torq --script")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.event, "custom")
+    self.assertEqual(args.script, "sleep 10")
+    self.assertTrue(isinstance(args.script, str))
+
+  def test_verify_args_valid_script_inline(self):
+    args = parse_cli("torq --script \"sleep 10\"")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.event, "custom")
+    self.assertEqual(args.script, "sleep 10")
+    self.assertTrue(isinstance(args.script, str))
+
+  @mock.patch('pathlib.Path.is_file')
+  def test_verify_args_script_long_path_warning(self, mock_is_file):
+    mock_is_file.side_effect = OSError("File name too long")
+    long_script = "a" * 4096
+    args = parse_cli(f'torq --script "{long_script}"')
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.script, long_script)
+    self.assertTrue(isinstance(args.script, str))
+
+  @mock.patch('pathlib.Path.is_file')
+  def test_verify_args_script_long_filename_warning(self, mock_is_file):
+    mock_is_file.side_effect = OSError("File name too long")
+    long_filename = "a" * 300
+    args = parse_cli(f'torq --script "{long_filename}"')
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.script, long_filename)
+    self.assertTrue(isinstance(args.script, str))
+
+  @mock.patch('pathlib.Path.is_file')
+  def test_verify_args_script_os_error_handling(self, mock_is_file):
+    mock_is_file.side_effect = OSError("Permission denied")
+    args = parse_cli('torq --script "some_script.sh"')
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.script, "some_script.sh")
+    self.assertTrue(isinstance(args.script, str))
+
+  @mock.patch('pathlib.Path.is_file')
+  def test_verify_args_script_value_error_handling(self, mock_is_file):
+    mock_is_file.side_effect = ValueError("embedded null byte")
+    args = parse_cli('torq --script "some_script.sh"')
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.script, "some_script.sh")
+    self.assertTrue(isinstance(args.script, str))
+
+  def test_verify_args_script_invalid_event(self):
+    args = parse_cli("torq -e boot --script mock-script.sh")
+
+    args, error = verify_args(args)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(error.message,
+                     ("Command is invalid because --script is passed and"
+                      " --event is not set to custom."))
+
+  @mock.patch('src.profiler.sys.stdin')
+  def test_verify_args_script_missing_script(self, mock_stdin):
+    mock_stdin.isatty.return_value = True
+    args = parse_cli("torq --script")
+
+    args, error = verify_args(args)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(
+        error.message,
+        "Command is invalid because --script was used for stdin redirect, but stdin is a TTY."
+    )
 
 
 if __name__ == '__main__':
