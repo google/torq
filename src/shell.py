@@ -23,6 +23,7 @@ from abc import ABC, abstractmethod
 from urllib.parse import urlsplit
 from .base import ValidationError
 from .handle_input import HandleInput
+from .uri import URIScheme
 from .utils import poll_is_task_completed, POLLING_INTERVAL_SECS, run_subprocess, ShellExitCodes
 
 WAIT_FOR_DEVICE_TIME_OUT_SECS = 5
@@ -45,13 +46,20 @@ class OsCodes(enum.IntEnum):
 
 def get_shell(serial):
   parsed_serial = urlsplit(serial)
-  if parsed_serial.scheme == "ssh":
+  scheme = parsed_serial.scheme
+  if scheme == URIScheme.SSH:
     return SshShell(parsed_serial), None
-  elif parsed_serial.scheme == "tty":
+  elif scheme == URIScheme.TTY:
     return TtyShell(parsed_serial), None
-  error = AdbShell.verify_serial(serial)
-  if error:
-    return None, error
+  elif scheme in URIScheme._value2member_map_:
+    return None, ValidationError(
+        f"The URI scheme '{scheme}' is not supported.",
+        "The only supported URI schemes are 'ssh' and 'tty'.")
+  else:
+    error = AdbShell.verify_serial(serial)
+    if error:
+      return None, error
+
   return AdbShell(serial), None
 
 

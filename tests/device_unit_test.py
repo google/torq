@@ -21,7 +21,7 @@ import os
 import subprocess
 from contextlib import redirect_stderr
 from unittest import mock
-from src.device import AndroidDevice, QnxDevice
+from src.device import AndroidDevice, QnxDevice, get_device
 from src.profiler import ProfilerCommand
 from src.shell import AdbShell, OsCodes
 from src.utils import ShellExitCodes
@@ -901,17 +901,23 @@ class DeviceUnitTest(unittest.TestCase):
 
     self.assertFalse(AdbShell.adb_exists())
 
-  @mock.patch.object(subprocess, "run", autospec=True)
-  def test_get_shell_unsupported_uri_scheme(self, mock_subprocess_run):
-    mock_subprocess_run.return_value = (
-        generate_adb_devices_result(["TEST_DEVICE"]))
+  def test_get_shell_unsupported_uri_scheme(self):
     tmp_stderr = io.StringIO()
     with redirect_stderr(tmp_stderr):
       run_cli("torq --serial http://localhost:8080")
 
     output = tmp_stderr.getvalue()
-    self.assertIn("Device with serial http://localhost:8080 is not connected.",
-                  output)
+    self.assertIn("The URI scheme 'http' is not supported.", output)
+    self.assertIn("The only supported URI schemes are 'ssh' and 'tty'.", output)
+
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_shell_adb_tcp_connection(self, mock_subprocess_run):
+    mock_subprocess_run.return_value = (
+        generate_adb_devices_result(["localhost:5558"]))
+    device, error = get_device("localhost:5558", is_device_required=True)
+    self.assertEqual(error, None)
+    self.assertIsInstance(device, AndroidDevice)
+    self.assertEqual(device.id(), "localhost:5558")
 
   @mock.patch("src.torq.execute_command", autospec=True)
   @mock.patch("src.shell.run_subprocess", autospec=True)
