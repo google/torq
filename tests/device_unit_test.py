@@ -901,14 +901,17 @@ class DeviceUnitTest(unittest.TestCase):
 
     self.assertFalse(AdbShell.adb_exists())
 
-  def test_get_shell_unsupported_uri_scheme(self):
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_shell_unsupported_uri_scheme(self, mock_subprocess_run):
+    mock_subprocess_run.return_value = (
+        generate_adb_devices_result(["TEST_DEVICE"]))
     tmp_stderr = io.StringIO()
     with redirect_stderr(tmp_stderr):
       run_cli("torq --serial http://localhost:8080")
 
     output = tmp_stderr.getvalue()
-    self.assertIn("The URI scheme 'http' is not supported.", output)
-    self.assertIn("The only supported URI schemes are 'ssh' and 'tty'.", output)
+    self.assertIn("Device with serial http://localhost:8080 is not connected.",
+                  output)
 
   @mock.patch("src.torq.execute_command", autospec=True)
   @mock.patch("src.shell.run_subprocess", autospec=True)

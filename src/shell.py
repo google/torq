@@ -45,14 +45,10 @@ class OsCodes(enum.IntEnum):
 
 def get_shell(serial):
   parsed_serial = urlsplit(serial)
-  if parsed_serial.scheme != "":
-    if parsed_serial.scheme == "ssh":
-      return SshShell(parsed_serial), None
-    if parsed_serial.scheme == "tty":
-      return TtyShell(parsed_serial), None
-    return None, ValidationError(
-        f"The URI scheme '{parsed_serial.scheme}' is not supported.",
-        "The only supported URI schemes are 'ssh' and 'tty'.")
+  if parsed_serial.scheme == "ssh":
+    return SshShell(parsed_serial), None
+  elif parsed_serial.scheme == "tty":
+    return TtyShell(parsed_serial), None
   error = AdbShell.verify_serial(serial)
   if error:
     return None, error
