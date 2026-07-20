@@ -21,7 +21,7 @@ import os
 import subprocess
 from contextlib import redirect_stderr
 from unittest import mock
-from src.device import AndroidDevice, QnxDevice, get_device
+from src.device import AndroidDevice, QnxDevice
 from src.profiler import ProfilerCommand
 from src.shell import AdbShell, OsCodes
 from src.utils import ShellExitCodes
