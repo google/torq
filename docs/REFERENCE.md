@@ -40,6 +40,7 @@ The `profiler` subcommand is used to trace and profile Android devices. It is th
 | `--trigger-timeout-ms` | Specifies the time in milliseconds for Perfetto to wait for a trigger before ending. | Integer | 604800000 (1 week) |
 | `--trigger-stop-delay-ms`| Specifies the time in ms to extend trace collection past a trigger event. If multiple triggers are present, you can include a different delay for each or one for them all. | `<delay1> ... <delayN>` | 1000 |
 | `--trigger-mode` | Specifies the trigger config mode. `stop` ends tracing after a trigger + delay. `start` begins tracing when a trigger is received and ends after delay. `clone` traces until timeout, returning tracing data every time a trigger is received. | `stop`, `start`, `clone`, `STOP_TRACING`, `START_TRACING`, `CLONE_SNAPSHOT` | `STOP_TRACING` |
+| `--script` | Run a host-side script during tracing. The trace will automatically stop when the script exits. Can be an inline command string, a path to an executable script file, or omitted to read the script from stdin. | Inline command, filepath, or stdin | |
 
 ---
 
