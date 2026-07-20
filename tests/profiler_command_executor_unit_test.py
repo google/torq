@@ -56,7 +56,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.executor = get_executor("custom")
     if profiler == "simpleperf":
       self.command.symbols = "/"
-      self.command.scripts_path = "/"
+      self.command.simpleperf_scripts_dir = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.setup_perfetto.return_value = None
@@ -331,7 +331,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.current_user = TEST_USER_ID_3
     if profiler == "simpleperf":
       self.command.symbols = "/"
-      self.command.scripts_path = "/"
+      self.command.simpleperf_scripts_dir = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.user_exists.return_value = None
@@ -639,7 +639,7 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     self.executor = get_executor("app-startup")
     if profiler == "simpleperf":
       self.command.symbols = "/"
-      self.command.scripts_path = "/"
+      self.command.simpleperf_scripts_dir = "/"
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.get_packages.return_value = [

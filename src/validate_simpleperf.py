@@ -26,11 +26,11 @@ BUILDER_SCRIPT = SIMPLEPERF_SCRIPTS_DIR + "/binary_cache_builder.py"
 
 
 def verify_simpleperf_args(args):
-  args.scripts_path = TORQ_TEMP_DIR
+  args.simpleperf_scripts_dir = TORQ_TEMP_DIR
   if not is_bazel() and ("ANDROID_BUILD_TOP" in os.environ and
                          path_exists(os.environ["ANDROID_BUILD_TOP"] +
                                      BUILDER_SCRIPT)):
-    args.scripts_path = (
+    args.simpleperf_scripts_dir = (
         os.environ["ANDROID_BUILD_TOP"] + SIMPLEPERF_SCRIPTS_DIR)
 
   if args.symbols is None or not dir_exists(args.symbols):
@@ -55,7 +55,8 @@ def verify_simpleperf_args(args):
           "(<ANDROID_BUILD_TOP>/out/target/product/<TARGET>).")
     args.symbols = os.environ["ANDROID_PRODUCT_OUT"]
 
-  if args.scripts_path != TORQ_TEMP_DIR or temp_simpleperf_scripts_exist():
+  if args.simpleperf_scripts_dir != TORQ_TEMP_DIR or temp_simpleperf_scripts_exist(
+  ):
     return args, None
 
   error = download_simpleperf_scripts()
