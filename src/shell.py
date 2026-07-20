@@ -51,7 +51,7 @@ def get_shell(serial):
     return SshShell(parsed_serial), None
   elif scheme == URIScheme.TTY:
     return TtyShell(parsed_serial), None
-  elif scheme in URIScheme._value2member_map_:
+  elif URIScheme.is_valid_scheme(scheme):
     return None, ValidationError(
         f"The URI scheme '{scheme}' is not supported.",
         "The only supported URI schemes are 'ssh' and 'tty'.")
