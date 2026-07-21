@@ -127,7 +127,7 @@ class URIScheme(StrEnum):
   Z39_50R = "z39.50r"
   Z39_50S = "z39.50s"
 
-  # Needed for compatibility with Python 3.11, where 'str in Enum' raises a TypeError.
   @classmethod
   def is_valid_scheme(cls, scheme):
+    # Needed for compatibility with Python 3.11, where 'str in Enum' raises a TypeError.
     return any(scheme == item.value for item in cls)
