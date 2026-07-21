@@ -911,6 +911,25 @@ class DeviceUnitTest(unittest.TestCase):
     self.assertIn("The only supported URI schemes are 'ssh' and 'tty'.", output)
 
   @mock.patch("src.torq.execute_command", autospec=True)
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_shell_adb_tcp_connection(self, mock_subprocess_run,
+                                        mock_execute_command):
+    mock_subprocess_run.return_value = (
+        generate_adb_devices_result(["localhost:5558"]))
+    mock_execute_command.return_value = None
+
+    tmp_stderr = io.StringIO()
+    with redirect_stderr(tmp_stderr):
+      run_cli("torq --serial localhost:5558")
+
+    output = tmp_stderr.getvalue()
+    self.assertEqual(output, "")
+    self.assertTrue(mock_execute_command.called)
+    self.assertIsInstance(mock_execute_command.call_args[0][1], AndroidDevice)
+    self.assertEqual(mock_execute_command.call_args[0][1].id(),
+                     "localhost:5558")
+
+  @mock.patch("src.torq.execute_command", autospec=True)
   @mock.patch("src.shell.run_subprocess", autospec=True)
   def test_ssh_shell_get_os_qnx(self, mock_run_subprocess,
                                 mock_execute_command):
