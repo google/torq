@@ -13,19 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""
-Enum defining known IANA URI schemes.
-
-Tracked against the IANA Uniform Resource Identifier (URI) Schemes registry:
-https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
-"""
-
 from enum import StrEnum
 
 
 class URIScheme(StrEnum):
-  """
-  Known URI schemes including all IANA Permanent schemes.
+  """Enum defining permanent IANA URI schemes.
+
+  Tracked against the IANA Uniform Resource Identifier (URI) Schemes registry:
+  https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
   """
   AAA = "aaa"
   AAAS = "aaas"
@@ -132,6 +127,7 @@ class URIScheme(StrEnum):
   Z39_50R = "z39.50r"
   Z39_50S = "z39.50s"
 
+  # Needed for compatibility with Python 3.11, where 'str in Enum' raises a TypeError.
   @classmethod
   def is_valid_scheme(cls, scheme):
     return any(scheme == item.value for item in cls)
