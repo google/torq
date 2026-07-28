@@ -524,9 +524,8 @@ class ProfilerCommand(Command):
       error = device.user_exists(self.from_user)
       if error is not None:
         return error
-    if device.is_headless_system_user_mode() and (
-        self.to_user == 0 or self.from_user == 0
-    ):
+    if device.is_headless_system_user_mode() and (self.to_user == 0 or
+                                                  self.from_user == 0):
       return ValidationError(
           ("Cannot perform user-switch on device with"
            f" serial {device.id()} running in Headless System User Mode"
