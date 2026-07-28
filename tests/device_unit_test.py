@@ -482,6 +482,24 @@ class DeviceUnitTest(unittest.TestCase):
     self.assertEqual(str(e.exception), TEST_FAILURE_MSG)
 
   @mock.patch.object(subprocess, "run", autospec=True)
+  def test_is_headless_system_user_mode_true(self, mock_subprocess_run):
+    mock_subprocess_run.return_value = generate_mock_completed_process(
+        stdout_string=b"true\n"
+    )
+    device = AndroidDevice(AdbShell(TEST_DEVICE_SERIAL))
+
+    self.assertTrue(device.is_headless_system_user_mode())
+
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_is_headless_system_user_mode_false(self, mock_subprocess_run):
+    mock_subprocess_run.return_value = generate_mock_completed_process(
+        stdout_string=b"false\n"
+    )
+    device = AndroidDevice(AdbShell(TEST_DEVICE_SERIAL))
+
+    self.assertFalse(device.is_headless_system_user_mode())
+
+  @mock.patch.object(subprocess, "run", autospec=True)
   def test_write_to_file_success(self, mock_subprocess_run):
     mock_subprocess_run.return_value = generate_mock_completed_process()
     device = AndroidDevice(AdbShell(TEST_DEVICE_SERIAL))

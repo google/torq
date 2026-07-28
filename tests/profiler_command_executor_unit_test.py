@@ -64,6 +64,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
         ANDROID_SDK_VERSION_T)
     self.mock_device.create_directory.return_value = None
     self.mock_device.id.return_value = TEST_SERIAL
+    self.mock_device.is_headless_system_user_mode.return_value = False
     self.mock_process = mock.Mock()
     self.mock_process.is_running.return_value = False
     self.mock_sleep_patcher = mock.patch.object(
@@ -341,6 +342,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_current_user.side_effect = lambda: self.current_user
     self.mock_device.create_directory.return_value = None
     self.mock_device.id.return_value = TEST_SERIAL
+    self.mock_device.is_headless_system_user_mode.return_value = False
     self.mock_process = mock.Mock()
     self.mock_process.is_running.return_value = False
     self.mock_poll_patcher = mock.patch(
@@ -405,6 +407,28 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
                       (TEST_USER_ID_1, TEST_SERIAL, TEST_USER_ID_1)))
     self.assertEqual(error.suggestion, ("Choose a --to-user ID that is"
                                         " different than the --from-user ID."))
+    self.assertEqual(self.mock_device.perform_user_switch.call_count, 0)
+    self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+  @parameterized_profiler(setup_func=setUpSubtest)
+  def test_execute_user_0_in_hsum_error(self, profiler):
+    self.mock_device.is_headless_system_user_mode.return_value = True
+    self.command.from_user = TEST_USER_ID_2
+    self.command.to_user = TEST_USER_ID_1
+
+    error = self.executor.execute(self.command, self.mock_device)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(
+        error.message,
+        "Cannot perform user-switch on device with"
+        f" serial {TEST_SERIAL} running in Headless System User Mode"
+        " (HSUM), where user 0 is a non-interactive background system user.",
+    )
+    self.assertEqual(
+        error.suggestion,
+        "Choose interactive secondary users",
+    )
     self.assertEqual(self.mock_device.perform_user_switch.call_count, 0)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 

@@ -524,6 +524,16 @@ class ProfilerCommand(Command):
       error = device.user_exists(self.from_user)
       if error is not None:
         return error
+    if device.is_headless_system_user_mode() and (
+        self.to_user == 0 or self.from_user == 0
+    ):
+      return ValidationError(
+          ("Cannot perform user-switch on device with"
+           f" serial {device.id()} running in Headless System User Mode"
+           " (HSUM), where user 0 is a non-interactive background system"
+           " user."),
+          ("Choose interactive secondary users"),
+      )
     if self.from_user == self.to_user:
       return ValidationError(
           "Cannot perform user-switch to user %s because"

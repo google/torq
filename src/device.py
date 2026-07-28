@@ -106,6 +106,10 @@ class Device(ABC):
     raise NotImplementedError
 
   @abstractmethod
+  def is_headless_system_user_mode(self):
+    raise NotImplementedError
+
+  @abstractmethod
   def setup_perfetto(self):
     raise NotImplementedError
 
@@ -203,6 +207,13 @@ class AndroidDevice(Device):
 
   def perform_user_switch(self, user):
     self.shell.run(["shell", "am", "switch-user", str(user)])
+
+  def is_headless_system_user_mode(self):
+    command_output = self.shell.run(
+        ["shell", "getprop", "ro.fw.mu.headless_system_user"],
+        capture_output=True,
+    )
+    return command_output.stdout.decode("utf-8").strip() == "true"
 
   def write_to_file(self, file_path, host_file_string):
     self.shell.run(["shell", f"cat > {file_path} {host_file_string}"])
@@ -379,6 +390,9 @@ class QnxDevice(Device):
 
   def get_current_user(self):
     raise NotImplementedError
+
+  def is_headless_system_user_mode(self):
+    return False
 
   def setup_perfetto(self):
     # Collecting a perfetto trace on a QNX device. Use the running
