@@ -106,6 +106,18 @@ class Device(ABC):
     raise NotImplementedError
 
   @abstractmethod
+  def create_user(self, user_name):
+    raise NotImplementedError
+
+  @abstractmethod
+  def remove_user(self, user):
+    raise NotImplementedError
+
+  @abstractmethod
+  def set_enforce(self, mode):
+    raise NotImplementedError
+
+  @abstractmethod
   def setup_perfetto(self):
     raise NotImplementedError
 
@@ -203,6 +215,19 @@ class AndroidDevice(Device):
 
   def perform_user_switch(self, user):
     self.shell.run(["shell", "am", "switch-user", str(user)])
+
+  def create_user(self, user_name):
+    command_output = self.shell.run(
+        ["shell", "pm", "create-user", user_name],
+        capture_output=True,
+    )
+    return int(command_output.stdout.decode("utf-8").strip().split()[-1])
+
+  def remove_user(self, user):
+    self.shell.run(["shell", "pm", "remove-user", str(user)])
+
+  def set_enforce(self, mode):
+    self.shell.run(["shell", "setenforce", str(mode)])
 
   def write_to_file(self, file_path, host_file_string):
     self.shell.run(["shell", f"cat > {file_path} {host_file_string}"])
@@ -379,6 +404,15 @@ class QnxDevice(Device):
 
   def get_current_user(self):
     raise NotImplementedError
+
+  def create_user(self, user_name):
+    raise NotImplementedError
+
+  def remove_user(self, user):
+    raise NotImplementedError
+
+  def set_enforce(self, mode):
+    pass
 
   def setup_perfetto(self):
     # Collecting a perfetto trace on a QNX device. Use the running
