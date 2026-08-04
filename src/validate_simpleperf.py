@@ -15,7 +15,6 @@
 #
 
 import os
-import subprocess
 from .base import ValidationError
 from .handle_input import HandleInput
 from .utils import path_exists, dir_exists, is_bazel, run_subprocess

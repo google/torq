@@ -16,7 +16,6 @@
 
 import unittest
 import os
-import sys
 import pathlib
 from unittest import mock
 

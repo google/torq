@@ -16,11 +16,10 @@
 
 import builtins
 import unittest
-import sys
 import os
 import subprocess
 from unittest import mock
-from src.torq import create_parser, verify_args
+from src.torq import verify_args
 from tests.test_utils import generate_mock_completed_process, parse_cli
 
 TORQ_TEMP_DIR = "/tmp/.torq"

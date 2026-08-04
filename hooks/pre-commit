@@ -3,7 +3,7 @@
 ./tools/format_sources --check_format
 
 if [ $? -ne 0 ]; then
-    echo -e "\033[1m\nSource files are not formatted. Please run ./tools/format_sources before committing.\033[0m"
+    echo -e "\033[1m\nSource files are not formatted or have unused imports. Please run ./tools/format_sources before committing.\033[0m"
     exit 1
 fi
 

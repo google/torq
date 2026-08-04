@@ -15,16 +15,12 @@
 #
 
 import math
-import os
-import sys
-import time
 from abc import ABC, abstractmethod
 from subprocess import DEVNULL
 from .base import ValidationError
-from .handle_input import HandleInput
-from .shell import AdbShell, OsCodes, get_shell, SshShell
+from .shell import AdbShell, OsCodes, get_shell
 from .utils import (PERFETTO_TRACE_FILE, poll_is_task_completed,
-                    POLLING_INTERVAL_SECS, run_subprocess, ShellExitCodes)
+                    POLLING_INTERVAL_SECS, ShellExitCodes)
 
 BOOT_COMPLETED_TIME_OUT_SECS = 30
 SIMPLEPERF_TRACE_FILE = "/tmp/simpleperf-traces/perf.data"

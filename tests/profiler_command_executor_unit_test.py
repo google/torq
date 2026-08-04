@@ -18,7 +18,6 @@ import os
 import unittest
 import signal
 import subprocess
-import tempfile
 import time
 import pathlib
 from unittest import mock
