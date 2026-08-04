@@ -498,6 +498,16 @@ class DeviceUnitTest(unittest.TestCase):
     self.assertFalse(device.is_headless_system_user_mode())
 
   @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_system_user_success(self, mock_subprocess_run):
+    mock_subprocess_run.return_value = self.mock_users()
+    device = AndroidDevice(AdbShell(TEST_DEVICE_SERIAL))
+
+    system_user = device.get_system_user()
+
+    self.assertEqual(system_user, TEST_USER_ID_1)
+    self.assertEqual(device.system_user, TEST_USER_ID_1)
+
+  @mock.patch.object(subprocess, "run", autospec=True)
   def test_write_to_file_success(self, mock_subprocess_run):
     mock_subprocess_run.return_value = generate_mock_completed_process()
     device = AndroidDevice(AdbShell(TEST_DEVICE_SERIAL))

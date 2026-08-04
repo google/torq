@@ -65,6 +65,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.create_directory.return_value = None
     self.mock_device.id.return_value = TEST_SERIAL
     self.mock_device.is_headless_system_user_mode.return_value = False
+    self.mock_device.get_system_user.return_value = TEST_USER_ID_1
     self.mock_process = mock.Mock()
     self.mock_process.is_running.return_value = False
     self.mock_sleep_patcher = mock.patch.object(
@@ -343,6 +344,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.create_directory.return_value = None
     self.mock_device.id.return_value = TEST_SERIAL
     self.mock_device.is_headless_system_user_mode.return_value = False
+    self.mock_device.get_system_user.return_value = TEST_USER_ID_1
     self.mock_process = mock.Mock()
     self.mock_process.is_running.return_value = False
     self.mock_poll_patcher = mock.patch(
@@ -411,7 +413,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
   @parameterized_profiler(setup_func=setUpSubtest)
-  def test_execute_user_0_in_hsum_error(self, profiler):
+  def test_execute_system_user_in_hsum_error(self, profiler):
     self.mock_device.is_headless_system_user_mode.return_value = True
     self.command.from_user = TEST_USER_ID_2
     self.command.to_user = TEST_USER_ID_1

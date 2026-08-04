@@ -64,6 +64,7 @@ class Device(ABC):
   def __init__(self, shell):
     assert shell is not None, "shell cannot be None"
     self.shell = shell
+    self.system_user = None
 
   @abstractmethod
   def id(self):
@@ -103,6 +104,10 @@ class Device(ABC):
 
   @abstractmethod
   def get_current_user(self):
+    raise NotImplementedError
+
+  @abstractmethod
+  def get_system_user(self):
     raise NotImplementedError
 
   @abstractmethod
@@ -205,15 +210,16 @@ class AndroidDevice(Device):
                                     capture_output=True)
     return int(command_output.stdout.decode("utf-8").split()[0])
 
+  def get_system_user(self):
+    if self.system_user is None:
+      self.system_user = self.get_all_users()[0]
+    return self.system_user
+
   def perform_user_switch(self, user):
     self.shell.run(["shell", "am", "switch-user", str(user)])
 
   def is_headless_system_user_mode(self):
-    command_output = self.shell.run(
-        ["shell", "getprop", "ro.fw.mu.headless_system_user"],
-        capture_output=True,
-    )
-    return command_output.stdout.decode("utf-8").strip() == "true"
+    return self.get_prop("ro.fw.mu.headless_system_user") == "true"
 
   def write_to_file(self, file_path, host_file_string):
     self.shell.run(["shell", f"cat > {file_path} {host_file_string}"])
@@ -389,6 +395,9 @@ class QnxDevice(Device):
     return self.get_pid(process_name) != ""
 
   def get_current_user(self):
+    raise NotImplementedError
+
+  def get_system_user(self):
     raise NotImplementedError
 
   def is_headless_system_user_mode(self):
