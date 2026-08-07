@@ -25,7 +25,8 @@ from pathlib import Path
 from contextlib import redirect_stderr, redirect_stdout
 from src.device import AndroidDevice
 from src.shell import AdbShell
-from tests.test_utils import run_cli
+from src.device import AndroidDevice
+from tests.test_utils import run_cli, adb_create_user, adb_delete_user, adb_set_enforce
 from perfetto.batch_trace_processor.api import BatchTraceProcessor
 from unittest.mock import patch
 
@@ -217,7 +218,7 @@ class TorqIntegrationTest(unittest.TestCase):
   def test_torq_user_switch(self):
     dur_sec = 15
     expected_from_user = str(self.device.get_current_user())
-    expected_to_user = str(self.device.create_user("TestUser"))
+    expected_to_user = str(adb_create_user(self.serial, "TestUser"))
 
     try:
       torq_output = self.run_torq(
@@ -256,7 +257,8 @@ class TorqIntegrationTest(unittest.TestCase):
             f"but expected {expected_from_user}")
 
     finally:
-      self.device.remove_user(expected_to_user)
+      if expected_to_user is not None:
+        adb_delete_user(self.serial, expected_to_user)
 
   def test_torq_boot_event(self):
     dur_sec = 60
@@ -293,8 +295,8 @@ class TorqIntegrationTest(unittest.TestCase):
           f"The traced_relay binary exists but lacks executable permissions. "
           f"Skipping VM unified tracing test.")
 
-    self.device.set_enforce(0)
-    self.device2.set_enforce(0)
+    adb_set_enforce(self.serial, 0)
+    adb_set_enforce(self.serial2, 0)
 
     self.run_torq(
         f"torq --serial {self.serial} vm configure --primary android_primary="
