@@ -505,7 +505,6 @@ class DeviceUnitTest(unittest.TestCase):
     system_user = device.get_system_user()
 
     self.assertEqual(system_user, TEST_USER_ID_1)
-    self.assertEqual(device.system_user, TEST_USER_ID_1)
 
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_write_to_file_success(self, mock_subprocess_run):

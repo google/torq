@@ -26,6 +26,7 @@ from .shell import AdbShell, OsCodes, get_shell, SshShell
 from .utils import (PERFETTO_TRACE_FILE, poll_is_task_completed,
                     POLLING_INTERVAL_SECS, run_subprocess, ShellExitCodes)
 
+SYSTEM_USER_ID = 0
 BOOT_COMPLETED_TIME_OUT_SECS = 30
 SIMPLEPERF_TRACE_FILE = "/tmp/simpleperf-traces/perf.data"
 
@@ -64,7 +65,6 @@ class Device(ABC):
   def __init__(self, shell):
     assert shell is not None, "shell cannot be None"
     self.shell = shell
-    self.system_user = None
 
   @abstractmethod
   def id(self):
@@ -108,10 +108,6 @@ class Device(ABC):
 
   @abstractmethod
   def get_system_user(self):
-    raise NotImplementedError
-
-  @abstractmethod
-  def is_headless_system_user_mode(self):
     raise NotImplementedError
 
   @abstractmethod
@@ -211,9 +207,7 @@ class AndroidDevice(Device):
     return int(command_output.stdout.decode("utf-8").split()[0])
 
   def get_system_user(self):
-    if self.system_user is None:
-      self.system_user = self.get_all_users()[0]
-    return self.system_user
+    return SYSTEM_USER_ID
 
   def perform_user_switch(self, user):
     self.shell.run(["shell", "am", "switch-user", str(user)])
@@ -399,9 +393,6 @@ class QnxDevice(Device):
 
   def get_system_user(self):
     raise NotImplementedError
-
-  def is_headless_system_user_mode(self):
-    return False
 
   def setup_perfetto(self):
     # Collecting a perfetto trace on a QNX device. Use the running
