@@ -49,6 +49,10 @@ BTP_QUERY = {
 }
 
 DUR_TOLERANCE = 0.1
+USER_SWITCH_TIMEOUT = 60
+APP_STARTUP_TIMEOUT = 30
+SYSTEM_USER_ID = 0
+DRIVER_USER_ID = 10
 TRACED_RELAY_FILE = "/system/bin/traced_relay"
 
 
@@ -171,28 +175,33 @@ class TorqIntegrationTest(unittest.TestCase):
 
   def test_torq_multiple_app_startup_events(self):
     num_runs = 3
-    dur_sec = 3
     package = "com.android.car.settings"
     self.device.force_stop_package(package)
     torq_output = self.run_torq(f"torq --serial {self.serial} -e app-startup "
-                                f"-a {package} -d {dur_sec * 1000} --no-ui -o "
-                                f"{self.test_run_dir} -r {num_runs}")
+                                f"-a {package} --no-ui -o {self.test_run_dir} "
+                                f"-r {num_runs}")
     trace_files = self.validate_perfetto_output(
         torq_output, num_traces=num_runs)
 
     with BatchTraceProcessor(trace_files) as btp:
-      self.validate_trace_duration(btp, dur_sec)
-      results = btp.query(BTP_QUERY["app_startup"].format(package=package))
+      results_dur = btp.query(BTP_QUERY["trace_duration"])
+      results_startup = btp.query(
+          BTP_QUERY["app_startup"].format(package=package))
 
-      self.assertEqual(
-          len(results), num_runs,
-          f"Expected {num_runs} traces, got {len(results)}")
+      self.assertEqual(len(results_dur), num_runs)
+      self.assertEqual(len(results_startup), num_runs)
 
-      for i, df in enumerate(results):
+      for i in range(num_runs):
+        actual_duration = results_dur[i]['duration_sec'].iloc[0]
+        self.assertLess(
+            actual_duration, APP_STARTUP_TIMEOUT,
+            f"Trace {i} duration:{actual_duration} sec longer than "
+            f"expected:{APP_STARTUP_TIMEOUT} sec")
+
+        df = results_startup[i]
         self.assertGreater(
             len(df), 0,
             f"No valid startup_id for {package} in trace index {i}.")
-
         self.assertIsNotNone(df['startup_id'].iloc[0],
                              f"Startup ID should not be null in trace {i}")
 
@@ -215,19 +224,23 @@ class TorqIntegrationTest(unittest.TestCase):
       self.validate_trace_duration(btp, dur_sec)
 
   def test_torq_user_switch(self):
-    dur_sec = 15
     expected_from_user = str(self.device.get_current_user())
     expected_to_user = str(adb_create_user(self.serial, "TestUser"))
 
     try:
       torq_output = self.run_torq(
           f"torq --serial {self.serial} -e user-switch --to-user {expected_to_user} "
-          f"--from-user {expected_from_user} -d {dur_sec * 1000} --no-ui "
+          f"--from-user {expected_from_user} --no-ui "
           f"-o {self.test_run_dir}")
 
       trace_files = self.validate_perfetto_output(torq_output)
       with BatchTraceProcessor(trace_files) as btp:
-        self.validate_trace_duration(btp, dur_sec)
+        results_dur = btp.query(BTP_QUERY["trace_duration"])
+        actual_duration = results_dur[0]['duration_sec'].iloc[0]
+        self.assertLess(
+            actual_duration, USER_SWITCH_TIMEOUT,
+            f"Trace duration:{actual_duration} sec longer than "
+            f"expected:{USER_SWITCH_TIMEOUT} sec ")
 
         results = btp.query(BTP_QUERY["user_switch_event"])
         self.assertGreater(
@@ -256,7 +269,11 @@ class TorqIntegrationTest(unittest.TestCase):
             f"but expected {expected_from_user}")
 
     finally:
-      if expected_to_user is not None:
+      if expected_to_user is not None and expected_to_user.isdigit():
+        current = str(self.device.get_current_user())
+        if current == expected_to_user and expected_from_user is not None:
+          self.device.perform_user_switch(expected_from_user)
+          time.sleep(2)
         adb_delete_user(self.serial, expected_to_user)
 
   def test_torq_boot_event(self):
