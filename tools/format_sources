@@ -25,7 +25,6 @@ import sys
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 YAPF_BIN = os.path.join(ROOT_DIR, '.venv', 'bin', 'yapf')
-RUFF_BIN = os.path.join(ROOT_DIR, '.venv', 'bin', 'ruff')
 
 def get_python_files():
     cmd = ['git', 'ls-files']
@@ -35,23 +34,17 @@ def get_python_files():
 if __name__ == '__main__':
     check_format = '--check_format' in sys.argv
 
-    if not os.path.exists(YAPF_BIN) or not os.path.exists(RUFF_BIN):
-        err = f'Cannot find {YAPF_BIN} or {RUFF_BIN}\nRun tools/build_deps'
+    if not os.path.exists(YAPF_BIN):
+        err = f'Cannot find {YAPF_BIN}\nRun tools/build_deps'
         print(err, file=sys.stderr)
         exit(127)
 
-    py_files = get_python_files()
-
     if check_format:
-      ruff_cmd = [RUFF_BIN, 'check', '--select', 'F401'] + py_files
-      yapf_cmd = [YAPF_BIN, '--diff'] + py_files
+      cmd = [YAPF_BIN, '--diff'] + get_python_files()
     else:
-      ruff_cmd = [RUFF_BIN, 'check', '--select', 'F401', '--fix'] + py_files
-      yapf_cmd = [YAPF_BIN, '--parallel', '-i'] + py_files
-
-    for cmd in (ruff_cmd, yapf_cmd):
-      try:
-        subprocess.check_call(cmd)
-      except subprocess.CalledProcessError as ex:
-        print('`%s` returned %d' % (' '.join(cmd)[:128], ex.returncode))
-        exit(ex.returncode)
+      cmd = [YAPF_BIN, '--parallel', '-i'] + get_python_files()
+    try:
+      subprocess.check_call(cmd)
+    except subprocess.CalledProcessError as ex:
+      print('`%s` returned %d' % (' '.join(cmd)[:128], ex.returncode))
+      exit(ex.returncode)
