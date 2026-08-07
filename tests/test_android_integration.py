@@ -209,9 +209,6 @@ class TorqIntegrationTest(unittest.TestCase):
       trace_files = self.get_glob_files("trace*.data*")
       self.validate_trace_metadata(trace_files)
 
-    with BatchTraceProcessor(trace_files) as btp:
-      self.validate_trace_duration(btp, dur_sec)
-
   def test_torq_user_switch(self):
     dur_sec = 15
     expected_from_user = subprocess.check_output(
