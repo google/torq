@@ -25,7 +25,6 @@ from pathlib import Path
 from contextlib import redirect_stderr, redirect_stdout
 from src.device import AndroidDevice
 from src.shell import AdbShell
-from src.device import AndroidDevice
 from tests.test_utils import run_cli, adb_create_user, adb_delete_user, adb_set_enforce
 from perfetto.batch_trace_processor.api import BatchTraceProcessor
 from unittest.mock import patch

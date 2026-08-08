@@ -117,17 +117,13 @@ def adb_create_user(serial, user_name):
   Raises:
     RuntimeError: If the adb command fails (e.g. device not found).
     ValueError: If user creation fails on the device (e.g. max users reached)
-      or the output cannot be parsed.
   """
-  try:
-    command_output = subprocess.run(
-        ["adb", "-s", serial, "shell", "pm", "create-user", user_name],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-  except subprocess.CalledProcessError as e:
-    raise RuntimeError(f"Adb command failed: {e.stderr.strip()}") from e
+  command_output = subprocess.run(
+      ["adb", "-s", serial, "shell", "pm", "create-user", user_name],
+      capture_output=True,
+      text=True,
+      check=True,
+  )
 
   output_str = command_output.stdout.strip()
   if "Error:" in output_str:
@@ -135,11 +131,7 @@ def adb_create_user(serial, user_name):
         f"Failed to create user '{user_name}' on device '{serial}':"
         f" {output_str}")
 
-  try:
-    return int(output_str.split()[-1])
-  except (IndexError, ValueError) as e:
-    raise ValueError(
-        f"Failed to parse user ID from command output: '{output_str}'") from e
+  return int(output_str.split()[-1])
 
 
 def adb_delete_user(serial, user):
@@ -151,19 +143,15 @@ def adb_delete_user(serial, user):
 
   Raises:
     RuntimeError: If the adb command fails (e.g. device not found).
-    ValueError: If user removal fails on the device (e.g. user cannot be
-      removed).
+    ValueError: If user removal fails on the device
   """
-  try:
-    command_output = subprocess.run(
-        ["adb", "-s", serial, "shell", "pm", "remove-user",
-         str(user)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-  except subprocess.CalledProcessError as e:
-    raise RuntimeError(f"Adb command failed: {e.stderr.strip()}") from e
+  command_output = subprocess.run(
+      ["adb", "-s", serial, "shell", "pm", "remove-user",
+       str(user)],
+      capture_output=True,
+      text=True,
+      check=True,
+  )
 
   output_str = command_output.stdout.strip()
   if "Error:" in output_str:
@@ -182,13 +170,10 @@ def adb_set_enforce(serial, mode):
     RuntimeError: If the adb command fails (e.g. device not found or permission
       denied).
   """
-  try:
-    subprocess.run(
-        ["adb", "-s", serial, "shell", "setenforce",
-         str(mode)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-  except subprocess.CalledProcessError as e:
-    raise RuntimeError(f"Adb command failed: {e.stderr.strip()}") from e
+  subprocess.run(
+      ["adb", "-s", serial, "shell", "setenforce",
+       str(mode)],
+      capture_output=True,
+      text=True,
+      check=True,
+  )

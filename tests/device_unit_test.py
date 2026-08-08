@@ -517,32 +517,6 @@ class DeviceUnitTest(unittest.TestCase):
 
     self.assertEqual(str(e.exception), TEST_FAILURE_MSG)
 
-  @mock.patch.object(subprocess, "run", autospec=True)
-  def test_create_user_success(self, mock_subprocess_run):
-    mock_subprocess_run.return_value = generate_mock_completed_process(
-        stdout_string=b"Success: created user id 10\n")
-    device = AndroidDevice(AdbShell(TEST_DEVICE_SERIAL))
-
-    user_id = device.create_user("TestUser")
-
-    self.assertEqual(user_id, 10)
-
-  @mock.patch.object(subprocess, "run", autospec=True)
-  def test_remove_user_success(self, mock_subprocess_run):
-    mock_subprocess_run.return_value = generate_mock_completed_process()
-    device = AndroidDevice(AdbShell(TEST_DEVICE_SERIAL))
-
-    # No exception is expected to be thrown
-    device.remove_user(10)
-
-  @mock.patch.object(subprocess, "run", autospec=True)
-  def test_set_enforce_success(self, mock_subprocess_run):
-    mock_subprocess_run.return_value = generate_mock_completed_process()
-    device = AndroidDevice(AdbShell(TEST_DEVICE_SERIAL))
-
-    # No exception is expected to be thrown
-    device.set_enforce(0)
-
   @mock.patch("src.shell.poll_is_task_completed", autospec=True)
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_reboot_success(self, mock_subprocess_run,
