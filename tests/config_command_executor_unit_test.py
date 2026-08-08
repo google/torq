@@ -21,7 +21,7 @@ import sys
 import io
 from pathlib import Path
 from unittest import mock
-from src.device import AndroidDevice, OsCodes, get_device
+from src.device import AndroidDevice, OsCodes
 from src.base import ValidationError
 from src.config import PREDEFINED_PERFETTO_CONFIGS
 from tests.test_utils import generate_adb_devices_result, generate_mock_completed_process, run_cli
