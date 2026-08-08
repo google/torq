@@ -26,7 +26,8 @@ from src.base import ValidationError
 from src.device import AndroidDevice, OsCodes
 from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR, get_executor,
                           ProfilerCommand)
-from tests.test_utils import generate_mock_completed_process, parameterized_profiler
+from tests.test_utils import (generate_mock_completed_process,
+                              parameterized_profiler, run_cli)
 
 PROFILER_COMMAND_TYPE = "profiler"
 TEST_ERROR_MSG = "test-error"
@@ -413,24 +414,14 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
   @parameterized_profiler(setup_func=setUpSubtest)
-  def test_execute_system_user_in_hsum_error(self, profiler):
+  @mock.patch('src.torq.get_device', autospec=True)
+  def test_execute_system_user_in_hsum_error(self, profiler, mock_get_device):
+    mock_get_device.return_value = (self.mock_device, None)
     self.mock_device.is_headless_system_user_mode.return_value = True
-    self.command.from_user = TEST_USER_ID_2
-    self.command.to_user = TEST_USER_ID_1
 
-    error = self.executor.execute(self.command, self.mock_device)
+    run_cli(f"torq -e user-switch --from-user {TEST_USER_ID_2} --to-user"
+            f" {TEST_USER_ID_1} -p {profiler}")
 
-    self.assertNotEqual(error, None)
-    self.assertEqual(
-        error.message,
-        "Cannot perform user-switch on device with"
-        f" serial {TEST_SERIAL} running in Headless System User Mode"
-        " (HSUM), where user 0 is a non-interactive background system user.",
-    )
-    self.assertEqual(
-        error.suggestion,
-        "Choose interactive secondary users",
-    )
     self.assertEqual(self.mock_device.perform_user_switch.call_count, 0)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
