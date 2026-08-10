@@ -22,6 +22,7 @@ from .shell import AdbShell, OsCodes, get_shell
 from .utils import (PERFETTO_TRACE_FILE, poll_is_task_completed,
                     POLLING_INTERVAL_SECS, ShellExitCodes)
 
+ANDROID_SYSTEM_USER_ID = 0
 BOOT_COMPLETED_TIME_OUT_SECS = 30
 SIMPLEPERF_TRACE_FILE = "/tmp/simpleperf-traces/perf.data"
 
@@ -197,8 +198,14 @@ class AndroidDevice(Device):
                                     capture_output=True)
     return int(command_output.stdout.decode("utf-8").split()[0])
 
+  def get_system_user(self):
+    return ANDROID_SYSTEM_USER_ID
+
   def perform_user_switch(self, user):
     self.shell.run(["shell", "am", "switch-user", str(user)])
+
+  def is_headless_system_user_mode(self):
+    return self.get_prop("ro.fw.mu.headless_system_user") == "true"
 
   def write_to_file(self, file_path, host_file_string):
     self.shell.run(["shell", f"cat > {file_path} {host_file_string}"])
