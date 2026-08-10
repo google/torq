@@ -46,6 +46,8 @@ TRACE_START_DELAY_SECS = 0.5
 DEFAULT_TRIGGER_DUR_MS = 604800000  # 7 days in millis
 DEFAULT_TRIGGER_STOP_DELAY_MS = [1000]
 DEFAULT_TRIGGER_MODE = "STOP_TRACING"
+USER_SWITCH_TIMEOUT_SECS = 60
+APP_STARTUP_TIMEOUT_SECS = 15
 
 
 def add_profiler_parser(subparsers):
@@ -667,15 +669,15 @@ class ProfilerCommandExecutor(CommandExecutor):
       self.stop_process(device, command.profiler)
       return error
     self.wait_for_trace(command, device, process)
-    if device.is_process_running(command.profiler):
+    if self.is_trace_cancelled(command.profiler, device, process):
       print("\nTrace interrupted by user.")
-      self.stop_process(device, command.profiler)
+    self.stop_process(device, command.profiler)
     return None
 
   def wait_for_trace(self, command, device, process):
     cur_dots = 1
     total_dots = 3
-    while not self.is_trace_cancelled(command.profiler, device, process):
+    while not self.is_trace_completed(command.profiler, device, process):
       if cur_dots > total_dots:
         cur_dots = 1
       print(
@@ -727,6 +729,8 @@ class ProfilerCommandExecutor(CommandExecutor):
     self.trace_cancelled = True
 
   def stop_process(self, device, name):
+    if not device.is_process_running(name):
+      return
     if name == "simpleperf":
       device.send_signal(name, "SIGINT")
       # Simpleperf does post-processing, need to wait until the package stops
@@ -740,10 +744,21 @@ class ProfilerCommandExecutor(CommandExecutor):
       device.kill_process(name)
 
   def is_trace_cancelled(self, profiler, device, process):
-    return not process.is_running() or self.trace_cancelled
+    return self.trace_cancelled
+
+  def is_trace_completed(self, profiler, device, process):
+    return not process.is_running() or self.is_trace_cancelled(
+        profiler, device, process)
 
 
 class UserSwitchCommandExecutor(ProfilerCommandExecutor):
+
+  def __init__(self):
+    super().__init__()
+    self.to_user = None
+    self.from_user = None
+    self.device_time = None
+    self.start_ts = 0.0
 
   def prepare_device_for_run(self, command, device):
     super().prepare_device_for_run(command, device)
@@ -764,7 +779,27 @@ class UserSwitchCommandExecutor(ProfilerCommandExecutor):
   def trigger_system_event(self, command, device):
     print("Switching from the from-user, %s, to the to-user, %s." %
           (command.from_user, command.to_user))
+    self.to_user = command.to_user
+    self.from_user = command.from_user
+    self.device_time = device.get_device_time()
+    self.start_ts = time.time()
     device.perform_user_switch(command.to_user)
+
+  def is_trace_completed(self, profiler, device, process):
+    if time.time() - self.start_ts > USER_SWITCH_TIMEOUT_SECS:
+      print(
+          "\nWarning: User switch completion check timed out. Stopping trace.")
+      return True
+
+    try:
+      if device.check_user_stopped(self.from_user, self.device_time):
+        print("\nUser switch completed. Flushing trace data...")
+        time.sleep(2)
+        return True
+    except subprocess.SubprocessError:
+      # Suppress transient ADB drops/errors during active user switch transitions
+      pass
+    return super().is_trace_completed(profiler, device, process)
 
   def cleanup(self, command, device):
     if device.get_current_user() != command.original_user:
@@ -796,9 +831,9 @@ class BootCommandExecutor(ProfilerCommandExecutor):
       print("Tracing. Press CTRL+C to end.")
     device.wait_for_boot_to_complete()
     self.wait_for_trace(command, device, None)
-    if device.is_process_running(command.profiler):
+    if self.trace_cancelled:
       print("Trace interrupted.")
-      self.stop_process(device, command.profiler)
+    self.stop_process(device, command.profiler)
     return None
 
   def trigger_system_event(self, command, device):
@@ -819,13 +854,23 @@ class BootCommandExecutor(ProfilerCommandExecutor):
 
     return None
 
-  def is_trace_cancelled(self, profiler, device, process):
-    return not device.is_process_running(profiler) or self.trace_cancelled
+  def is_trace_completed(self, profiler, device, process):
+    return not device.is_process_running(profiler) or self.is_trace_cancelled(
+        profiler, device, process)
 
 
 class AppStartupCommandExecutor(ProfilerCommandExecutor):
 
+  def __init__(self):
+    super().__init__()
+    self.app_package = None
+    self.device_time = None
+    self.start_ts = 0.0
+
   def execute_run(self, command, device, config, run):
+    self.app_package = command.app
+    self.device_time = device.get_device_time()
+    self.start_ts = time.time()
     error = super().execute_run(command, device, config, run)
     if error is not None:
       return error
@@ -833,6 +878,15 @@ class AppStartupCommandExecutor(ProfilerCommandExecutor):
 
   def trigger_system_event(self, command, device):
     return device.start_package(command.app)
+
+  def is_trace_completed(self, profiler, device, process):
+    if time.time() - self.start_ts > APP_STARTUP_TIMEOUT_SECS:
+      print(
+          "\nWarning: App startup completion check timed out. Stopping trace.")
+      return True
+    if device.check_app_displayed(self.app_package, self.device_time):
+      return True
+    return super().is_trace_completed(profiler, device, process)
 
 
 class ScriptCommandExecutor(ProfilerCommandExecutor):
@@ -866,8 +920,8 @@ class ScriptCommandExecutor(ProfilerCommandExecutor):
 
     return None
 
-  def is_trace_cancelled(self, profiler, device, process):
-    return super().is_trace_cancelled(
+  def is_trace_completed(self, profiler, device, process):
+    return super().is_trace_completed(
         profiler, device, process) or self.script_process.poll() is not None
 
   def cleanup_for_run(self, command, device):

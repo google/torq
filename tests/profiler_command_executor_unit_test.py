@@ -761,6 +761,8 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
 
   @parameterized_profiler(setup_func=setUpSubtest)
   def test_kill_process_success(self, profiler):
+    self.mock_device.is_process_running.side_effect = (
+        lambda name: name in ("perfetto", "simpleperf"))
     self.mock_device.start_package.return_value = TEST_VALIDATION_ERROR
 
     error = self.executor.execute(self.command, self.mock_device)
@@ -777,6 +779,8 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
 
   @parameterized_profiler(setup_func=setUpSubtest)
   def test_kill_process_failure(self, profiler):
+    self.mock_device.is_process_running.side_effect = (
+        lambda name: name in ("perfetto", "simpleperf"))
     self.mock_device.start_package.return_value = TEST_VALIDATION_ERROR
     if profiler == "perfetto":
       self.mock_device.kill_process.side_effect = TEST_EXCEPTION

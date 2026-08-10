@@ -319,6 +319,34 @@ class AndroidDevice(Device):
           " see valid simpleperf events.")
     return None
 
+  def get_device_time(self):
+    res = self.shell.run(["shell", "date", "'+%m-%d %H:%M:%S.%3N'"],
+                         capture_output=True)
+    return res.stdout.decode("utf-8").strip().replace("'", "")
+
+  def check_app_displayed(self, package, start_time):
+    res = self.shell.run([
+        "shell", "logcat", "-d", "-T", f"'{start_time}'", "-s",
+        "ActivityTaskManager"
+    ],
+                         capture_output=True)
+    output = res.stdout.decode("utf-8")
+    for line in output.splitlines():
+      if "Displayed" in line and package in line:
+        return True
+    return False
+
+  def check_user_stopped(self, from_user, start_time):
+    res = self.shell.run([
+        "shell", "logcat", "-d", "-T", f"'{start_time}'", "-s", "UserController"
+    ],
+                         capture_output=True)
+    output = res.stdout.decode("utf-8")
+    for line in output.splitlines():
+      if f"finishUserStopped: should stop user {from_user}" in line:
+        return True
+    return False
+
 
 class QnxDevice(Device):
   QNX_PATH_ENV = "PATH=$PATH:/ifs/bin:/mnt/bin:/usr/bin"
