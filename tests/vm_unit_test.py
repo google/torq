@@ -34,31 +34,37 @@ class VmUnitTest(unittest.TestCase):
     self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_qnx_device = mock.create_autospec(QnxDevice, instance=True)
     self.mock_qnx_device.os.return_value = OsCodes.OS_QNX
+    self.torq_get_device_patcher = mock.patch(
+        'src.torq.get_device', autospec=True)
+    self.mock_torq_get_device = self.torq_get_device_patcher.start()
+    self.mock_torq_get_device.return_value = (self.mock_device, None)
+
+    self.vm_get_device_patcher = mock.patch('src.vm.get_device', autospec=True)
+    self.mock_vm_get_device = self.vm_get_device_patcher.start()
+    self.mock_vm_get_device.return_value = (self.mock_device, None)
 
   def tearDown(self):
+    self.torq_get_device_patcher.stop()
+    self.vm_get_device_patcher.stop()
     self.mock_device = None
     self.mock_qnx_device = None
 
-  @mock.patch('src.vm.get_device', autospec=True)
-  def test_set_primary(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_device, None)
+  def test_set_primary(self):
 
     run_cli(f"torq vm configure --primary {TEST_SERIAL}")
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, True)
+    self.mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
                                               DEFAULT_VSOCK_ADDR)
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
-  @mock.patch('src.vm.get_device', autospec=True)
-  def test_set_primary_with_machine_name(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_device, None)
+  def test_set_primary_with_machine_name(self):
 
     run_cli(f"torq vm configure --primary machine_name={TEST_SERIAL}")
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, True)
+    self.mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_device.set_prop.assert_any_call(TRACED_MACHINE_NAME_PROP,
                                               "machine_name")
@@ -67,43 +73,37 @@ class VmUnitTest(unittest.TestCase):
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
-  @mock.patch('src.vm.get_device', autospec=True)
-  def test_set_primary_with_tcp(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_device, None)
+  def test_set_primary_with_tcp(self):
 
     run_cli(f"torq vm configure --primary {TEST_SERIAL} --primary-ip 0.0.0.2")
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, True)
+    self.mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
                                               DEFAULT_IP_ADDR)
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
-  @mock.patch('src.vm.get_device', autospec=True)
-  def test_set_primary_with_custom_vsock_addr(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_device, None)
+  def test_set_primary_with_custom_vsock_addr(self):
 
     run_cli(
         f"torq vm configure --primary {TEST_SERIAL} --primary-addr vsock://5:4000"
     )
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, True)
+    self.mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
                                               "vsock://-1:4000")
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "1")
 
-  @mock.patch('src.vm.get_device', autospec=True)
-  def test_set_primary_with_custom_tcp_addr(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_device, None)
+  def test_set_primary_with_custom_tcp_addr(self):
 
     run_cli(
         f"torq vm configure --primary {TEST_SERIAL} --primary-addr 0.0.0.1:4000"
     )
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, True)
+    self.mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PRODUCER_PORT_PROP,
                                               "0.0.0.0:4000")
@@ -155,28 +155,24 @@ class VmUnitTest(unittest.TestCase):
     output = tmp_stderr.getvalue()
     self.assertIn("--primary can only be specified once", output)
 
-  @mock.patch('src.vm.get_device', autospec=True)
-  def test_set_secondary(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_device, None)
+  def test_set_secondary(self):
 
     run_cli(f"torq vm configure --primary-cid 4 --secondary {TEST_SERIAL}")
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, True)
+    self.mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PORT_PROP,
                                               "vsock://4:30001")
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "2")
 
-  @mock.patch('src.vm.get_device', autospec=True)
-  def test_set_secondary_with_machine_name(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_device, None)
+  def test_set_secondary_with_machine_name(self):
 
     run_cli(
         f"torq vm configure --primary-cid 4 --secondary guest_name={TEST_SERIAL}"
     )
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, True)
+    self.mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_device.set_prop.assert_any_call(TRACED_MACHINE_NAME_PROP,
                                               "guest_name")
@@ -185,13 +181,11 @@ class VmUnitTest(unittest.TestCase):
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "2")
 
-  @mock.patch('src.vm.get_device', autospec=True)
-  def test_set_secondary_with_ip(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_device, None)
+  def test_set_secondary_with_ip(self):
 
     run_cli(f"torq vm configure --primary-ip 0.0.0.0 --secondary {TEST_SERIAL}")
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, True)
+    self.mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_device.set_prop.assert_any_call(TRACED_RELAY_PORT_PROP,
                                               "0.0.0.0:30001")
@@ -237,16 +231,14 @@ class VmUnitTest(unittest.TestCase):
     output = tmp_stderr.getvalue()
     self.assertIn("--primary-addr can only be specified once", output)
 
-  @mock.patch('src.vm.get_device', autospec=True)
-  def test_set_multiple_machines(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_device, None)
+  def test_set_multiple_machines(self):
 
     run_cli(f"torq vm configure --primary-cid 4 --primary main={TEST_SERIAL} "
             "--secondary guest=test-serial2")
 
-    self.assertEqual(mock_get_device.call_count, 2)
-    mock_get_device.assert_any_call(TEST_SERIAL, True)
-    mock_get_device.assert_any_call("test-serial2", True)
+    self.assertEqual(self.mock_vm_get_device.call_count, 2)
+    self.mock_vm_get_device.assert_any_call(TEST_SERIAL, True)
+    self.mock_vm_get_device.assert_any_call("test-serial2", True)
 
     # Assert the primary machine
     self.mock_device.set_prop.assert_any_call(TRACED_MACHINE_NAME_PROP, "main")
@@ -260,66 +252,60 @@ class VmUnitTest(unittest.TestCase):
     # Assert the last call
     self.mock_device.set_prop.assert_called_with(TRACED_ENABLE_PROP, "2")
 
-  @mock.patch('src.vm.get_device', autospec=True)
-  def test_set_primary_qnx(self, mock_vm_get_device):
-    mock_vm_get_device.return_value = (self.mock_qnx_device, None)
+  def test_set_primary_qnx(self):
+    self.mock_vm_get_device.return_value = (self.mock_qnx_device, None)
 
     run_cli(f"torq vm configure --primary {TEST_SERIAL}")
 
-    mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
+    self.mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_qnx_device.set_traced_producer_relay_port.assert_called_once_with(
         DEFAULT_VSOCK_ADDR, None)
 
-  @mock.patch('src.vm.get_device', autospec=True)
-  def test_set_secondary_qnx(self, mock_vm_get_device):
-    mock_vm_get_device.return_value = (self.mock_qnx_device, None)
+  def test_set_secondary_qnx(self):
+    self.mock_vm_get_device.return_value = (self.mock_qnx_device, None)
 
     run_cli(f"torq vm configure --primary-cid 4 --secondary {TEST_SERIAL}")
 
-    mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
+    self.mock_vm_get_device.assert_called_once_with(TEST_SERIAL, True)
 
     self.mock_qnx_device.set_traced_relay.assert_called_once_with(
         "vsock://4:30001", None)
 
-  @mock.patch('src.torq.get_device', autospec=True)
-  def test_vm_relay_producer_enable_qnx(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_qnx_device, None)
+  def test_vm_relay_producer_enable_qnx(self):
+    self.mock_torq_get_device.return_value = (self.mock_qnx_device, None)
 
     run_cli(f"torq --serial {TEST_SERIAL} vm relay-producer enable")
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, False)
+    self.mock_torq_get_device.assert_called_once_with(TEST_SERIAL, False)
     self.mock_qnx_device.set_traced_producer_relay_port.assert_called_once_with(
         DEFAULT_VSOCK_ADDR, None)
 
-  @mock.patch('src.torq.get_device', autospec=True)
-  def test_vm_relay_producer_disable_qnx(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_qnx_device, None)
+  def test_vm_relay_producer_disable_qnx(self):
+    self.mock_torq_get_device.return_value = (self.mock_qnx_device, None)
 
     run_cli(f"torq --serial {TEST_SERIAL} vm relay-producer disable")
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, False)
+    self.mock_torq_get_device.assert_called_once_with(TEST_SERIAL, False)
     self.mock_qnx_device.set_traced_producer_relay_port.assert_called_once_with(
         None)
 
-  @mock.patch('src.torq.get_device', autospec=True)
-  def test_vm_traced_relay_enable_qnx(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_qnx_device, None)
+  def test_vm_traced_relay_enable_qnx(self):
+    self.mock_torq_get_device.return_value = (self.mock_qnx_device, None)
 
     run_cli(
         f"torq --serial {TEST_SERIAL} vm traced-relay enable vsock://4:30001")
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, False)
+    self.mock_torq_get_device.assert_called_once_with(TEST_SERIAL, False)
     self.mock_qnx_device.set_traced_relay.assert_called_once_with(
         "vsock://4:30001", None)
 
-  @mock.patch('src.torq.get_device', autospec=True)
-  def test_vm_traced_relay_disable_qnx(self, mock_get_device):
-    mock_get_device.return_value = (self.mock_qnx_device, None)
+  def test_vm_traced_relay_disable_qnx(self):
+    self.mock_torq_get_device.return_value = (self.mock_qnx_device, None)
 
     run_cli(f"torq --serial {TEST_SERIAL} vm traced-relay disable")
 
-    mock_get_device.assert_called_once_with(TEST_SERIAL, False)
+    self.mock_torq_get_device.assert_called_once_with(TEST_SERIAL, False)
     self.mock_qnx_device.set_traced_relay.assert_called_once_with(None)
 
 
