@@ -20,12 +20,12 @@ import os
 import sys
 import shutil
 import time
-import subprocess
 
 from pathlib import Path
 from contextlib import redirect_stderr, redirect_stdout
+from src.device import AndroidDevice
 from src.shell import AdbShell
-from tests.test_utils import run_cli
+from tests.test_utils import run_cli, adb_create_user, adb_delete_user, adb_set_enforce
 from perfetto.batch_trace_processor.api import BatchTraceProcessor
 from unittest.mock import patch
 
@@ -90,6 +90,9 @@ class TorqIntegrationTest(unittest.TestCase):
 
     if cls.serial2 and cls.serial2 not in cls.serials:
       raise RuntimeError("Provided serial2 not found via 'adb devices'.")
+
+    cls.device = AndroidDevice(AdbShell(cls.serial))
+    cls.device2 = AndroidDevice(AdbShell(cls.serial2)) if cls.serial2 else None
 
   @classmethod
   def tearDownClass(cls):
@@ -170,8 +173,7 @@ class TorqIntegrationTest(unittest.TestCase):
     num_runs = 3
     dur_sec = 3
     package = "com.android.car.settings"
-    subprocess.run(
-        ["adb", "-s", self.serial, "shell", "am", "force-stop", package])
+    self.device.force_stop_package(package)
     torq_output = self.run_torq(f"torq --serial {self.serial} -e app-startup "
                                 f"-a {package} -d {dur_sec * 1000} --no-ui -o "
                                 f"{self.test_run_dir} -r {num_runs}")
@@ -214,14 +216,8 @@ class TorqIntegrationTest(unittest.TestCase):
 
   def test_torq_user_switch(self):
     dur_sec = 15
-    expected_from_user = subprocess.check_output(
-        ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
-        text=True).strip()
-
-    user_output = subprocess.check_output(
-        ["adb", "-s", self.serial, "shell", "pm", "create-user", "TestUser"],
-        text=True)
-    expected_to_user = user_output.strip().split()[-1]
+    expected_from_user = str(self.device.get_current_user())
+    expected_to_user = str(adb_create_user(self.serial, "TestUser"))
 
     try:
       torq_output = self.run_torq(
@@ -253,19 +249,15 @@ class TorqIntegrationTest(unittest.TestCase):
             f"The trace shows user was switched to {actual_to_user}, "
             f"but we expected {expected_to_user}")
 
-        current_user = subprocess.check_output(
-            ["adb", "-s", self.serial, "shell", "am", "get-current-user"],
-            text=True).strip()
+        current_user = str(self.device.get_current_user())
         self.assertEqual(
             expected_from_user, current_user,
             f"The trace shows current user as {current_user}, "
             f"but expected {expected_from_user}")
 
     finally:
-      subprocess.run([
-          "adb", "-s", self.serial, "shell", "pm", "remove-user",
-          expected_to_user
-      ])
+      if expected_to_user is not None:
+        adb_delete_user(self.serial, expected_to_user)
 
   def test_torq_boot_event(self):
     dur_sec = 60
@@ -290,24 +282,20 @@ class TorqIntegrationTest(unittest.TestCase):
           "serial2 and primary_cid must both be provided for VM unified tracing test. Skipping test"
       )
 
-    traced_relay_exists = subprocess.run(
-        ["adb", "-s", self.serial2, "shell", "test", "-e", TRACED_RELAY_FILE])
-    if traced_relay_exists.returncode != 0:
+    if not self.device2.file_exists(TRACED_RELAY_FILE):
       self.skipTest(
           f"traced_relay binary is missing on secondary VM ({self.serial2}). "
           f"The secondary VM's Android build does not include traced_relay. "
           f"Skipping VM unified tracing test.")
 
-    is_traced_relay_executable = subprocess.run(
-        ["adb", "-s", self.serial2, "shell", "test", "-x", TRACED_RELAY_FILE])
-    if is_traced_relay_executable.returncode != 0:
+    if not self.device2.is_executable(TRACED_RELAY_FILE):
       self.skipTest(
           f"traced_relay binary is not executable on secondary VM ({self.serial2}). "
           f"The traced_relay binary exists but lacks executable permissions. "
           f"Skipping VM unified tracing test.")
 
-    subprocess.run(["adb", "-s", self.serial, "shell", "setenforce", "0"])
-    subprocess.run(["adb", "-s", self.serial2, "shell", "setenforce", "0"])
+    adb_set_enforce(self.serial, 0)
+    adb_set_enforce(self.serial2, 0)
 
     self.run_torq(
         f"torq --serial {self.serial} vm configure --primary android_primary="
