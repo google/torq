@@ -210,8 +210,14 @@ class AndroidDevice(Device):
     self.shell.run(["shell", "setprop", prop, "\"\""])
 
   def reboot(self):
+    is_sdv = False
+    try:
+      is_sdv = self.get_prop("ro.sdv.profile").strip() != "" or "sdv" in self.get_prop("ro.product.name").lower()
+    except Exception:
+      pass
     self.shell.run(["reboot"])
-    if not self.shell.wait_for_device(timeout=BOOT_COMPLETED_TIME_OUT_SECS):
+    timeout = 90 if is_sdv else BOOT_COMPLETED_TIME_OUT_SECS
+    if not self.shell.wait_for_device(timeout=timeout):
       raise Exception(("Device with serial %s took too long to start"
                        " rebooting." % self.shell.id()))
 
@@ -224,7 +230,13 @@ class AndroidDevice(Device):
     return command_output.stdout.decode("utf-8").strip() == "1"
 
   def wait_for_boot_to_complete(self):
-    if not poll_is_task_completed(BOOT_COMPLETED_TIME_OUT_SECS,
+    timeout = BOOT_COMPLETED_TIME_OUT_SECS
+    try:
+      if self.get_prop("ro.sdv.profile").strip() != "" or "sdv" in self.get_prop("ro.product.name").lower():
+        timeout = 90
+    except Exception:
+      pass
+    if not poll_is_task_completed(timeout,
                                   POLLING_INTERVAL_SECS,
                                   self.is_boot_completed):
       raise Exception(("Device with serial %s took too long to finish"
@@ -274,7 +286,7 @@ class AndroidDevice(Device):
   def get_prop(self, prop):
     return self.shell.run(
         ["shell", "getprop", prop],
-        capture_output=True).stdout.decode("utf-8").split("\n")[0]
+        capture_output=True).stdout.decode("utf-8").split("\n")[0].strip()
 
   def get_android_sdk_version(self):
     return int(self.get_prop("ro.build.version.sdk"))

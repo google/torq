@@ -512,6 +512,12 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
     self.mock_device.id.return_value = TEST_SERIAL
+    self.mock_device.file_exists.return_value = True
+    self.mock_device.get_prop.side_effect = lambda prop: {
+        "persist.debug.perfetto.boottrace": "1",
+        "ro.sdv.profile": "",
+        "ro.product.name": "generic",
+    }.get(prop, "")
     self.mock_poll_patcher = mock.patch(
         'src.profiler.poll_is_task_completed', return_value=True)
     self.mock_poll_patcher.start()
@@ -624,6 +630,62 @@ class BootCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(str(e.exception), TEST_ERROR_MSG)
     self.assertEqual(self.mock_device.reboot.call_count, 1)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+  def test_execute_boottrace_file_not_found(self):
+    self.mock_device.file_exists.side_effect = lambda path: path == "/data/misc/perfetto-traces"
+
+    error = self.executor.execute(self.command, self.mock_device)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(error.message, "Failed to write boottrace config to device.")
+    self.assertEqual(error.suggestion,
+                     "Check if device has /data/misc/perfetto-configs/ directory and is writable.")
+    self.assertEqual(self.mock_device.reboot.call_count, 0)
+
+  def test_execute_perfetto_boottrace_prop_not_set(self):
+    self.mock_device.get_prop.side_effect = lambda prop: {
+        "persist.debug.perfetto.boottrace": "0",
+        "ro.sdv.profile": "",
+        "ro.product.name": "generic",
+    }.get(prop, "")
+
+    error = self.executor.execute(self.command, self.mock_device)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(error.message, "Failed to set persist.debug.perfetto.boottrace to 1.")
+    self.assertEqual(error.suggestion,
+                     "Check if device is rooted and allows setting properties.")
+    self.assertEqual(self.mock_device.reboot.call_count, 0)
+
+  def test_execute_sdv_boottrace_prop_not_set_on_sdv(self):
+    self.mock_device.get_prop.side_effect = lambda prop: {
+        "persist.debug.perfetto.boottrace": "1",
+        "ro.sdv.profile": "ivi",
+        "ro.product.name": "generic_sdv",
+        "persist.debug.sdv.boottrace": "0",
+    }.get(prop, "")
+
+    error = self.executor.execute(self.command, self.mock_device)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(error.message, "Failed to set persist.debug.sdv.boottrace to 1 on SDV target.")
+    self.assertEqual(error.suggestion,
+                     "Check if device is rooted and allows setting properties.")
+    self.assertEqual(self.mock_device.reboot.call_count, 0)
+
+  def test_execute_sdv_boottrace_success_on_sdv(self):
+    self.mock_device.get_prop.side_effect = lambda prop: {
+        "persist.debug.perfetto.boottrace": "1",
+        "ro.sdv.profile": "ivi",
+        "ro.product.name": "generic_sdv",
+        "persist.debug.sdv.boottrace": "1",
+    }.get(prop, "")
+
+    error = self.executor.execute(self.command, self.mock_device)
+
+    self.assertEqual(error, None)
+    self.assertEqual(self.mock_device.reboot.call_count, 1)
+    self.assertEqual(self.mock_device.pull_file.call_count, 1)
 
 
 class AppStartupExecutorUnitTest(unittest.TestCase):
