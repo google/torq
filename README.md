@@ -11,33 +11,40 @@ optimizing their systems and bug detection rather than navigating fragmented
 tooling solutions.
 
 
-## Getting Started
+## Installation
 
-To start using **torq** follow these steps:
+### Option 1: Python Package (pipx / pip / uv)
+For users without the Android source repository or Bazel:
 
-- Go to *torq*'s directory and build it:
+```bash
+pipx install google-torq
+```
+
+---
+
+### Option 2: Building from Source (Bazel)
+For developers contributing to the Torq codebase:
 
 ```bash
 bazel build //:torq
 export PATH="$(pwd)/bazel-bin:$PATH"
+./bazel-bin/torq --help
 ```
 
+You can also build the standalone universal prebuilt executable locally:
+```bash
+python3 tools/build_prebuilt.py
+```
+
+## Getting Started
+
+Once installed:
 - Connect to an Android device or start an emulator.
 - Ensure the connected device appears in `adb devices`.
-- Capture a perfetto trace using *torq*:
+- Capture a Perfetto trace using **torq**:
 
 ```bash
 torq -d 7000
-```
-
-## Building Torq
-
-**torq** uses [Bazel](https://bazel.build) as its build system.
-
-To build and use torq using [Bazel](https://bazel.build/), run:
-```bash
-bazel build //:torq
-./bazel-bin/torq --help
 ```
 
 ## Quick one-line commands

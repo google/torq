@@ -2,3 +2,7 @@
 /bazel-*
 .vscode
 __pycache__/
+dist/
+build/
+*.egg-info/
+*.pyz

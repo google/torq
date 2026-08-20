@@ -154,6 +154,27 @@ py_test(
     ],
 )
 
+py_binary(
+    name = "build_prebuilt",
+    srcs = ["tools/build_prebuilt.py"],
+    main = "tools/build_prebuilt.py",
+    deps = [":torq_lib"],
+)
+
+py_test(
+    name = "prebuilt_unit_test",
+    srcs = ["tests/prebuilt_unit_test.py"],
+    tags = ["unit"],
+    data = [
+        "main.py",
+        "tools/build_prebuilt.py",
+    ] + glob(["src/**/*.py"]),
+    deps = [
+        ":torq_lib",
+        ":torq_test_lib",
+    ],
+)
+
 py_test(
     name = "test_android_integration",
     srcs = ["tests/test_android_integration.py"],
