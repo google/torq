@@ -106,8 +106,6 @@ def open_trace(path, origin, use_trace_processor):
   if isinstance(trace_processor_path, ValidationError):
     return trace_processor_path
   if trace_processor_path is not None:
-    # Pass the arguments as a list without a shell so that the trace path is
-    # never interpreted by a shell, even if it contains shell metacharacters.
     process = subprocess.Popen([trace_processor_path, "--httpd", path],
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT)
