@@ -23,12 +23,14 @@ import subprocess
 import sys
 import os
 import webbrowser
+from contextlib import redirect_stdout
 from unittest import mock
 from src.open_ui_utils import download_trace_processor, open_trace
-from tests.test_utils import generate_mock_completed_process
+from tests.test_utils import generate_mock_completed_process, run_cli
 
 ANDROID_BUILD_TOP = "/main"
 TEST_FILE = "file.txtpb"
+TEST_FILE_WITH_SHELL_METACHARACTERS = "/tmp/trace;touch injected;.perfetto-trace"
 TORQ_TEMP_DIR = "/tmp/.torq"
 PERFETTO_BINARY = "/trace_processor"
 TORQ_TEMP_TRACE_PROCESSOR = TORQ_TEMP_DIR + PERFETTO_BINARY
@@ -188,6 +190,34 @@ class OpenUiUnitTest(unittest.TestCase):
         "out of torq until you are done viewing the trace. Press "
         "CTRL+C to exit torq and close the trace_processor. "
         "#####\033[0m\nProcess was killed.\n")
+
+  @mock.patch.dict(
+      os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
+  @mock.patch('src.torq.get_device', autospec=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(os.path, "getsize", autospec=True)
+  @mock.patch.object(webbrowser, "open_new_tab", autospec=True)
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_open_trace_use_trace_processor_path_with_shell_metacharacters(
+      self, mock_popen, mock_open_new_tab, mock_getsize, mock_exists,
+      mock_get_device):
+    mock_get_device.return_value = (None, None)
+    mock_open_new_tab.return_value = None
+    mock_getsize.return_value = 0
+    mock_exists.return_value = True
+    mock_popen.return_value.stdout = BytesIO(b'Trace loaded')
+
+    with redirect_stdout(io.StringIO()):
+      run_cli(f"torq open '{TEST_FILE_WITH_SHELL_METACHARACTERS}'"
+              " --use_trace_processor")
+
+    # The trace path must be passed as a single argument, without a shell.
+    expected_args = [
+        ANDROID_BUILD_TOP + ANDROID_TRACE_PROCESSOR, "--httpd",
+        TEST_FILE_WITH_SHELL_METACHARACTERS
+    ]
+    mock_popen.assert_called_once_with(
+        expected_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
   @mock.patch.object(os.path, "getsize", autospec=True)
   @mock.patch.object(webbrowser, "open_new_tab", autospec=True)
