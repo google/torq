@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import io
 import os
 import unittest
 import signal
@@ -21,12 +22,13 @@ import subprocess
 import tempfile
 import time
 import pathlib
+from contextlib import redirect_stderr
 from unittest import mock
 from src.base import ValidationError
 from src.device import AndroidDevice, OsCodes
 from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR, get_executor,
                           ProfilerCommand)
-from tests.test_utils import (generate_mock_completed_process,
+from tests.test_utils import (generate_mock_completed_process, parameterized,
                               parameterized_profiler, run_cli)
 
 PROFILER_COMMAND_TYPE = "profiler"
@@ -35,9 +37,10 @@ TEST_EXCEPTION = Exception(TEST_ERROR_MSG)
 TEST_VALIDATION_ERROR = ValidationError(TEST_ERROR_MSG, None)
 TEST_SERIAL = "test-serial"
 DEFAULT_PERFETTO_CONFIG = "default"
-TEST_USER_ID_1 = 0
-TEST_USER_ID_2 = 1
-TEST_USER_ID_3 = 2
+TEST_SYSTEM_USER_ID = 0
+TEST_USER_ID_1 = 10
+TEST_USER_ID_2 = 11
+TEST_USER_ID_3 = 12
 TEST_PACKAGE_1 = "test-package-1"
 TEST_PACKAGE_2 = "test-package-2"
 TEST_PACKAGE_3 = "test-package-3"
@@ -66,7 +69,7 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.create_directory.return_value = None
     self.mock_device.id.return_value = TEST_SERIAL
     self.mock_device.is_headless_system_user_mode.return_value = False
-    self.mock_device.get_system_user.return_value = TEST_USER_ID_1
+    self.mock_device.get_system_user.return_value = TEST_SYSTEM_USER_ID
     self.mock_process = mock.Mock()
     self.mock_process.is_running.return_value = False
     self.mock_sleep_patcher = mock.patch.object(
@@ -345,7 +348,7 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.mock_device.create_directory.return_value = None
     self.mock_device.id.return_value = TEST_SERIAL
     self.mock_device.is_headless_system_user_mode.return_value = False
-    self.mock_device.get_system_user.return_value = TEST_USER_ID_1
+    self.mock_device.get_system_user.return_value = TEST_SYSTEM_USER_ID
     self.mock_process = mock.Mock()
     self.mock_process.is_running.return_value = False
     self.mock_poll_patcher = mock.patch(
@@ -413,15 +416,26 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.mock_device.perform_user_switch.call_count, 0)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
-  @parameterized_profiler(setup_func=setUpSubtest)
+  # Perfetto only: the HSUM check does not depend on the profiler, and running
+  # simpleperf through the CLI needs host-side setup (symbols and scripts).
+  @parameterized(["perfetto"], setup_func=setUpSubtest)
   @mock.patch('src.torq.get_device', autospec=True)
   def test_execute_system_user_in_hsum_error(self, profiler, mock_get_device):
     mock_get_device.return_value = (self.mock_device, None)
     self.mock_device.is_headless_system_user_mode.return_value = True
+    tmp_stderr = io.StringIO()
 
-    run_cli(f"torq -e user-switch --from-user {TEST_USER_ID_2} --to-user"
-            f" {TEST_USER_ID_1} -p {profiler}")
+    with redirect_stderr(tmp_stderr):
+      run_cli(f"torq -e user-switch --from-user {TEST_USER_ID_1} --to-user"
+              f" {TEST_SYSTEM_USER_ID} -p {profiler}")
 
+    output = tmp_stderr.getvalue()
+    self.assertIn(
+        f"Cannot perform user-switch on device with serial {TEST_SERIAL}"
+        " running in Headless System User Mode (HSUM), where user"
+        f" {TEST_SYSTEM_USER_ID} is a non-interactive background system"
+        " user.", output)
+    self.assertIn("Choose an interactive user.", output)
     self.assertEqual(self.mock_device.perform_user_switch.call_count, 0)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 

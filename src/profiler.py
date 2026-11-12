@@ -532,7 +532,7 @@ class ProfilerCommand(Command):
              f" serial {device.id()} running in Headless System User Mode"
              f" (HSUM), where user {system_user} is a non-interactive background"
              " system user."),
-            ("Choose interactive secondary users"),
+            ("Choose an interactive user."),
         )
     if self.from_user == self.to_user:
       return ValidationError(
