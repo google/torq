@@ -24,6 +24,12 @@ from .utils import (PERFETTO_TRACE_FILE, poll_is_task_completed,
 
 BOOT_COMPLETED_TIME_OUT_SECS = 30
 SIMPLEPERF_TRACE_FILE = "/tmp/simpleperf-traces/perf.data"
+TRACED_ENABLE_PROP = "persist.traced.enable"
+TRACED_MACHINE_NAME_PROP = "traced.machine_name"
+TRACED_RELAY_PRODUCER_PORT_PROP = "traced.relay_producer_port"
+TRACED_RELAY_PORT_PROP = "traced_relay.relay_port"
+TRACED_HYPERVISOR_PROP = "ro.traced.hypervisor"
+TRACED_RELAY_FILE = "/system/bin/traced_relay"
 
 
 def get_device(serial, is_device_required):
@@ -107,6 +113,16 @@ class Device(ABC):
 
   @abstractmethod
   def start_perfetto_trace(self, config):
+    raise NotImplementedError
+
+  @abstractmethod
+  def set_traced_relay(self, relay_port, machine_name=None):
+    raise NotImplementedError
+
+  @abstractmethod
+  def set_traced_producer_relay_port(self,
+                                     relay_producer_port,
+                                     machine_name=None):
     raise NotImplementedError
 
 
@@ -208,6 +224,48 @@ class AndroidDevice(Device):
 
   def clear_prop(self, prop):
     self.shell.run(["shell", "setprop", prop, "\"\""])
+
+  def set_traced_relay(self, relay_port, machine_name=None):
+    if relay_port is None:
+      self.set_prop(TRACED_ENABLE_PROP, "1")
+      return None
+
+    if not self.file_exists(TRACED_RELAY_FILE):
+      return ValidationError(
+          "traced_relay binary is missing on secondary VM.",
+          "The secondary VM's Android build does not include traced_relay. Skipping VM unified tracing configuration."
+      )
+
+    if not self.is_executable(TRACED_RELAY_FILE):
+      return ValidationError(
+          "traced_relay binary is not executable on secondary VM.",
+          "The traced_relay binary exists but lacks executable permissions. Skipping VM unified tracing configuration."
+      )
+
+    if machine_name is not None:
+      self.set_prop(TRACED_MACHINE_NAME_PROP, machine_name)
+    if len(self.get_prop(TRACED_HYPERVISOR_PROP)) == 0:
+      # Traced_relay can only be used in virtualized environments,
+      # therefore set the |TRACED_HYPERVISOR_PROP| to true if
+      # enabling traced_relay.
+      print(f"Setting sysprop \"{TRACED_HYPERVISOR_PROP}\" to \"true\".")
+      self.set_prop(TRACED_HYPERVISOR_PROP, "true")
+    self.set_prop(TRACED_RELAY_PORT_PROP, relay_port)
+    self.set_prop(TRACED_ENABLE_PROP, "2")
+    return None
+
+  def set_traced_producer_relay_port(self,
+                                     relay_producer_port,
+                                     machine_name=None):
+    self.set_prop(TRACED_ENABLE_PROP, "0")
+    if relay_producer_port is not None:
+      if machine_name is not None:
+        self.set_prop(TRACED_MACHINE_NAME_PROP, machine_name)
+      self.set_prop(TRACED_RELAY_PRODUCER_PORT_PROP, relay_producer_port)
+    else:
+      self.clear_prop(TRACED_RELAY_PRODUCER_PORT_PROP)
+    self.set_prop(TRACED_ENABLE_PROP, "1")
+    return None
 
   def reboot(self):
     self.shell.run(["reboot"])
