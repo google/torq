@@ -15,18 +15,12 @@
 #
 
 from .base import Command, ValidationError
-from .device import get_device, OsCodes
+from .device import get_device
 from .utils import are_mutually_exclusive, extract_port, UniqueStore
 
 DEFAULT_COMMS_PORT = "30001"
 DEFAULT_IP_ADDR = "0.0.0.0:" + DEFAULT_COMMS_PORT
 DEFAULT_VSOCK_ADDR = "vsock://-1:" + DEFAULT_COMMS_PORT
-TRACED_ENABLE_PROP = "persist.traced.enable"
-TRACED_MACHINE_NAME_PROP = "traced.machine_name"
-TRACED_RELAY_PRODUCER_PORT_PROP = "traced.relay_producer_port"
-TRACED_RELAY_PORT_PROP = "traced_relay.relay_port"
-TRACED_HYPERVISOR_PROP = "ro.traced.hypervisor"
-TRACED_RELAY_FILE = "/system/bin/traced_relay"
 
 
 def add_vm_parser(subparsers):
@@ -226,68 +220,15 @@ def configure_execute(args):
 
 def traced_relay_execute(command, device, machine_name=None):
   if command.subcommand == 'enable':
-    match device.os():
-      case OsCodes.OS_ANDROID:
-        # TODO(jahdiel): Standardize the device API with the
-        # set_traced_relay method. Eliminates the need for the match
-        # statement.
-
-        if not device.file_exists(TRACED_RELAY_FILE):
-          return ValidationError(
-              "traced_relay binary is missing on secondary VM.",
-              "The secondary VM's Android build does not include traced_relay. Skipping VM unified tracing configuration."
-          )
-
-        if not device.is_executable(TRACED_RELAY_FILE):
-          return ValidationError(
-              "traced_relay binary is not executable on secondary VM.",
-              "The traced_relay binary exists but lacks executable permissions. Skipping VM unified tracing configuration."
-          )
-
-        if machine_name is not None:
-          device.set_prop(TRACED_MACHINE_NAME_PROP, machine_name)
-        if len(device.get_prop(TRACED_HYPERVISOR_PROP)) == 0:
-          # Traced_relay can only be used in virtualized environments,
-          # therefore set the |TRACED_HYPERVISOR_PROP| to true if
-          # enabling traced_relay.
-          print(f"Setting sysprop \"{TRACED_HYPERVISOR_PROP}\" to \"true\".")
-          device.set_prop(TRACED_HYPERVISOR_PROP, "true")
-        device.set_prop(TRACED_RELAY_PORT_PROP, command.relay_port)
-        device.set_prop(TRACED_ENABLE_PROP, "2")
-      case OsCodes.OS_QNX:
-        device.set_traced_relay(command.relay_port, machine_name)
-  else:  # disable
-    match device.os():
-      case OsCodes.OS_ANDROID:
-        device.set_prop(TRACED_ENABLE_PROP, "1")
-      case OsCodes.OS_QNX:
-        device.set_traced_relay(None)
-  return None
+    return device.set_traced_relay(command.relay_port, machine_name)
+  return device.set_traced_relay(None)
 
 
 def relay_producer_execute(command, device, machine_name=None):
-  match device.os():
-    case OsCodes.OS_ANDROID:
-      # TODO(jahdiel): Standardize the device API with the
-      # set_traced_producer_relay_port method. Eliminates the need
-      # for the match statement.
-      device.set_prop(TRACED_ENABLE_PROP, "0")
-      if command.subcommand == 'enable':
-        if machine_name is not None:
-          device.set_prop(TRACED_MACHINE_NAME_PROP, machine_name)
-        device.set_prop(TRACED_RELAY_PRODUCER_PORT_PROP,
-                        command.relay_prod_port)
-      else:  # disable
-        device.clear_prop(TRACED_RELAY_PRODUCER_PORT_PROP)
-      device.set_prop(TRACED_ENABLE_PROP, "1")
-    case OsCodes.OS_QNX:
-      if command.subcommand == 'enable':
-        device.set_traced_producer_relay_port(command.relay_prod_port,
-                                              machine_name)
-      else:  # disable
-        device.set_traced_producer_relay_port(None)
-
-  return None
+  if command.subcommand == 'enable':
+    return device.set_traced_producer_relay_port(command.relay_prod_port,
+                                                 machine_name)
+  return device.set_traced_producer_relay_port(None)
 
 
 def execute_vm_command(args, device):

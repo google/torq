@@ -14,13 +14,14 @@
 # limitations under the License.
 #
 
+import functools
 import io
 import unittest
 from contextlib import redirect_stderr
-from src.device import AndroidDevice, OsCodes, QnxDevice
-from src.vm import (DEFAULT_IP_ADDR, TRACED_ENABLE_PROP,
-                    TRACED_MACHINE_NAME_PROP, TRACED_RELAY_PORT_PROP,
-                    TRACED_RELAY_PRODUCER_PORT_PROP, DEFAULT_VSOCK_ADDR)
+from src.device import (AndroidDevice, OsCodes, QnxDevice, TRACED_ENABLE_PROP,
+                        TRACED_MACHINE_NAME_PROP, TRACED_RELAY_PORT_PROP,
+                        TRACED_RELAY_PRODUCER_PORT_PROP)
+from src.vm import DEFAULT_IP_ADDR, DEFAULT_VSOCK_ADDR
 from tests.test_utils import run_cli
 from unittest import mock
 
@@ -32,6 +33,13 @@ class VmUnitTest(unittest.TestCase):
   def setUp(self):
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.os.return_value = OsCodes.OS_ANDROID
+    # Run the real AndroidDevice traced relay methods on the mocked device, so
+    # that the tests can check the sysprops they set.
+    self.mock_device.set_traced_relay.side_effect = functools.partial(
+        AndroidDevice.set_traced_relay, self.mock_device)
+    self.mock_device.set_traced_producer_relay_port.side_effect = (
+        functools.partial(AndroidDevice.set_traced_producer_relay_port,
+                          self.mock_device))
     self.mock_qnx_device = mock.create_autospec(QnxDevice, instance=True)
     self.mock_qnx_device.os.return_value = OsCodes.OS_QNX
     self.torq_get_device_patcher = mock.patch(
