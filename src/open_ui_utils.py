@@ -106,11 +106,9 @@ def open_trace(path, origin, use_trace_processor):
   if isinstance(trace_processor_path, ValidationError):
     return trace_processor_path
   if trace_processor_path is not None:
-    process = subprocess.Popen(
-        "%s --httpd %s" % (trace_processor_path, path),
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT)
+    process = subprocess.Popen([trace_processor_path, "--httpd", path],
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT)
     print("\033[93m##### Loading trace. #####")
     if wait_for_output("Trace loaded", process, WAIT_FOR_TRACE_PROCESSOR_MS):
       process.kill()
