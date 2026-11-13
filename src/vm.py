@@ -228,7 +228,7 @@ def traced_relay_execute(command, device, machine_name=None):
   if command.subcommand == 'enable':
     match device.os():
       case OsCodes.OS_ANDROID:
-        # TODO(jahdiel): Standardize the device API with the
+        # TODO(samueldjohnson): Standardize the device API with the
         # set_traced_relay method. Eliminates the need for the match
         # statement.
 
@@ -268,7 +268,7 @@ def traced_relay_execute(command, device, machine_name=None):
 def relay_producer_execute(command, device, machine_name=None):
   match device.os():
     case OsCodes.OS_ANDROID:
-      # TODO(jahdiel): Standardize the device API with the
+      # TODO(samueldjohnson): Standardize the device API with the
       # set_traced_producer_relay_port method. Eliminates the need
       # for the match statement.
       device.set_prop(TRACED_ENABLE_PROP, "0")
