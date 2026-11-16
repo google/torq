@@ -514,6 +514,11 @@ class ProfilerCommand(Command):
         return self.validate_app_startup(device)
 
   def validate_user_switch(self, device):
+    if device.os() != OsCodes.OS_ANDROID:
+      return ValidationError(
+          ("Cannot perform user-switch on device with serial"
+           f" {device.id()} because user-switch is only supported on Android"
+           " devices."), "Use an Android device to perform a user-switch.")
     error = device.user_exists(self.to_user)
     if error is not None:
       return error

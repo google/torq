@@ -25,10 +25,10 @@ import pathlib
 from contextlib import redirect_stderr
 from unittest import mock
 from src.base import ValidationError
-from src.device import AndroidDevice, OsCodes
+from src.device import AndroidDevice, OsCodes, QnxDevice
 from src.profiler import (DEFAULT_DUR_MS, DEFAULT_OUT_DIR, get_executor,
                           ProfilerCommand)
-from tests.test_utils import (generate_mock_completed_process, parameterized,
+from tests.test_utils import (generate_mock_completed_process,
                               parameterized_profiler, run_cli)
 
 PROFILER_COMMAND_TYPE = "profiler"
@@ -416,18 +416,18 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.mock_device.perform_user_switch.call_count, 0)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
 
-  # Perfetto only: the HSUM check does not depend on the profiler, and running
-  # simpleperf through the CLI needs host-side setup (symbols and scripts).
-  @parameterized(["perfetto"], setup_func=setUpSubtest)
   @mock.patch('src.torq.get_device', autospec=True)
-  def test_execute_system_user_in_hsum_error(self, profiler, mock_get_device):
+  def test_execute_system_user_in_hsum_error(self, mock_get_device):
+    # Perfetto only: the HSUM check does not depend on the profiler, and running
+    # simpleperf through the CLI needs host-side setup (symbols and scripts).
+    self.setUpSubtest("perfetto")
     mock_get_device.return_value = (self.mock_device, None)
     self.mock_device.is_headless_system_user_mode.return_value = True
     tmp_stderr = io.StringIO()
 
     with redirect_stderr(tmp_stderr):
       run_cli(f"torq -e user-switch --from-user {TEST_USER_ID_1} --to-user"
-              f" {TEST_SYSTEM_USER_ID} -p {profiler}")
+              f" {TEST_SYSTEM_USER_ID} -p perfetto")
 
     output = tmp_stderr.getvalue()
     self.assertIn(
@@ -438,6 +438,26 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     self.assertIn("Choose an interactive user.", output)
     self.assertEqual(self.mock_device.perform_user_switch.call_count, 0)
     self.assertEqual(self.mock_device.pull_file.call_count, 0)
+
+  @mock.patch('src.torq.get_device', autospec=True)
+  def test_execute_non_android_device_error(self, mock_get_device):
+    # Perfetto only: simpleperf is not supported on non-Android devices.
+    self.setUpSubtest("perfetto")
+    mock_qnx_device = mock.create_autospec(QnxDevice, instance=True)
+    mock_qnx_device.os.return_value = OsCodes.OS_QNX
+    mock_qnx_device.id.return_value = TEST_SERIAL
+    mock_get_device.return_value = (mock_qnx_device, None)
+    tmp_stderr = io.StringIO()
+
+    with redirect_stderr(tmp_stderr):
+      run_cli(f"torq -e user-switch --to-user {TEST_USER_ID_2} -p perfetto")
+
+    output = tmp_stderr.getvalue()
+    self.assertIn(
+        f"Cannot perform user-switch on device with serial {TEST_SERIAL}"
+        " because user-switch is only supported on Android devices.", output)
+    self.assertIn("Use an Android device to perform a user-switch.", output)
+    mock_qnx_device.start_perfetto_trace.assert_not_called()
 
   @parameterized_profiler(setup_func=setUpSubtest)
   @mock.patch.object(subprocess, "run", autospec=True)

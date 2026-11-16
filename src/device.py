@@ -209,7 +209,8 @@ class AndroidDevice(Device):
     self.shell.run(["shell", "am", "switch-user", str(user)])
 
   def is_headless_system_user_mode(self):
-    return self.get_prop("ro.fw.mu.headless_system_user") == "true"
+    value = self.get_prop("ro.fw.mu.headless_system_user").lower()
+    return value in ("true", "1")
 
   def write_to_file(self, file_path, host_file_string):
     self.shell.run(["shell", f"cat > {file_path} {host_file_string}"])
@@ -285,7 +286,7 @@ class AndroidDevice(Device):
   def get_prop(self, prop):
     return self.shell.run(
         ["shell", "getprop", prop],
-        capture_output=True).stdout.decode("utf-8").split("\n")[0]
+        capture_output=True).stdout.decode("utf-8").split("\n")[0].strip()
 
   def get_android_sdk_version(self):
     return int(self.get_prop("ro.build.version.sdk"))
