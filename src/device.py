@@ -22,6 +22,7 @@ from .shell import AdbShell, OsCodes, get_shell
 from .utils import (PERFETTO_TRACE_FILE, poll_is_task_completed,
                     POLLING_INTERVAL_SECS, ShellExitCodes)
 
+ANDROID_SYSTEM_USER_ID = 0
 BOOT_COMPLETED_TIME_OUT_SECS = 30
 SIMPLEPERF_TRACE_FILE = "/tmp/simpleperf-traces/perf.data"
 TRACED_ENABLE_PROP = "persist.traced.enable"
@@ -213,8 +214,15 @@ class AndroidDevice(Device):
                                     capture_output=True)
     return int(command_output.stdout.decode("utf-8").split()[0])
 
+  def get_system_user(self):
+    return ANDROID_SYSTEM_USER_ID
+
   def perform_user_switch(self, user):
     self.shell.run(["shell", "am", "switch-user", str(user)])
+
+  def is_headless_system_user_mode(self):
+    is_hsum_user_value = self.get_prop("ro.fw.mu.headless_system_user").lower()
+    return is_hsum_user_value in ("true", "1")
 
   def write_to_file(self, file_path, host_file_string):
     self.shell.run(["shell", f"cat > {file_path} {host_file_string}"])
@@ -332,7 +340,7 @@ class AndroidDevice(Device):
   def get_prop(self, prop):
     return self.shell.run(
         ["shell", "getprop", prop],
-        capture_output=True).stdout.decode("utf-8").split("\n")[0]
+        capture_output=True).stdout.decode("utf-8").split("\n")[0].strip()
 
   def get_android_sdk_version(self):
     return int(self.get_prop("ro.build.version.sdk"))

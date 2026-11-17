@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO(jahdiel): Update the file structure such that
+# TODO(samueldjohnson): Update the file structure such that
 #                we use absolute paths and the path looks
 #                something like torq.torq
 from src import torq
