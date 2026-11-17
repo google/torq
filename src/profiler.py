@@ -514,6 +514,11 @@ class ProfilerCommand(Command):
         return self.validate_app_startup(device)
 
   def validate_user_switch(self, device):
+    if device.os() != OsCodes.OS_ANDROID:
+      return ValidationError(
+          ("Cannot perform user-switch on device with serial"
+           f" {device.id()} because user-switch is only supported on Android"
+           " devices."), "Use an Android device to perform a user-switch.")
     error = device.user_exists(self.to_user)
     if error is not None:
       return error
@@ -524,6 +529,16 @@ class ProfilerCommand(Command):
       error = device.user_exists(self.from_user)
       if error is not None:
         return error
+    if device.is_headless_system_user_mode():
+      system_user = device.get_system_user()
+      if self.to_user == system_user or self.from_user == system_user:
+        return ValidationError(
+            ("Cannot perform user-switch on device with"
+             f" serial {device.id()} running in Headless System User Mode"
+             f" (HSUM), where user {system_user} is a non-interactive background"
+             " system user."),
+            ("Choose an interactive user."),
+        )
     if self.from_user == self.to_user:
       return ValidationError(
           "Cannot perform user-switch to user %s because"
