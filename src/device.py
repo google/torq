@@ -209,8 +209,8 @@ class AndroidDevice(Device):
     self.shell.run(["shell", "am", "switch-user", str(user)])
 
   def is_headless_system_user_mode(self):
-    value = self.get_prop("ro.fw.mu.headless_system_user").lower()
-    return value in ("true", "1")
+    is_hsum_user_value = self.get_prop("ro.fw.mu.headless_system_user").lower()
+    return is_hsum_user_value in ("true", "1")
 
   def write_to_file(self, file_path, host_file_string):
     self.shell.run(["shell", f"cat > {file_path} {host_file_string}"])
