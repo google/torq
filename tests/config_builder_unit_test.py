@@ -120,7 +120,6 @@ COMMON_DEFAULT_ATRACE_EVENTS = f'''\
       atrace_apps: "*"'''
 
 COMMON_DEFAULT_CONFIG_BEGINNING_STRING = f'''\
-<<EOF
 
 buffers: {{
   size_kb: 4096
@@ -218,8 +217,7 @@ DEFAULT_CONFIG_9000_DUR_MS = f'''\
 {COMMON_DEFAULT_ATRACE_EVENTS}
 {COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 duration_ms: {TEST_DUR_MS}
-{COMMON_CONFIG_ENDING_STRING}
-EOF'''
+{COMMON_CONFIG_ENDING_STRING}'''
 
 LIGHTWEIGHT_CONFIG_9000_DUR_MS = f'''\
 {COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
@@ -274,8 +272,7 @@ data_sources: {{
       atrace_apps: "android:ui"
 {COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 duration_ms: {TEST_DUR_MS}
-{COMMON_CONFIG_ENDING_STRING}
-EOF'''
+{COMMON_CONFIG_ENDING_STRING}'''
 
 MEMORY_CONFIG_9000_DUR_MS = f'''\
 {COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
@@ -386,8 +383,7 @@ data_sources {{
   producer_name_filter: "perfetto.traced_probes"
 }}
 duration_ms: {TEST_DUR_MS}
-{COMMON_CONFIG_ENDING_STRING}
-EOF'''
+{COMMON_CONFIG_ENDING_STRING}'''
 
 DEFAULT_CONFIG_EXCLUDED_FTRACE_EVENTS = f'''\
 {COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
@@ -425,8 +421,7 @@ DEFAULT_CONFIG_EXCLUDED_FTRACE_EVENTS = f'''\
 {COMMON_DEFAULT_ATRACE_EVENTS}
 {COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 duration_ms: {DEFAULT_DUR_MS}
-{COMMON_CONFIG_ENDING_STRING}
-EOF'''
+{COMMON_CONFIG_ENDING_STRING}'''
 
 DEFAULT_CONFIG_INCLUDED_FTRACE_EVENTS = f'''\
 {COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
@@ -468,8 +463,7 @@ DEFAULT_CONFIG_INCLUDED_FTRACE_EVENTS = f'''\
 {COMMON_DEFAULT_ATRACE_EVENTS}
 {COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 duration_ms: {DEFAULT_DUR_MS}
-{COMMON_CONFIG_ENDING_STRING}
-EOF'''
+{COMMON_CONFIG_ENDING_STRING}'''
 
 DEFAULT_CONFIG_OLD_ANDROID = f'''\
 {COMMON_DEFAULT_CONFIG_BEGINNING_STRING}
@@ -482,8 +476,7 @@ DEFAULT_CONFIG_OLD_ANDROID = f'''\
 {COMMON_DEFAULT_ATRACE_EVENTS}
 {COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 duration_ms: {DEFAULT_DUR_MS}
-{COMMON_CONFIG_ENDING_STRING}
-EOF'''
+{COMMON_CONFIG_ENDING_STRING}'''
 
 COMMON_CUSTOM_CONFIG_BEGINNING_STRING = f'''\
 
@@ -538,8 +531,7 @@ DEFAULT_CONFIG_NO_DUR_MS = f'''\
 {COMMON_DEFAULT_ATRACE_EVENTS}
 {COMMON_DEFAULT_CONFIG_MIDDLE_STRING}
 
-{COMMON_CONFIG_ENDING_STRING}
-EOF'''
+{COMMON_CONFIG_ENDING_STRING}'''
 
 DEFAULT_TRIGGER_CONFIG_TERMINAL_OUTPUT = f'''\
 buffers: {{
@@ -601,10 +593,8 @@ trigger_config: {{
 }}
 '''
 
-DEFAULT_TRIGGER_CONFIG = f'''<<EOF
-
-{DEFAULT_TRIGGER_CONFIG_TERMINAL_OUTPUT}
-EOF'''
+DEFAULT_TRIGGER_CONFIG = f'''
+{DEFAULT_TRIGGER_CONFIG_TERMINAL_OUTPUT}'''
 
 
 class ConfigBuilderUnitTest(unittest.TestCase):
@@ -780,7 +770,7 @@ class ConfigBuilderUnitTest(unittest.TestCase):
     config, error = build_custom_config(self.command)
 
     self.assertEqual(error, None)
-    self.assertEqual(config, f"<<EOF\n\n{CUSTOM_CONFIG_9000_DUR_MS}\n\n\nEOF")
+    self.assertEqual(config, f"{CUSTOM_CONFIG_9000_DUR_MS}\n\n")
     self.assertEqual(self.command.dur_ms, TEST_DUR_MS)
 
   @mock.patch(
@@ -790,9 +780,8 @@ class ConfigBuilderUnitTest(unittest.TestCase):
     config, error = build_custom_config(self.command)
 
     self.assertEqual(error, None)
-    self.assertEqual(
-        config,
-        (f"<<EOF\n\n{CUSTOM_CONFIG_9000_DUR_MS_WITH_WHITE_SPACE}\n\n\nEOF"))
+    self.assertEqual(config,
+                     (f"{CUSTOM_CONFIG_9000_DUR_MS_WITH_WHITE_SPACE}\n\n"))
     self.assertEqual(self.command.dur_ms, TEST_DUR_MS)
 
   @mock.patch("builtins.open",
@@ -818,9 +807,8 @@ class ConfigBuilderUnitTest(unittest.TestCase):
     config, error = build_custom_config(self.command)
 
     self.assertEqual(error, None)
-    self.assertEqual(
-        config,
-        (f"<<EOF\n\n{CUSTOM_CONFIG_NO_DUR_MS}\n{duration_string}\n\nEOF"))
+    self.assertEqual(config,
+                     (f"{CUSTOM_CONFIG_NO_DUR_MS}\n{duration_string}\n"))
 
   @mock.patch.object(builtins, "open")
   def test_build_custom_config_parsing_error(self, mock_open_file):

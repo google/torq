@@ -29,6 +29,7 @@ from tests.test_utils import generate_adb_devices_result, generate_mock_complete
 TEST_ERROR_MSG = "test-error"
 TEST_VALIDATION_ERROR = ValidationError(TEST_ERROR_MSG, None)
 TEST_SERIAL = "test-serial"
+TEST_FILE_PATH_WITH_SHELL_METACHARACTERS = "config;touch injected;.txtpb"
 ANDROID_SDK_VERSION_S = 32
 ANDROID_SDK_VERSION_T = 33
 
@@ -190,7 +191,6 @@ flush_period_ms: 5000
 incremental_state_config {{
   clear_period_ms: 5000
 }}
-
 '''
 
 TEST_DEFAULT_CONFIG_OLD_ANDROID = f'''\
@@ -351,7 +351,6 @@ flush_period_ms: 5000
 incremental_state_config {{
   clear_period_ms: 5000
 }}
-
 '''
 
 TEST_ANDROID_QNX_CONFIG = f'''\
@@ -520,7 +519,6 @@ flush_period_ms: 5000
 incremental_state_config {{
   clear_period_ms: 5000
 }}
-
 '''
 
 
@@ -535,6 +533,9 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.mock_get_device.return_value = (self.mock_device, None)
     self.mock_device.get_android_sdk_version.return_value = (
         ANDROID_SDK_VERSION_T)
+    self.mock_open_patcher = mock.patch(
+        "src.config.open", mock.mock_open(), create=True)
+    self.mock_open = self.mock_open_patcher.start()
 
     self.stdout_output = io.StringIO()
     self.stderr_output = io.StringIO()
@@ -543,6 +544,13 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
 
   def tearDown(self):
     self.mock_get_device_patcher.stop()
+    self.mock_open_patcher.stop()
+
+  def assert_config_written(self, file_path, expected_config):
+    self.mock_open.assert_called_once_with(Path(file_path), "w")
+    written = "".join(
+        call.args[0] for call in self.mock_open().write.call_args_list)
+    self.assertEqual(written.strip() + "\n", expected_config)
 
   def test_config_list(self):
     run_cli("torq config list")
@@ -606,6 +614,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(self.stdout_output.getvalue(),
                      "The config has been saved to 'default.txtpb'.\n")
+    self.assert_config_written("default.txtpb", TEST_DEFAULT_CONFIG)
 
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull_no_device_connected(self, mock_subprocess_run):
@@ -617,6 +626,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(self.stdout_output.getvalue(),
                      "The config has been saved to 'default.txtpb'.\n")
+    self.assert_config_written("default.txtpb", TEST_DEFAULT_CONFIG)
 
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_config_pull_old_android_version(self, mock_subprocess_run):
@@ -629,6 +639,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(self.stdout_output.getvalue(),
                      "The config has been saved to 'default.txtpb'.\n")
+    self.assert_config_written("default.txtpb", TEST_DEFAULT_CONFIG_OLD_ANDROID)
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(subprocess, "run", autospec=True)
@@ -642,6 +653,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(self.stdout_output.getvalue(),
                      "The config has been saved to 'new_config.txtpb'.\n")
+    self.assert_config_written("new_config.txtpb", TEST_DEFAULT_CONFIG)
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
@@ -657,6 +669,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(self.stdout_output.getvalue(),
                      "The config has been saved to 'config.txtpb'.\n")
+    self.assert_config_written("config.txtpb", TEST_DEFAULT_CONFIG)
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(builtins, "input")
@@ -669,6 +682,7 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
 
     self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(self.stdout_output.getvalue(), "Operation cancelled.\n")
+    self.mock_open.assert_not_called()
 
   @mock.patch.object(Path, "exists", autospec=True)
   @mock.patch.object(Path, "is_dir", autospec=True)
@@ -693,6 +707,20 @@ class ConfigCommandExecutorUnitTest(unittest.TestCase):
     self.assertEqual(self.stderr_output.getvalue(), "")
     self.assertEqual(self.stdout_output.getvalue(),
                      "The config has been saved to 'config.txtpb'.\n")
+    self.assert_config_written("config.txtpb", TEST_DEFAULT_CONFIG)
+
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_config_pull_filepath_with_shell_metacharacters(
+      self, mock_subprocess_run):
+    run_cli(
+        f"torq config pull default '{TEST_FILE_PATH_WITH_SHELL_METACHARACTERS}'"
+    )
+
+    self.assertEqual(self.stderr_output.getvalue(), "")
+    # The config is written directly to the literal path, without a shell.
+    mock_subprocess_run.assert_not_called()
+    self.assert_config_written(TEST_FILE_PATH_WITH_SHELL_METACHARACTERS,
+                               TEST_DEFAULT_CONFIG)
 
   def test_config_pull_invalid_custom_filepath_suffix(self):
     run_cli("torq config pull default config.badsuffix")
