@@ -25,10 +25,21 @@ from src.device import AndroidDevice, QnxDevice
 from src.profiler import ProfilerCommand
 from src.shell import AdbShell
 from src.utils import ShellExitCodes
-from tests.test_utils import generate_adb_devices_result, generate_mock_completed_process, run_cli
+from tests.test_utils import generate_adb_devices_result, generate_mock_completed_process, parameterized, run_cli
 
 TEST_DEVICE_SERIAL = "test-device-serial"
 TEST_DEVICE_SERIAL2 = "test-device-serial2"
+# Serials reported by adb for USB, emulator, network and mDNS devices.
+TEST_VALID_DEVICE_SERIALS = [
+    "0123456789ABCDEF", "emulator-5554", "192.168.1.100:5555",
+    "adb-0123456789ABCDEF-a1B2c3._adb-tls-connect._tcp"
+]
+# Serials a malicious device could report to inject host shell commands.
+TEST_MALICIOUS_DEVICE_SERIALS = [
+    "X;touch /tmp/injected;:", "X$(touch /tmp/injected)",
+    "X`touch /tmp/injected`", "X|touch /tmp/injected", "X&&touch /tmp/injected",
+    "X>/tmp/injected"
+]
 TEST_FILE_PATH = "test-file-path"
 TEST_STRING_FILE = "test-string-file"
 TEST_FAILURE_MSG = "test-failure"
@@ -124,6 +135,31 @@ class DeviceUnitTest(unittest.TestCase):
       AdbShell.get_adb_devices()
 
     self.assertEqual(str(e.exception), TEST_FAILURE_MSG)
+
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_adb_devices_returns_devices_with_valid_serial_formats(
+      self, mock_subprocess_run):
+    mock_subprocess_run.return_value = (
+        generate_adb_devices_result(TEST_VALID_DEVICE_SERIALS))
+
+    devices = AdbShell.get_adb_devices()
+
+    self.assertEqual(devices, TEST_VALID_DEVICE_SERIALS)
+
+  @parameterized(TEST_MALICIOUS_DEVICE_SERIALS)
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_adb_devices_serial_with_shell_metacharacters_error(
+      self, malicious_serial, mock_subprocess_run):
+    mock_subprocess_run.return_value = (
+        generate_adb_devices_result([TEST_DEVICE_SERIAL, malicious_serial]))
+
+    with self.assertRaises(ValueError) as e:
+      AdbShell.get_adb_devices()
+
+    self.assertEqual(
+        str(e.exception),
+        "adb reported a device serial containing unexpected characters; "
+        "refusing to use it: %r" % malicious_serial)
 
   @mock.patch.object(subprocess, "run", autospec=True)
   def test_verify_serial_arg_in_devices(self, mock_subprocess_run):
@@ -249,6 +285,16 @@ class DeviceUnitTest(unittest.TestCase):
 
     self.assertEqual(error, None)
     self.assertEqual(serial, TEST_DEVICE_SERIAL2)
+
+  @mock.patch.dict(os.environ, {}, clear=True)
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_get_default_serial_serial_with_shell_metacharacters_error(
+      self, mock_subprocess_run):
+    mock_subprocess_run.return_value = (
+        generate_adb_devices_result([TEST_MALICIOUS_DEVICE_SERIALS[0]]))
+
+    with self.assertRaises(ValueError):
+      AdbShell.get_default_serial()
 
   @mock.patch("src.shell.poll_is_task_completed", autospec=True)
   @mock.patch.object(subprocess, "run", autospec=True)
