@@ -24,11 +24,13 @@ import subprocess
 import types
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import path_exists, wait_for_process_or_ctrl_c, wait_for_output, run_subprocess
+from .pinned_files import (PinnedDownloadError, TRACE_PROCESSOR_BASE_URL,
+                           TRACE_PROCESSOR_FILES, download_pinned_files,
+                           ensure_private_dir, get_trace_processor_cache_dir,
+                           verify_files)
+from .utils import path_exists, wait_for_process_or_ctrl_c, wait_for_output
 
-TORQ_TEMP_DIR = "/tmp/.torq"
 TRACE_PROCESSOR_BINARY = "/trace_processor"
-TORQ_TEMP_TRACE_PROCESSOR = TORQ_TEMP_DIR + TRACE_PROCESSOR_BINARY
 ANDROID_PERFETTO_TOOLS_DIR = "/external/perfetto/tools"
 ANDROID_TRACE_PROCESSOR = ANDROID_PERFETTO_TOOLS_DIR + TRACE_PROCESSOR_BINARY
 LARGE_FILE_SIZE = 1024 * 1024 * 1024 * 4  # 4 GiB
@@ -58,25 +60,43 @@ class HttpHandler(http.server.SimpleHTTPRequestHandler):
     pass
 
 
+def get_cached_trace_processor_path():
+  return os.path.join(get_trace_processor_cache_dir(),
+                      TRACE_PROCESSOR_BINARY.lstrip("/"))
+
+
+def cached_trace_processor_exists():
+  cache_dir = get_trace_processor_cache_dir()
+  if not os.path.isdir(cache_dir):
+    return False
+  try:
+    ensure_private_dir(cache_dir)
+  except (OSError, PinnedDownloadError):
+    return False
+  return verify_files(cache_dir, TRACE_PROCESSOR_FILES)
+
+
 def download_trace_processor(path):
   if (("ANDROID_BUILD_TOP" in os.environ and
        path_exists(os.environ["ANDROID_BUILD_TOP"] + ANDROID_TRACE_PROCESSOR))):
     return os.environ["ANDROID_BUILD_TOP"] + ANDROID_TRACE_PROCESSOR
-  if path_exists(TORQ_TEMP_TRACE_PROCESSOR):
-    return TORQ_TEMP_TRACE_PROCESSOR
+  if cached_trace_processor_exists():
+    return get_cached_trace_processor_path()
+
+  cache_dir = get_trace_processor_cache_dir()
 
   def download_accepted_callback():
-    run_subprocess(
-        ("mkdir -p %s && wget -P %s "
-         "https://get.perfetto.dev/trace_processor && chmod +x "
-         "%s/trace_processor" % (TORQ_TEMP_DIR, TORQ_TEMP_DIR, TORQ_TEMP_DIR)),
-        shell=True)
-
-    if not path_exists(TORQ_TEMP_TRACE_PROCESSOR):
-      print("Could not download perfetto scripts. Continuing.")
+    try:
+      download_pinned_files(
+          TRACE_PROCESSOR_BASE_URL,
+          TRACE_PROCESSOR_FILES,
+          cache_dir,
+          executables=TRACE_PROCESSOR_FILES.keys())
+    except (OSError, PinnedDownloadError) as e:
+      print("Could not download perfetto scripts (%s). Continuing." % e)
       return None
 
-    return TORQ_TEMP_TRACE_PROCESSOR
+    return get_cached_trace_processor_path()
 
   def rejected_callback():
     print("Will continue without downloading perfetto scripts.")
@@ -88,9 +108,9 @@ def download_trace_processor(path):
       "perfetto trace is larger than 512MB, so "
       "attempting to load the trace in the perfetto UI "
       "without the perfetto scripts might not work.\n"
-      "torq can download the perfetto scripts to '%s'. "
+      "torq can download pinned, checksum-verified perfetto scripts to '%s'. "
       "Are you ok with this download? [Y/N]: " %
-      (ANDROID_PERFETTO_TOOLS_DIR, TORQ_TEMP_DIR),
+      (ANDROID_PERFETTO_TOOLS_DIR, cache_dir),
       "Please accept or reject the download.", {
           "y": download_accepted_callback,
           "n": rejected_callback

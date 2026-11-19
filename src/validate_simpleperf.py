@@ -17,15 +17,23 @@
 import os
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import path_exists, dir_exists, is_bazel, run_subprocess
+from .pinned_files import (PinnedDownloadError, SIMPLEPERF_BASE_URL,
+                           SIMPLEPERF_EXECUTABLES, download_pinned_files,
+                           ensure_private_dir, get_simpleperf_cache_dir,
+                           get_simpleperf_files, verify_files)
+from .utils import path_exists, dir_exists, is_bazel
 
-TORQ_TEMP_DIR = "/tmp/.torq"
 SIMPLEPERF_SCRIPTS_DIR = "/system/extras/simpleperf/scripts"
 BUILDER_SCRIPT = SIMPLEPERF_SCRIPTS_DIR + "/binary_cache_builder.py"
+# Pinned simpleperf scripts that Bazel fetches and verifies at build time (see
+# MODULE.bazel and third_party/simpleperf/BUILD), relative to the torq root.
+BUNDLED_SIMPLEPERF_SCRIPTS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "third_party",
+    "simpleperf", "scripts")
 
 
 def verify_simpleperf_args(args):
-  args.simpleperf_scripts_dir = TORQ_TEMP_DIR
+  args.simpleperf_scripts_dir = None
   if not is_bazel() and ("ANDROID_BUILD_TOP" in os.environ and
                          path_exists(os.environ["ANDROID_BUILD_TOP"] +
                                      BUILDER_SCRIPT)):
@@ -54,38 +62,49 @@ def verify_simpleperf_args(args):
           "(<ANDROID_BUILD_TOP>/out/target/product/<TARGET>).")
     args.symbols = os.environ["ANDROID_PRODUCT_OUT"]
 
-  if args.simpleperf_scripts_dir != TORQ_TEMP_DIR or temp_simpleperf_scripts_exist(
-  ):
+  if args.simpleperf_scripts_dir is not None:
     return args, None
 
-  error = download_simpleperf_scripts()
+  if bundled_simpleperf_scripts_exist():
+    args.simpleperf_scripts_dir = BUNDLED_SIMPLEPERF_SCRIPTS_DIR
+    return args, None
 
-  if error is not None:
-    return None, error
+  cache_dir = get_simpleperf_cache_dir()
+  try:
+    ensure_private_dir(os.path.dirname(cache_dir))
+  except (OSError, PinnedDownloadError) as e:
+    return None, ValidationError(
+        "Cannot use the torq cache directory: %s" % e,
+        "Make sure '%s' is a directory owned by you that only you can"
+        " write to." % os.path.dirname(cache_dir))
 
+  if not cached_simpleperf_scripts_exist():
+    error = download_simpleperf_scripts()
+    if error is not None:
+      return None, error
+
+  args.simpleperf_scripts_dir = cache_dir
   return args, None
 
 
 def download_simpleperf_scripts():
+  cache_dir = get_simpleperf_cache_dir()
   fail_suggestion = ("Set $ANDROID_BUILD_TOP to your android root "
                      "path and make sure you have $ANDROID_BUILD_TOP"
                      "/system/extras/simpleperf/scripts "
                      "downloaded.")
 
   def download_accepted_callback():
-    run_subprocess(
-        ("mkdir -p %s && wget -P %s "
-         "https://android.googlesource.com/platform/system/extras"
-         "/+archive/refs/heads/main/simpleperf/scripts.tar.gz "
-         "&& tar -xvzf %s/scripts.tar.gz -C %s" %
-         (TORQ_TEMP_DIR, TORQ_TEMP_DIR, TORQ_TEMP_DIR, TORQ_TEMP_DIR)),
-        shell=True)
-
-    if not temp_simpleperf_scripts_exist():
-      raise Exception("Error while downloading simpleperf scripts. Try again "
-                      "or set $ANDROID_BUILD_TOP to your android root path and "
-                      "make sure you have $ANDROID_BUILD_TOP/system/extras/"
-                      "simpleperf/scripts downloaded.")
+    try:
+      download_pinned_files(
+          SIMPLEPERF_BASE_URL,
+          get_simpleperf_files(),
+          cache_dir,
+          executables=SIMPLEPERF_EXECUTABLES)
+    except (OSError, PinnedDownloadError) as e:
+      return ValidationError(
+          "Error while downloading simpleperf scripts: %s" % e,
+          "Try again or " + fail_suggestion[0].lower() + fail_suggestion[1:])
     return None
 
   def rejected_callback():
@@ -94,9 +113,9 @@ def download_simpleperf_scripts():
 
   return (HandleInput(("You do not have an Android Root configured "
                        "with the simpleperf directory. To use "
-                       "simpleperf, torq will download simpleperf "
-                       "scripts to '%s'. Are you ok with this download?"
-                       " [Y/n]: " % TORQ_TEMP_DIR),
+                       "simpleperf, torq will download pinned, checksum-"
+                       "verified simpleperf scripts to '%s'. Are you ok "
+                       "with this download? [Y/n]: " % cache_dir),
                       fail_suggestion, {
                           "y": download_accepted_callback,
                           "n": rejected_callback
@@ -104,9 +123,19 @@ def download_simpleperf_scripts():
                       default_choice="y").handle_input())
 
 
-def temp_simpleperf_scripts_exist():
-  return path_exists(
-      TORQ_TEMP_DIR + "/binary_cache_builder.py") and path_exists(
-          TORQ_TEMP_DIR + "/gecko_profile_generator.py") and path_exists(
-              TORQ_TEMP_DIR + "/simpleperf_utils.py") and path_exists(
-                  TORQ_TEMP_DIR + "/simpleperf_report_lib.py")
+def bundled_simpleperf_scripts_exist():
+  return verify_files(
+      BUNDLED_SIMPLEPERF_SCRIPTS_DIR,
+      get_simpleperf_files(),
+      follow_symlinks=True)
+
+
+def cached_simpleperf_scripts_exist():
+  cache_dir = get_simpleperf_cache_dir()
+  if not os.path.isdir(cache_dir):
+    return False
+  try:
+    ensure_private_dir(cache_dir)
+  except (OSError, PinnedDownloadError):
+    return False
+  return verify_files(cache_dir, get_simpleperf_files())

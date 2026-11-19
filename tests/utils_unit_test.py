@@ -15,39 +15,72 @@
 #
 
 import unittest
+import shutil
 import subprocess
+import sys
 import os
 
 from unittest import mock
-from src.utils import convert_simpleperf_to_gecko
+from src.utils import convert_simpleperf_to_gecko, get_python_interpreter
 from tests.test_utils import create_parser_from_cli, generate_mock_completed_process
+
+TEST_SCRIPTS_DIR = "/scripts"
+TEST_RAW_TRACE = "/path/trace;touch injected;.data"
+TEST_GECKO_TRACE = "/path/trace $(touch injected).json"
+TEST_SYMBOLS = "/symbols"
 
 
 class UtilsUnitTest(unittest.TestCase):
 
+  @mock.patch("src.utils.open", new_callable=mock.mock_open, create=True)
   @mock.patch.object(subprocess, "run", autospec=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   def test_convert_simpleperf_to_gecko_success(self, mock_exists,
-                                               mock_subprocess_run):
+                                               mock_subprocess_run, mock_open):
     mock_exists.return_value = True
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
-    # No exception is expected to be thrown
-    convert_simpleperf_to_gecko("/scripts", "/path/file.data",
-                                "/path/file.json", "/symbols")
+    convert_simpleperf_to_gecko(TEST_SCRIPTS_DIR, TEST_RAW_TRACE,
+                                TEST_GECKO_TRACE, TEST_SYMBOLS)
 
+    # The scripts run without a shell, with only the scripts directory on
+    # PYTHONPATH, and paths are passed as single arguments.
+    python = get_python_interpreter()
+    builder_call, generator_call = mock_subprocess_run.call_args_list
+    self.assertEqual(builder_call.args[0], [
+        python, TEST_SCRIPTS_DIR + "/binary_cache_builder.py", "-i",
+        TEST_RAW_TRACE, "-lib", TEST_SYMBOLS
+    ])
+    self.assertEqual(generator_call.args[0], [
+        python, TEST_SCRIPTS_DIR + "/gecko_profile_generator.py", "-i",
+        TEST_RAW_TRACE
+    ])
+    for call in (builder_call, generator_call):
+      self.assertFalse(call.kwargs["shell"])
+      self.assertEqual(call.kwargs["env"]["PYTHONPATH"], TEST_SCRIPTS_DIR)
+    mock_open.assert_called_once_with(TEST_GECKO_TRACE, "w")
+    self.assertEqual(generator_call.kwargs["stdout"], mock_open.return_value)
+
+  @mock.patch("src.utils.open", new_callable=mock.mock_open, create=True)
   @mock.patch.object(subprocess, "run", autospec=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   def test_convert_simpleperf_to_gecko_failure(self, mock_exists,
-                                               mock_subprocess_run):
+                                               mock_subprocess_run, mock_open):
     mock_exists.return_value = False
     mock_subprocess_run.return_value = generate_mock_completed_process()
 
     with self.assertRaises(Exception) as e:
-      convert_simpleperf_to_gecko("/scripts", "/path/file.data",
-                                  "/path/file.json", "/symbols")
+      convert_simpleperf_to_gecko(TEST_SCRIPTS_DIR, TEST_RAW_TRACE,
+                                  TEST_GECKO_TRACE, TEST_SYMBOLS)
 
-      self.assertEqual(str(e.exception), "Gecko file was not created.")
+    self.assertEqual(str(e.exception), "Gecko file was not created.")
+
+  @mock.patch.object(sys, "frozen", True, create=True)
+  @mock.patch.object(shutil, "which", autospec=True)
+  def test_get_python_interpreter_frozen_executable(self, mock_which):
+    mock_which.return_value = "/usr/bin/python3"
+
+    self.assertEqual(get_python_interpreter(), "/usr/bin/python3")
 
   def test_set_default_subparser(self):
     parser, error = create_parser_from_cli("torq --serial 0.0.0.0 -d 3000")
