@@ -26,14 +26,17 @@ import webbrowser
 from contextlib import redirect_stdout
 from unittest import mock
 from src.open_ui_utils import download_trace_processor, open_trace
+from src.pinned_files import (PinnedDownloadError, TRACE_PROCESSOR_BASE_URL,
+                              TRACE_PROCESSOR_FILES)
 from tests.test_utils import generate_mock_completed_process, run_cli
 
 ANDROID_BUILD_TOP = "/main"
 TEST_FILE = "file.txtpb"
 TEST_FILE_WITH_SHELL_METACHARACTERS = "/tmp/trace;touch injected;.perfetto-trace"
-TORQ_TEMP_DIR = "/tmp/.torq"
+TEST_CACHE_DIR = "/home/user/.cache/torq/trace_processor/test-commit"
 PERFETTO_BINARY = "/trace_processor"
-TORQ_TEMP_TRACE_PROCESSOR = TORQ_TEMP_DIR + PERFETTO_BINARY
+CACHED_TRACE_PROCESSOR = TEST_CACHE_DIR + PERFETTO_BINARY
+TEST_ERROR_MSG = "test-error"
 ANDROID_PERFETTO_TOOLS_DIR = "/external/perfetto/tools"
 ANDROID_TRACE_PROCESSOR = ANDROID_PERFETTO_TOOLS_DIR + PERFETTO_BINARY
 LARGE_FILE_SIZE = 1024 * 1024 * 1024 * 4  # 4 GiB
@@ -42,48 +45,66 @@ WEB_UI_ADDRESS = "https://ui.perfetto.dev"
 
 class OpenUiUnitTest(unittest.TestCase):
 
+  def setUp(self):
+    # Never touch the real cache directory or the network in unit tests.
+    patches = {
+        "cached_trace_processor_exists": False,
+        "get_trace_processor_cache_dir": TEST_CACHE_DIR,
+        "download_pinned_files": None,
+    }
+    self.mocks = {}
+    for name, return_value in patches.items():
+      patcher = mock.patch("src.open_ui_utils." + name, autospec=True)
+      self.mocks[name] = patcher.start()
+      self.mocks[name].return_value = return_value
+      self.addCleanup(patcher.stop)
+    self.mock_cached_exists = self.mocks["cached_trace_processor_exists"]
+    self.mock_download = self.mocks["download_pinned_files"]
+
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "getsize", autospec=True)
-  @mock.patch.object(subprocess, "run", autospec=True)
   @mock.patch.object(builtins, "input")
-  def test_download_trace_processor_successfully(self, mock_input,
-                                                 mock_subprocess_run,
-                                                 mock_getsize, mock_exists):
+  def test_download_trace_processor_successfully(self, mock_input, mock_getsize,
+                                                 mock_exists):
     mock_getsize.return_value = LARGE_FILE_SIZE
     mock_input.return_value = "y"
-    mock_exists.side_effect = [False, False, True]
-    mock_subprocess_run.return_value = generate_mock_completed_process()
+    mock_exists.return_value = False
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
     trace_processor_path = download_trace_processor(TEST_FILE)
 
-    self.assertEqual(trace_processor_path, TORQ_TEMP_TRACE_PROCESSOR)
+    self.assertEqual(trace_processor_path, CACHED_TRACE_PROCESSOR)
     self.assertEqual(terminal_output.getvalue(), "")
+    self.mock_download.assert_called_once_with(
+        TRACE_PROCESSOR_BASE_URL,
+        TRACE_PROCESSOR_FILES,
+        TEST_CACHE_DIR,
+        executables=TRACE_PROCESSOR_FILES.keys())
 
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "getsize", autospec=True)
-  @mock.patch.object(subprocess, "run", autospec=True)
   @mock.patch.object(builtins, "input")
-  def test_download_trace_processor_failed(self, mock_input,
-                                           mock_subprocess_run, mock_getsize,
+  def test_download_trace_processor_failed(self, mock_input, mock_getsize,
                                            mock_exists):
     mock_getsize.return_value = LARGE_FILE_SIZE
     mock_input.return_value = "y"
-    mock_exists.side_effect = [False, False, False]
-    mock_subprocess_run.return_value = generate_mock_completed_process()
+    mock_exists.return_value = False
+    self.mock_download.side_effect = PinnedDownloadError(TEST_ERROR_MSG)
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
     trace_processor_path = download_trace_processor(TEST_FILE)
 
     self.assertEqual(trace_processor_path, None)
-    self.assertEqual(terminal_output.getvalue(),
-                     "Could not download perfetto scripts. Continuing.\n")
+    self.assertEqual(
+        terminal_output.getvalue(),
+        "Could not download perfetto scripts (%s). Continuing.\n" %
+        TEST_ERROR_MSG)
 
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
@@ -293,17 +314,19 @@ class OpenUiUnitTest(unittest.TestCase):
   @mock.patch.dict(os.environ, {}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "getsize", autospec=True)
-  def test_download_trace_processor_temp_scripts_exist(self, mock_getsize,
-                                                       mock_exists):
+  def test_download_trace_processor_verified_cached_copy_exists(
+      self, mock_getsize, mock_exists):
     mock_getsize.return_value = LARGE_FILE_SIZE
     mock_exists.return_value = True
+    self.mock_cached_exists.return_value = True
     terminal_output = io.StringIO()
     sys.stdout = terminal_output
 
     trace_processor_path = download_trace_processor(TEST_FILE)
 
-    self.assertEqual(trace_processor_path, TORQ_TEMP_TRACE_PROCESSOR)
+    self.assertEqual(trace_processor_path, CACHED_TRACE_PROCESSOR)
     self.assertEqual(terminal_output.getvalue(), "")
+    self.mock_download.assert_not_called()
 
 
 if __name__ == '__main__':

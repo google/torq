@@ -39,6 +39,7 @@ py_library(
 py_binary(
     name = "torq",
     srcs = ["main.py"],
+    data = ["//third_party/simpleperf:simpleperf_scripts"],
     main = "main.py",
     deps = [":torq_lib"],
 )
@@ -137,6 +138,17 @@ py_test(
 py_test(
     name = "vm_unit_test",
     srcs = ["tests/vm_unit_test.py"],
+    tags = ["unit"],
+    deps = [
+        ":torq_lib",
+        ":torq_test_lib",
+    ],
+)
+
+py_test(
+    name = "pinned_files_unit_test",
+    srcs = ["tests/pinned_files_unit_test.py"],
+    data = ["MODULE.bazel"],
     tags = ["unit"],
     deps = [
         ":torq_lib",

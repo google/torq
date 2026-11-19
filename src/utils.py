@@ -17,6 +17,7 @@
 import argparse
 import enum
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -96,22 +97,43 @@ def poll_is_task_completed(timed_out_limit, interval, check_is_completed):
       return False
 
 
+def get_python_interpreter():
+  """
+  Returns the interpreter used to run simpleperf's python scripts. Uses the
+  interpreter running torq rather than a PATH lookup, unless torq is a frozen
+  (e.g. PyInstaller) executable that cannot run arbitrary scripts.
+  """
+  if not getattr(sys, "frozen", False) and sys.executable:
+    return sys.executable
+  return shutil.which("python3") or "python3"
+
+
 def convert_simpleperf_to_gecko(simpleperf_scripts_dir, host_raw_trace_filename,
                                 host_gecko_trace_filename, symbols):
   expanded_symbols = os.path.expanduser(symbols)
   expanded_simpleperf_scripts_dir = os.path.expanduser(simpleperf_scripts_dir)
+  python = get_python_interpreter()
+  # Only the simpleperf scripts directory is put on the scripts' module search
+  # path, so modules from an inherited PYTHONPATH cannot shadow theirs.
+  env = dict(os.environ)
+  env["PYTHONPATH"] = expanded_simpleperf_scripts_dir
   print("Building binary cache, please wait. If no samples were recorded,"
         " the trace will be empty.")
-  run_subprocess((
-      "export PYTHONPATH=$PYTHONPATH:%s && %s/binary_cache_builder.py -i %s -lib %s"
-      % (expanded_simpleperf_scripts_dir, expanded_simpleperf_scripts_dir,
-         host_raw_trace_filename, expanded_symbols)),
-                 shell=True)
-  run_subprocess((
-      "export PYTHONPATH=$PYTHONPATH:%s && %s/gecko_profile_generator.py -i %s > %s"
-      % (expanded_simpleperf_scripts_dir, expanded_simpleperf_scripts_dir,
-         host_raw_trace_filename, host_gecko_trace_filename)),
-                 shell=True)
+  run_subprocess([
+      python,
+      os.path.join(expanded_simpleperf_scripts_dir, "binary_cache_builder.py"),
+      "-i", host_raw_trace_filename, "-lib", expanded_symbols
+  ],
+                 env=env)
+  with open(host_gecko_trace_filename, "w") as gecko_trace_file:
+    run_subprocess([
+        python,
+        os.path.join(expanded_simpleperf_scripts_dir,
+                     "gecko_profile_generator.py"), "-i",
+        host_raw_trace_filename
+    ],
+                   stdout=gecko_trace_file,
+                   env=env)
   if not path_exists(host_gecko_trace_filename):
     raise Exception("Gecko file was not created.")
 

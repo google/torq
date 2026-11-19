@@ -17,18 +17,41 @@
 import builtins
 import unittest
 import os
-import subprocess
 from unittest import mock
+from src.pinned_files import (PinnedDownloadError, SIMPLEPERF_BASE_URL,
+                              SIMPLEPERF_EXECUTABLES, get_simpleperf_files)
 from src.torq import verify_args
-from tests.test_utils import generate_mock_completed_process, parse_cli
+from src.validate_simpleperf import BUNDLED_SIMPLEPERF_SCRIPTS_DIR
+from tests.test_utils import parse_cli
 
-TORQ_TEMP_DIR = "/tmp/.torq"
+TEST_CACHE_DIR = "/home/user/.cache/torq/simpleperf/test-commit"
+TEST_ERROR_MSG = "test-error"
 ANDROID_BUILD_TOP = "/folder"
 ANDROID_PRODUCT_OUT = "/folder/out/product/seahawk"
 SYMBOLS_PATH = "/folder/symbols"
 
 
 class ValidateSimpleperfUnitTest(unittest.TestCase):
+
+  def setUp(self):
+    # Never touch the real cache directory or the network in unit tests.
+    patches = {
+        "bundled_simpleperf_scripts_exist": False,
+        "cached_simpleperf_scripts_exist": False,
+        "get_simpleperf_cache_dir": TEST_CACHE_DIR,
+        "ensure_private_dir": None,
+        "download_pinned_files": None,
+    }
+    self.mocks = {}
+    for name, return_value in patches.items():
+      patcher = mock.patch("src.validate_simpleperf." + name, autospec=True)
+      self.mocks[name] = patcher.start()
+      self.mocks[name].return_value = return_value
+      self.addCleanup(patcher.stop)
+    self.mock_bundled_exist = self.mocks["bundled_simpleperf_scripts_exist"]
+    self.mock_cached_exist = self.mocks["cached_simpleperf_scripts_exist"]
+    self.mock_ensure_private_dir = self.mocks["ensure_private_dir"]
+    self.mock_download = self.mocks["download_pinned_files"]
 
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
@@ -135,59 +158,100 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
 
   @mock.patch.dict(
       os.environ, {"ANDROID_PRODUCT_OUT": ANDROID_PRODUCT_OUT}, clear=True)
-  @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
-  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_create_parser_uses_bundled_scripts(self, mock_isdir):
+    mock_isdir.return_value = True
+    self.mock_bundled_exist.return_value = True
+    args = parse_cli("torq -p simpleperf")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.simpleperf_scripts_dir,
+                     BUNDLED_SIMPLEPERF_SCRIPTS_DIR)
+    self.mock_download.assert_not_called()
+
+  @mock.patch.dict(
+      os.environ, {"ANDROID_PRODUCT_OUT": ANDROID_PRODUCT_OUT}, clear=True)
+  @mock.patch.object(os.path, "isdir", autospec=True)
+  @mock.patch.object(builtins, "input")
+  def test_create_parser_uses_verified_cached_scripts(self, mock_input,
+                                                      mock_isdir):
+    mock_isdir.return_value = True
+    self.mock_cached_exist.return_value = True
+    args = parse_cli("torq -p simpleperf")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.simpleperf_scripts_dir, TEST_CACHE_DIR)
+    mock_input.assert_not_called()
+    self.mock_download.assert_not_called()
+
+  @mock.patch.dict(
+      os.environ, {"ANDROID_PRODUCT_OUT": ANDROID_PRODUCT_OUT}, clear=True)
+  @mock.patch.object(os.path, "isdir", autospec=True)
   @mock.patch.object(builtins, "input")
   def test_create_parser_successfully_download_scripts(self, mock_input,
-                                                       mock_subprocess_run,
-                                                       mock_isdir, mock_exists):
+                                                       mock_isdir):
     mock_isdir.return_value = True
     mock_input.return_value = "y"
-    mock_exists.side_effect = [False, True, True, True, True]
-    mock_subprocess_run.return_value = generate_mock_completed_process()
     args = parse_cli("torq -p simpleperf")
 
     args, error = verify_args(args)
 
     self.assertEqual(error, None)
     self.assertEqual(args.symbols, ANDROID_PRODUCT_OUT)
-    self.assertEqual(args.simpleperf_scripts_dir, TORQ_TEMP_DIR)
+    self.assertEqual(args.simpleperf_scripts_dir, TEST_CACHE_DIR)
+    self.mock_download.assert_called_once_with(
+        SIMPLEPERF_BASE_URL,
+        get_simpleperf_files(),
+        TEST_CACHE_DIR,
+        executables=SIMPLEPERF_EXECUTABLES)
 
-  @mock.patch.dict(
-      os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
-  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.dict(os.environ, {}, clear=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
-  @mock.patch.object(subprocess, "run", autospec=True)
   @mock.patch.object(builtins, "input")
   def test_create_parser_failed_to_download_scripts(self, mock_input,
-                                                    mock_subprocess_run,
-                                                    mock_isdir, mock_exists):
+                                                    mock_isdir):
     mock_isdir.return_value = True
     mock_input.return_value = "y"
-    mock_exists.side_effect = [False, False, False]
-    mock_subprocess_run.return_value = generate_mock_completed_process()
+    self.mock_download.side_effect = PinnedDownloadError(TEST_ERROR_MSG)
     args = parse_cli("torq -p simpleperf --symbols %s" % SYMBOLS_PATH)
 
-    with self.assertRaises(Exception) as e:
-      args, error = verify_args(args)
+    args, error = verify_args(args)
 
+    self.assertEqual(args, None)
     self.assertEqual(
-        str(e.exception), "Error while downloading simpleperf scripts. Try "
-        "again or set $ANDROID_BUILD_TOP to your android root "
-        "path and make sure you have $ANDROID_BUILD_TOP/system"
+        error.message,
+        "Error while downloading simpleperf scripts: %s" % TEST_ERROR_MSG)
+    self.assertEqual(
+        error.suggestion, "Try again or set $ANDROID_BUILD_TOP to your "
+        "android root path and make sure you have $ANDROID_BUILD_TOP/system"
         "/extras/simpleperf/scripts downloaded.")
 
-  @mock.patch.dict(
-      os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
-  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.dict(os.environ, {}, clear=True)
+  @mock.patch.object(os.path, "isdir", autospec=True)
+  def test_create_parser_cache_dir_not_private_error(self, mock_isdir):
+    mock_isdir.return_value = True
+    self.mock_ensure_private_dir.side_effect = PinnedDownloadError(
+        TEST_ERROR_MSG)
+    args = parse_cli("torq -p simpleperf --symbols %s" % SYMBOLS_PATH)
+
+    args, error = verify_args(args)
+
+    self.assertEqual(args, None)
+    self.assertEqual(error.message,
+                     "Cannot use the torq cache directory: %s" % TEST_ERROR_MSG)
+    self.mock_download.assert_not_called()
+
+  @mock.patch.dict(os.environ, {}, clear=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
   @mock.patch.object(builtins, "input")
   def test_create_parser_download_scripts_wrong_input(self, mock_input,
-                                                      mock_isdir, mock_exists):
+                                                      mock_isdir):
     mock_isdir.return_value = True
     mock_input.return_value = "bad-input"
-    mock_exists.side_effect = [False, False]
     args = parse_cli("torq -p simpleperf --symbols %s" % SYMBOLS_PATH)
 
     args, error = verify_args(args)
@@ -198,17 +262,15 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
         "root path and make sure you have "
         "$ANDROID_BUILD_TOP/system/extras/"
         "simpleperf/scripts downloaded.")
+    self.mock_download.assert_not_called()
 
-  @mock.patch.dict(
-      os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
-  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.dict(os.environ, {}, clear=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
   @mock.patch.object(builtins, "input")
   def test_create_parser_download_scripts_refuse_download(
-      self, mock_input, mock_isdir, mock_exists):
+      self, mock_input, mock_isdir):
     mock_isdir.return_value = True
     mock_input.return_value = "n"
-    mock_exists.side_effect = [False, False]
     args = parse_cli("torq -p simpleperf --symbols %s" % SYMBOLS_PATH)
 
     args, error = verify_args(args)
@@ -219,6 +281,7 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
         "root path and make sure you have "
         "$ANDROID_BUILD_TOP/system/extras/"
         "simpleperf/scripts downloaded.")
+    self.mock_download.assert_not_called()
 
 
 if __name__ == '__main__':

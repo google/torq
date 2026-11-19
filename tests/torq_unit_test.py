@@ -42,6 +42,16 @@ TEST_TRIGGER_MODE = "stop"
 
 class TorqUnitTest(unittest.TestCase):
 
+  def setUp(self):
+    # Use the (stubbed) bundled simpleperf scripts so that verifying simpleperf
+    # arguments never touches the real cache directory or the network.
+    patcher = mock.patch(
+        "src.validate_simpleperf.bundled_simpleperf_scripts_exist",
+        autospec=True,
+        return_value=True)
+    patcher.start()
+    self.addCleanup(patcher.stop)
+
   # TODO(b/285191111): Parameterize the test functions.
   def test_create_parser_default_values(self):
     args = parse_cli("torq")

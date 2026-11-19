@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "rules_python", version = "1.7.0")
 
 # Configure Python toolchain and pip dependencies.
@@ -33,3 +34,63 @@ pip.parse(
     ],
 )
 use_repo(pip, "pypi")
+
+
+# Pinned simpleperf host scripts used to convert simpleperf traces.
+# =================================================================
+# Each file is fetched from a pinned platform/system/extras commit and verified
+# by sha256 at build time. Gitiles '+archive' tarballs are not byte-stable, so
+# individual files are fetched via '?format=TEXT' (base64, byte-stable) and
+# decoded in third_party/simpleperf/BUILD. Keep in sync with the
+# SIMPLEPERF_* pins in src/pinned_files.py (see tools/update_pinned_deps.py).
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+SIMPLEPERF_COMMIT = "fc2494a2abd7ab21774d03deb09c1362bbb0bba8"
+
+http_file(
+    name = "simpleperf_binary_cache_builder",
+    sha256 = "f9a49c91974d12ef4a22c2fef6342351d2c2d00d5e96a15c7e65bfcc3a341a65",
+    urls = ["https://android.googlesource.com/platform/system/extras/+/" + SIMPLEPERF_COMMIT + "/simpleperf/scripts/binary_cache_builder.py?format=TEXT"],
+)
+
+http_file(
+    name = "simpleperf_gecko_profile_generator",
+    sha256 = "16f52f5cb8869a3a61bf52a6dd617fb22cd4e49296396244aeda2077359ec037",
+    urls = ["https://android.googlesource.com/platform/system/extras/+/" + SIMPLEPERF_COMMIT + "/simpleperf/scripts/gecko_profile_generator.py?format=TEXT"],
+)
+
+http_file(
+    name = "simpleperf_simpleperf_utils",
+    sha256 = "7282c11a9a123be5ee0341620019e3e46fa12327f766085b02120ab24f95463e",
+    urls = ["https://android.googlesource.com/platform/system/extras/+/" + SIMPLEPERF_COMMIT + "/simpleperf/scripts/simpleperf_utils.py?format=TEXT"],
+)
+
+http_file(
+    name = "simpleperf_simpleperf_report_lib",
+    sha256 = "7a7a057b9da28aadf3a84d87a4018a8529c956bf142fbc4c25cb95e01acd9337",
+    urls = ["https://android.googlesource.com/platform/system/extras/+/" + SIMPLEPERF_COMMIT + "/simpleperf/scripts/simpleperf_report_lib.py?format=TEXT"],
+)
+
+http_file(
+    name = "simpleperf_etm_types",
+    sha256 = "8202c9404fadc78d4bebdb8fa6f2ad5bd42f61163d8a6c5bc95e524c2f2e08f1",
+    urls = ["https://android.googlesource.com/platform/system/extras/+/" + SIMPLEPERF_COMMIT + "/simpleperf/scripts/etm_types.py?format=TEXT"],
+)
+
+http_file(
+    name = "simpleperf_report_sample_pb2",
+    sha256 = "fa9ddbd16fcf724ac4e14b9f5b0588a1535d791dada125c5abfd3ae54858683e",
+    urls = ["https://android.googlesource.com/platform/system/extras/+/" + SIMPLEPERF_COMMIT + "/simpleperf/scripts/report_sample_pb2.py?format=TEXT"],
+)
+
+http_file(
+    name = "simpleperf_libsimpleperf_report_linux",
+    sha256 = "5b3e81bfdd8bab53f4e7872f01b2f67b9fa9518bd6a276e46a7fc0ae8f3dbcd0",
+    urls = ["https://android.googlesource.com/platform/system/extras/+/" + SIMPLEPERF_COMMIT + "/simpleperf/scripts/bin/linux/x86_64/libsimpleperf_report.so?format=TEXT"],
+)
+
+http_file(
+    name = "simpleperf_libsimpleperf_report_darwin",
+    sha256 = "8832a0c3d955f6aeaf1e99cd521a7ad196cc3934bf2ba5010a03d7622a1e9a43",
+    urls = ["https://android.googlesource.com/platform/system/extras/+/" + SIMPLEPERF_COMMIT + "/simpleperf/scripts/bin/darwin/x86_64/libsimpleperf_report.dylib?format=TEXT"],
+)
