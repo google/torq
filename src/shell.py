@@ -16,6 +16,7 @@
 
 import enum
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -27,6 +28,13 @@ from .uri import URIScheme
 from .utils import poll_is_task_completed, POLLING_INTERVAL_SECS, run_subprocess, ShellExitCodes
 
 WAIT_FOR_DEVICE_TIME_OUT_SECS = 5
+
+# Serial identifiers are device-supplied (USB iSerialNumber / adbd banner /
+# ro.serialno) and later interpolated into shell command lines. Enforce a
+# conservative charset at the trust boundary. Real-world serials seen from adb
+# are alphanumeric with occasional '.', '_', '-', ':' (network devices report
+# "host:port", emulators report "emulator-5554").
+_ADB_SERIAL_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
 
 
 @enum.unique
@@ -153,7 +161,12 @@ class AdbShell(Shell):
         continue
       words_in_line = line.split('\t')
       if words_in_line[1] == "device":
-        devices.append(words_in_line[0])
+        serial = words_in_line[0]
+        if not _ADB_SERIAL_RE.match(serial):
+          raise ValueError(
+              "adb reported a device serial containing unexpected characters; "
+              "refusing to use it: %r" % serial)
+        devices.append(serial)
     return devices
 
   @staticmethod
