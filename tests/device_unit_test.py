@@ -24,7 +24,7 @@ from unittest import mock
 from src.device import AndroidDevice, QnxDevice
 from src.profiler import ProfilerCommand
 from src.shell import AdbShell
-from src.utils import ShellExitCodes
+from src.utils import PERFETTO_TRACE_FILE, ShellExitCodes
 from tests.test_utils import generate_adb_devices_result, generate_mock_completed_process, parameterized, run_cli
 
 TEST_DEVICE_SERIAL = "test-device-serial"
@@ -41,6 +41,13 @@ TEST_MALICIOUS_DEVICE_SERIALS = [
     "X>/tmp/injected"
 ]
 TEST_FILE_PATH = "test-file-path"
+TEST_PERFETTO_CONFIG = "duration_ms: 1000\nbuffers: { size_kb: 4096 }\n"
+# Configs that would run host commands if passed through a shell heredoc.
+TEST_MALICIOUS_PERFETTO_CONFIGS = [
+    TEST_PERFETTO_CONFIG + "# $(touch /tmp/injected)\n",
+    TEST_PERFETTO_CONFIG + "# `touch /tmp/injected`\n",
+    TEST_PERFETTO_CONFIG + "EOF\ntouch /tmp/injected\n"
+]
 TEST_STRING_FILE = "test-string-file"
 TEST_FAILURE_MSG = "test-failure"
 TEST_EXCEPTION = Exception(TEST_FAILURE_MSG)
@@ -387,6 +394,42 @@ class DeviceUnitTest(unittest.TestCase):
       device.start_perfetto_trace("")
 
     self.assertEqual(str(e.exception), TEST_FAILURE_MSG)
+
+  @parameterized(TEST_MALICIOUS_PERFETTO_CONFIGS)
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_start_perfetto_trace_passes_config_via_stdin_without_shell(
+      self, malicious_config, mock_subprocess_popen):
+    mock_subprocess_popen.reset_mock()
+    mock_subprocess_popen.return_value.stdin = mock.Mock()
+    device = AndroidDevice(AdbShell(TEST_DEVICE_SERIAL))
+
+    device.start_perfetto_trace(malicious_config)
+
+    # The config must never be part of a host shell command line.
+    mock_subprocess_popen.assert_called_once_with([
+        "adb", "-s", TEST_DEVICE_SERIAL, "shell", "perfetto", "-c", "-",
+        "--txt", "-o", PERFETTO_TRACE_FILE
+    ],
+                                                  shell=False,
+                                                  stdin=subprocess.PIPE,
+                                                  stdout=None,
+                                                  stderr=None)
+    mock_stdin = mock_subprocess_popen.return_value.stdin
+    mock_stdin.write.assert_called_once_with(malicious_config.encode())
+    mock_stdin.close.assert_called_once()
+
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  def test_start_perfetto_trace_process_exits_before_reading_config(
+      self, mock_subprocess_popen):
+    mock_subprocess_popen.return_value.stdin = mock.Mock()
+    mock_subprocess_popen.return_value.stdin.write.side_effect = (
+        BrokenPipeError())
+    device = AndroidDevice(AdbShell(TEST_DEVICE_SERIAL))
+
+    mock_process = device.start_perfetto_trace(TEST_PERFETTO_CONFIG)
+
+    # No exception is expected to be thrown
+    self.assertEqual(mock_process.process, mock_subprocess_popen.return_value)
 
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_start_simpleperf_trace_success(self, mock_subprocess_popen):

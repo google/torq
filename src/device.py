@@ -152,8 +152,9 @@ class AndroidDevice(Device):
     pass
 
   def start_perfetto_trace(self, config):
-    return self.shell.popen("shell perfetto -c - --txt -o "
-                            f"{PERFETTO_TRACE_FILE} " + config)
+    return self.shell.popen(
+        ["shell", "perfetto", "-c", "-", "--txt", "-o", PERFETTO_TRACE_FILE],
+        stdin_data=config)
 
   def trigger_perfetto(self, trigger_name):
     self.shell.run(["shell", "trigger_perfetto", trigger_name])
@@ -409,7 +410,7 @@ class QnxDevice(Device):
   def start_perfetto_trace(self, config):
     return self.shell.popen(
         f"{QnxDevice.QNX_PATH_ENV}; perfetto -c - --txt -o "
-        f"{PERFETTO_TRACE_FILE} " + config,
+        f"{PERFETTO_TRACE_FILE} <<'EOF'\n{config}\nEOF",
         stdout=DEVNULL,
         stderr=DEVNULL)
 

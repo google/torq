@@ -234,13 +234,26 @@ class AdbShell(Shell):
   def get_os(self):
     return OsCodes.OS_ANDROID
 
-  def popen(self, args, stdout=None, stderr=None):
+  def popen(self, args, stdout=None, stderr=None, stdin_data=None):
     is_list = isinstance(args, list)
     prefix = ["adb", "-s", self.serial]
     cmd = prefix + args if is_list else f"{' '.join(prefix)} {args}"
-    return ShellProcess(
-        subprocess.Popen(
-            cmd, shell=(not is_list), stdout=stdout, stderr=stderr))
+    proc = subprocess.Popen(
+        cmd,
+        shell=(not is_list),
+        stdin=subprocess.PIPE if stdin_data is not None else None,
+        stdout=stdout,
+        stderr=stderr)
+    if stdin_data is not None:
+      try:
+        proc.stdin.write(
+            stdin_data.encode() if isinstance(stdin_data, str) else stdin_data)
+        proc.stdin.close()
+      except BrokenPipeError:
+        # The process exited before consuming its input (e.g. the device
+        # disconnected). Callers detect this through the returned process.
+        pass
+    return ShellProcess(proc)
 
   def run(self,
           args,

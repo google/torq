@@ -384,7 +384,6 @@ def build_predefined_config(command,
     }}'''
 
   config = f'''\
-    <<EOF
     {buffers}
     {linux_process_stats.lstrip()}
     {android_logs.lstrip()}
@@ -398,8 +397,7 @@ def build_predefined_config(command,
     {miscellaneous_options.lstrip()}
     {incremental_state.lstrip()}
     {trigger_config.lstrip()}
-
-    EOF'''
+    '''
   return textwrap.dedent(config), None
 
 
@@ -637,5 +635,5 @@ def build_custom_config(command):
     return None, ValidationError(
         ("Failed to parse custom perfetto-config on"
          " local file path: %s. %s" % (command.perfetto_config, str(e))), None)
-  config_string = f"<<EOF\n\n{file_content}\n{appended_duration}\n\nEOF"
+  config_string = f"{file_content}\n{appended_duration}\n"
   return config_string, None

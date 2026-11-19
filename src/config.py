@@ -152,10 +152,11 @@ def execute_show_or_pull_command(command, device):
          }, "y").handle_input():
       print("Operation cancelled.")
       return None
-    run_subprocess(("cat > %s %s" % (command.file_path, config)), shell=True)
+    with open(command.file_path, "w") as f:
+      f.write(config)
     print("The config has been saved to '%s'." % command.file_path)
   else:
-    print("\n".join(config.strip().split("\n")[2:-2]))
+    print(config.strip())
   return None
 
 
