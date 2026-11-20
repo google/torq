@@ -31,6 +31,7 @@ from tests.test_utils import (create_parser_from_cli, parameterized, parse_cli,
 TEST_USER_ID = 10
 TEST_PACKAGE = "com.android.contacts"
 TEST_FILE = "file.txtpb"
+ANDROID_BUILD_TOP = "/folder"
 SYMBOLS_PATH = "/folder/symbols"
 TEST_TRIGGER_NAMES = [
     "team.package.test-trigger-name", "team2.package2.test-trigger-name2"
@@ -102,6 +103,8 @@ class TorqUnitTest(unittest.TestCase):
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
+  @mock.patch.dict(
+      os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
   def test_create_parser_valid_profiler_names(self, mock_isdir, mock_exists):
@@ -468,6 +471,8 @@ class TorqUnitTest(unittest.TestCase):
                                         " torq --event app-startup --app"
                                         " <package-name>"))
 
+  @mock.patch.dict(
+      os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
   def test_verify_args_profiler_and_simpleperf_event_valid_dependencies(
@@ -680,6 +685,8 @@ class TorqUnitTest(unittest.TestCase):
                                         " include power/cpu_idle in the"
                                         " config."))
 
+  @mock.patch.dict(
+      os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
   def test_verify_args_multiple_valid_simpleperf_events(self, mock_isdir,
@@ -717,6 +724,8 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(args.trigger_timeout_ms, DEFAULT_TRIGGER_DUR_MS)
     self.assertEqual(args.trigger_stop_delay_ms, DEFAULT_TRIGGER_STOP_DELAY_MS)
 
+  @mock.patch.dict(
+      os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
   def test_verify_args_trigger_names_invalid_profiler(self, mock_isdir,

@@ -17,7 +17,7 @@
 import os
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import path_exists, dir_exists, is_bazel, run_subprocess
+from .utils import path_exists, dir_exists, run_subprocess
 
 TORQ_TEMP_DIR = "/tmp/.torq"
 SIMPLEPERF_SCRIPTS_DIR = "/system/extras/simpleperf/scripts"
@@ -25,12 +25,10 @@ BUILDER_SCRIPT = SIMPLEPERF_SCRIPTS_DIR + "/binary_cache_builder.py"
 
 
 def verify_simpleperf_args(args):
-  args.simpleperf_scripts_dir = TORQ_TEMP_DIR
-  if not is_bazel() and ("ANDROID_BUILD_TOP" in os.environ and
-                         path_exists(os.environ["ANDROID_BUILD_TOP"] +
-                                     BUILDER_SCRIPT)):
-    args.simpleperf_scripts_dir = (
-        os.environ["ANDROID_BUILD_TOP"] + SIMPLEPERF_SCRIPTS_DIR)
+  args.simpleperf_scripts_dir = None
+  android_build_top = os.environ.get("ANDROID_BUILD_TOP")
+  if android_build_top and path_exists(android_build_top + BUILDER_SCRIPT):
+    args.simpleperf_scripts_dir = android_build_top + SIMPLEPERF_SCRIPTS_DIR
 
   if args.symbols is None or not dir_exists(args.symbols):
     if args.symbols is not None:
@@ -54,16 +52,15 @@ def verify_simpleperf_args(args):
           "(<ANDROID_BUILD_TOP>/out/target/product/<TARGET>).")
     args.symbols = os.environ["ANDROID_PRODUCT_OUT"]
 
-  if args.simpleperf_scripts_dir != TORQ_TEMP_DIR or temp_simpleperf_scripts_exist(
-  ):
+  if args.simpleperf_scripts_dir is not None:
     return args, None
 
-  error = download_simpleperf_scripts()
-
-  if error is not None:
-    return None, error
-
-  return args, None
+  return None, ValidationError(
+      "Simpleperf script downloads are temporarily disabled and simpleperf "
+      "scripts were not found in $ANDROID_BUILD_TOP.",
+      "Set $ANDROID_BUILD_TOP to your android root path and make sure you "
+      "have $ANDROID_BUILD_TOP/system/extras/simpleperf/scripts "
+      "downloaded.")
 
 
 def download_simpleperf_scripts():

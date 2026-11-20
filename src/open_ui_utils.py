@@ -58,10 +58,18 @@ class HttpHandler(http.server.SimpleHTTPRequestHandler):
     pass
 
 
+def get_android_trace_processor():
+  android_build_top = os.environ.get("ANDROID_BUILD_TOP")
+  if (android_build_top and
+      path_exists(android_build_top + ANDROID_TRACE_PROCESSOR)):
+    return android_build_top + ANDROID_TRACE_PROCESSOR
+  return None
+
+
 def download_trace_processor(path):
-  if (("ANDROID_BUILD_TOP" in os.environ and
-       path_exists(os.environ["ANDROID_BUILD_TOP"] + ANDROID_TRACE_PROCESSOR))):
-    return os.environ["ANDROID_BUILD_TOP"] + ANDROID_TRACE_PROCESSOR
+  android_trace_processor = get_android_trace_processor()
+  if android_trace_processor is not None:
+    return android_trace_processor
   if path_exists(TORQ_TEMP_TRACE_PROCESSOR):
     return TORQ_TEMP_TRACE_PROCESSOR
 
@@ -102,9 +110,18 @@ def open_trace(path, origin, use_trace_processor):
   path = os.path.abspath(path)
   trace_processor_path = None
   if os.path.getsize(path) >= LARGE_FILE_SIZE or use_trace_processor:
-    trace_processor_path = download_trace_processor(path)
-  if isinstance(trace_processor_path, ValidationError):
-    return trace_processor_path
+    trace_processor_path = get_android_trace_processor()
+    if trace_processor_path is None:
+      if use_trace_processor:
+        return ValidationError(
+            "trace_processor downloads are temporarily disabled and "
+            "trace_processor was not found in $ANDROID_BUILD_TOP.",
+            "Set $ANDROID_BUILD_TOP to your android root path with "
+            "$ANDROID_BUILD_TOP%s available, or open the trace without "
+            "--use_trace_processor." % ANDROID_TRACE_PROCESSOR)
+      print("trace_processor downloads are temporarily disabled and "
+            "trace_processor was not found in $ANDROID_BUILD_TOP. "
+            "Will continue without trace_processor.")
   if trace_processor_path is not None:
     process = subprocess.Popen([trace_processor_path, "--httpd", path],
                                stdout=subprocess.PIPE,

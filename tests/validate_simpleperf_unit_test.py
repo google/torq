@@ -18,6 +18,7 @@ import builtins
 import unittest
 import os
 import subprocess
+import sys
 from unittest import mock
 from src.torq import verify_args
 from tests.test_utils import generate_mock_completed_process, parse_cli
@@ -133,6 +134,9 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
         "(<ANDROID_BUILD_TOP>/out/target/"
         "product/<TARGET>).")
 
+  @unittest.skip(
+      "Simpleperf script downloads and /tmp/.torq usage are temporarily "
+      "disabled.")
   @mock.patch.dict(
       os.environ, {"ANDROID_PRODUCT_OUT": ANDROID_PRODUCT_OUT}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -154,6 +158,9 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
     self.assertEqual(args.symbols, ANDROID_PRODUCT_OUT)
     self.assertEqual(args.simpleperf_scripts_dir, TORQ_TEMP_DIR)
 
+  @unittest.skip(
+      "Simpleperf script downloads and /tmp/.torq usage are temporarily "
+      "disabled.")
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -178,6 +185,9 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
         "path and make sure you have $ANDROID_BUILD_TOP/system"
         "/extras/simpleperf/scripts downloaded.")
 
+  @unittest.skip(
+      "Simpleperf script downloads and /tmp/.torq usage are temporarily "
+      "disabled.")
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -199,6 +209,9 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
         "$ANDROID_BUILD_TOP/system/extras/"
         "simpleperf/scripts downloaded.")
 
+  @unittest.skip(
+      "Simpleperf script downloads and /tmp/.torq usage are temporarily "
+      "disabled.")
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -219,6 +232,84 @@ class ValidateSimpleperfUnitTest(unittest.TestCase):
         "root path and make sure you have "
         "$ANDROID_BUILD_TOP/system/extras/"
         "simpleperf/scripts downloaded.")
+
+  @mock.patch.object(sys, "path", ["/path/to/bazel-bin/torq.runfiles"])
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(os.path, "isdir", autospec=True)
+  @mock.patch.dict(
+      os.environ, {
+          "ANDROID_BUILD_TOP": ANDROID_BUILD_TOP,
+          "ANDROID_PRODUCT_OUT": ANDROID_PRODUCT_OUT
+      },
+      clear=True)
+  def test_verify_args_uses_android_build_top_when_running_under_bazel(
+      self, mock_isdir, mock_exists):
+    mock_isdir.return_value = True
+    mock_exists.return_value = True
+    args = parse_cli("torq -p simpleperf")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(error, None)
+    self.assertEqual(args.symbols, ANDROID_PRODUCT_OUT)
+    self.assertEqual(args.simpleperf_scripts_dir,
+                     "%s/system/extras/simpleperf/scripts" % ANDROID_BUILD_TOP)
+
+  @mock.patch.dict(
+      os.environ, {"ANDROID_PRODUCT_OUT": ANDROID_PRODUCT_OUT}, clear=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(os.path, "isdir", autospec=True)
+  @mock.patch.object(subprocess, "run", autospec=True)
+  @mock.patch.object(builtins, "input")
+  def test_verify_args_no_android_build_top_does_not_use_tmp_or_download(
+      self, mock_input, mock_subprocess_run, mock_isdir, mock_exists):
+    mock_isdir.return_value = True
+    mock_exists.return_value = True
+    args = parse_cli("torq -p simpleperf")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(args, None)
+    self.assertEqual(
+        error.message,
+        "Simpleperf script downloads are temporarily disabled and simpleperf "
+        "scripts were not found in $ANDROID_BUILD_TOP.")
+    self.assertEqual(
+        error.suggestion, "Set $ANDROID_BUILD_TOP to your android root "
+        "path and make sure you have $ANDROID_BUILD_TOP/system/extras/"
+        "simpleperf/scripts downloaded.")
+    mock_subprocess_run.assert_not_called()
+    mock_input.assert_not_called()
+
+  @mock.patch.dict(
+      os.environ, {
+          "ANDROID_BUILD_TOP": ANDROID_BUILD_TOP,
+          "ANDROID_PRODUCT_OUT": ANDROID_PRODUCT_OUT
+      },
+      clear=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(os.path, "isdir", autospec=True)
+  @mock.patch.object(subprocess, "run", autospec=True)
+  @mock.patch.object(builtins, "input")
+  def test_verify_args_missing_android_build_top_scripts_does_not_download(
+      self, mock_input, mock_subprocess_run, mock_isdir, mock_exists):
+    mock_isdir.return_value = True
+    mock_exists.return_value = False
+    args = parse_cli("torq -p simpleperf")
+
+    args, error = verify_args(args)
+
+    self.assertEqual(args, None)
+    self.assertEqual(
+        error.message,
+        "Simpleperf script downloads are temporarily disabled and simpleperf "
+        "scripts were not found in $ANDROID_BUILD_TOP.")
+    self.assertEqual(
+        error.suggestion, "Set $ANDROID_BUILD_TOP to your android root "
+        "path and make sure you have $ANDROID_BUILD_TOP/system/extras/"
+        "simpleperf/scripts downloaded.")
+    mock_subprocess_run.assert_not_called()
+    mock_input.assert_not_called()
 
 
 if __name__ == '__main__':

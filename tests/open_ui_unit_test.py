@@ -42,6 +42,9 @@ WEB_UI_ADDRESS = "https://ui.perfetto.dev"
 
 class OpenUiUnitTest(unittest.TestCase):
 
+  @unittest.skip(
+      "trace_processor downloads and /tmp/.torq usage are temporarily "
+      "disabled.")
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -63,6 +66,9 @@ class OpenUiUnitTest(unittest.TestCase):
     self.assertEqual(trace_processor_path, TORQ_TEMP_TRACE_PROCESSOR)
     self.assertEqual(terminal_output.getvalue(), "")
 
+  @unittest.skip(
+      "trace_processor downloads and /tmp/.torq usage are temporarily "
+      "disabled.")
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -85,6 +91,9 @@ class OpenUiUnitTest(unittest.TestCase):
     self.assertEqual(terminal_output.getvalue(),
                      "Could not download perfetto scripts. Continuing.\n")
 
+  @unittest.skip(
+      "trace_processor downloads and /tmp/.torq usage are temporarily "
+      "disabled.")
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -107,6 +116,9 @@ class OpenUiUnitTest(unittest.TestCase):
         terminal_output.getvalue(), "Invalid input. Please try again.\n"
         "Invalid input. Please try again.\n")
 
+  @unittest.skip(
+      "trace_processor downloads and /tmp/.torq usage are temporarily "
+      "disabled.")
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -290,6 +302,9 @@ class OpenUiUnitTest(unittest.TestCase):
                      "%s%s" % (ANDROID_BUILD_TOP, ANDROID_TRACE_PROCESSOR))
     self.assertEqual(terminal_output.getvalue(), "")
 
+  @unittest.skip(
+      "trace_processor downloads and /tmp/.torq usage are temporarily "
+      "disabled.")
   @mock.patch.dict(os.environ, {}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "getsize", autospec=True)
@@ -304,6 +319,70 @@ class OpenUiUnitTest(unittest.TestCase):
 
     self.assertEqual(trace_processor_path, TORQ_TEMP_TRACE_PROCESSOR)
     self.assertEqual(terminal_output.getvalue(), "")
+
+  @mock.patch.dict(os.environ, {}, clear=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(os.path, "getsize", autospec=True)
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  @mock.patch.object(subprocess, "run", autospec=True)
+  @mock.patch.object(builtins, "input")
+  def test_open_trace_use_trace_processor_without_android_build_top_returns_error(
+      self, mock_input, mock_subprocess_run, mock_popen, mock_getsize,
+      mock_exists):
+    mock_exists.return_value = True
+    mock_getsize.return_value = 0
+
+    error = open_trace(TEST_FILE, WEB_UI_ADDRESS, True)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(
+        error.message, "trace_processor downloads are temporarily disabled and "
+        "trace_processor was not found in $ANDROID_BUILD_TOP.")
+    self.assertEqual(
+        error.suggestion, "Set $ANDROID_BUILD_TOP to your android root path "
+        "with $ANDROID_BUILD_TOP%s available, or open the trace without "
+        "--use_trace_processor." % ANDROID_TRACE_PROCESSOR)
+    mock_popen.assert_not_called()
+    mock_subprocess_run.assert_not_called()
+    mock_input.assert_not_called()
+
+  @mock.patch.dict(os.environ, {}, clear=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(os.path, "getsize", autospec=True)
+  @mock.patch.object(webbrowser, "open_new_tab", autospec=True)
+  @mock.patch.object(socketserver, "TCPServer", autospec=True)
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  @mock.patch.object(subprocess, "run", autospec=True)
+  @mock.patch.object(builtins, "input")
+  def test_open_trace_large_file_without_android_build_top_skips_tmp_and_opens_directly(
+      self, mock_input, mock_subprocess_run, mock_popen, mock_tcpserver,
+      mock_open_new_tab, mock_getsize, mock_exists):
+
+    def handle_request():
+      mock_process.fname_get_completed = 0
+      return
+
+    mock_process = type('', (), {})()
+    mock_process.handle_request = handle_request
+    mock_tcpserver.return_value.__enter__.return_value = mock_process
+    mock_open_new_tab.return_value = None
+    mock_exists.return_value = True
+    mock_getsize.return_value = LARGE_FILE_SIZE
+    terminal_output = io.StringIO()
+
+    with redirect_stdout(terminal_output):
+      error = open_trace(TEST_FILE, WEB_UI_ADDRESS, False)
+
+    self.assertEqual(error, None)
+    self.assertEqual(
+        terminal_output.getvalue(),
+        "trace_processor downloads are temporarily disabled and "
+        "trace_processor was not found in $ANDROID_BUILD_TOP. "
+        "Will continue without trace_processor.\n")
+    mock_open_new_tab.assert_called()
+    mock_popen.assert_not_called()
+    mock_subprocess_run.assert_not_called()
+    mock_input.assert_not_called()
 
 
 if __name__ == '__main__':

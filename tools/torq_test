@@ -73,6 +73,8 @@ def run_tests(args):
 
     if args.test_mode == "integration" or args.test_mode == "all":
         cmd.extend([f"--action_env=PATH={os.environ.get('PATH', '')}",
+                    f"--action_env=ANDROID_BUILD_TOP="
+                    f"{os.environ.get('ANDROID_BUILD_TOP', '')}",
                     f"--action_env=ANDROID_PRODUCT_OUT="
                     f"{os.environ.get('ANDROID_PRODUCT_OUT', '')}",])
 

@@ -43,7 +43,7 @@ ADB: Installed and available in your PATH.
 
 Root Access: adbd must be running as root on the target device(s).
 
-Environment: ANDROID_PRODUCT_OUT should be set if testing simpleperf or specific binary pushing.
+Environment: ANDROID_BUILD_TOP and ANDROID_PRODUCT_OUT should be set if testing simpleperf or specific binary pushing.
 
 One device: Launch at least one Android device or Cuttlefish instance.
 

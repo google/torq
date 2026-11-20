@@ -27,7 +27,6 @@ from src.device import AndroidDevice
 from src.shell import AdbShell
 from tests.test_utils import run_cli, adb_create_user, adb_delete_user, adb_set_enforce
 from perfetto.batch_trace_processor.api import BatchTraceProcessor
-from unittest.mock import patch
 
 BTP_QUERY = {
     "trace_duration":
@@ -199,17 +198,18 @@ class TorqIntegrationTest(unittest.TestCase):
   def test_torq_basic_simpleperf(self):
     dur_sec = 3
 
+    if not os.environ.get('ANDROID_BUILD_TOP'):
+      self.fail("ANDROID_BUILD_TOP missing in environment variables!")
     if not os.environ.get('ANDROID_PRODUCT_OUT'):
       self.fail(f"ANDROID_PRODUCT_OUT missing in environment variables!")
 
-    with patch('builtins.input', return_value='y'):
-      torq_output = self.run_torq(
-          f"torq --serial {self.serial} -p simpleperf -s cpu-clock --no-ui "
-          f"-d {dur_sec * 1000} -o {self.test_run_dir}")
+    torq_output = self.run_torq(
+        f"torq --serial {self.serial} -p simpleperf -s cpu-clock --no-ui "
+        f"-d {dur_sec * 1000} -o {self.test_run_dir}")
 
-      self.validate_torq_output(torq_output)
-      trace_files = self.get_glob_files("trace*.data*")
-      self.validate_trace_metadata(trace_files)
+    self.validate_torq_output(torq_output)
+    trace_files = self.get_glob_files("trace*.data*")
+    self.validate_trace_metadata(trace_files)
 
     with BatchTraceProcessor(trace_files) as btp:
       self.validate_trace_duration(btp, dur_sec)
