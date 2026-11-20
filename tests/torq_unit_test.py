@@ -17,6 +17,7 @@
 import unittest
 import os
 import pathlib
+import stat
 from unittest import mock
 
 from src.config import create_config_command
@@ -38,6 +39,8 @@ TEST_TRIGGER_NAMES = [
 TEST_TRIGGER_DUR_MS = 10000
 TEST_TRIGGER_STOP_DELAY_MS = 1000
 TEST_TRIGGER_MODE = "stop"
+TRUSTED_DIR_STAT = os.stat_result(
+    (stat.S_IFDIR | 0o755, 0, 0, 1, os.geteuid(), os.getgid(), 0, 0, 0, 0))
 
 
 class TorqUnitTest(unittest.TestCase):
@@ -102,9 +105,11 @@ class TorqUnitTest(unittest.TestCase):
     with self.assertRaises(SystemExit):
       parser.parse_args()
 
+  @mock.patch.object(os, "lstat", return_value=TRUSTED_DIR_STAT, autospec=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
-  def test_create_parser_valid_profiler_names(self, mock_isdir, mock_exists):
+  def test_create_parser_valid_profiler_names(self, mock_isdir, mock_exists,
+                                              mock_lstat):
     mock_isdir.return_value = True
     mock_exists.return_value = True
     args = parse_cli("torq -p perfetto")
@@ -468,10 +473,11 @@ class TorqUnitTest(unittest.TestCase):
                                         " torq --event app-startup --app"
                                         " <package-name>"))
 
+  @mock.patch.object(os, "lstat", return_value=TRUSTED_DIR_STAT, autospec=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
   def test_verify_args_profiler_and_simpleperf_event_valid_dependencies(
-      self, mock_isdir, mock_exists):
+      self, mock_isdir, mock_exists, mock_lstat):
     mock_isdir.return_value = True
     mock_exists.return_value = True
     args = parse_cli("torq -p simpleperf --symbols %s" % SYMBOLS_PATH)
@@ -680,10 +686,12 @@ class TorqUnitTest(unittest.TestCase):
                                         " include power/cpu_idle in the"
                                         " config."))
 
+  @mock.patch.object(os, "lstat", return_value=TRUSTED_DIR_STAT, autospec=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
   def test_verify_args_multiple_valid_simpleperf_events(self, mock_isdir,
-                                                        mock_exists):
+                                                        mock_exists,
+                                                        mock_lstat):
     mock_isdir.return_value = True
     mock_exists.return_value = True
     args = parse_cli(("torq -p simpleperf -s cpu-cycles"
@@ -717,10 +725,11 @@ class TorqUnitTest(unittest.TestCase):
     self.assertEqual(args.trigger_timeout_ms, DEFAULT_TRIGGER_DUR_MS)
     self.assertEqual(args.trigger_stop_delay_ms, DEFAULT_TRIGGER_STOP_DELAY_MS)
 
+  @mock.patch.object(os, "lstat", return_value=TRUSTED_DIR_STAT, autospec=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "isdir", autospec=True)
   def test_verify_args_trigger_names_invalid_profiler(self, mock_isdir,
-                                                      mock_exists):
+                                                      mock_exists, mock_lstat):
     mock_isdir.return_value = True
     mock_exists.return_value = True
     args = parse_cli("torq -p simpleperf --symbols %s --trigger-names %s" %

@@ -60,6 +60,9 @@ class ProfilerCommandExecutorUnitTest(unittest.TestCase):
     if profiler == "simpleperf":
       self.command.symbols = "/"
       self.command.simpleperf_scripts_dir = "/"
+      open_patcher = mock.patch("src.utils.open", mock.mock_open(), create=True)
+      open_patcher.start()
+      self.addCleanup(open_patcher.stop)
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.setup_perfetto.return_value = None
@@ -337,6 +340,9 @@ class UserSwitchCommandExecutorUnitTest(unittest.TestCase):
     if profiler == "simpleperf":
       self.command.symbols = "/"
       self.command.simpleperf_scripts_dir = "/"
+      open_patcher = mock.patch("src.utils.open", mock.mock_open(), create=True)
+      open_patcher.start()
+      self.addCleanup(open_patcher.stop)
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.user_exists.return_value = None
@@ -690,6 +696,9 @@ class AppStartupExecutorUnitTest(unittest.TestCase):
     if profiler == "simpleperf":
       self.command.symbols = "/"
       self.command.simpleperf_scripts_dir = "/"
+      open_patcher = mock.patch("src.utils.open", mock.mock_open(), create=True)
+      open_patcher.start()
+      self.addCleanup(open_patcher.stop)
     self.mock_device = mock.create_autospec(AndroidDevice, instance=True)
     self.mock_device.os.return_value = OsCodes.OS_ANDROID
     self.mock_device.get_packages.return_value = [

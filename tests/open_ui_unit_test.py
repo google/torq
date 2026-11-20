@@ -18,6 +18,7 @@ import builtins
 import io
 from io import BytesIO
 import socketserver
+import stat
 import unittest
 import subprocess
 import sys
@@ -38,6 +39,8 @@ ANDROID_PERFETTO_TOOLS_DIR = "/external/perfetto/tools"
 ANDROID_TRACE_PROCESSOR = ANDROID_PERFETTO_TOOLS_DIR + PERFETTO_BINARY
 LARGE_FILE_SIZE = 1024 * 1024 * 1024 * 4  # 4 GiB
 WEB_UI_ADDRESS = "https://ui.perfetto.dev"
+TRUSTED_DIR_STAT = os.stat_result(
+    (stat.S_IFDIR | 0o755, 0, 0, 1, os.geteuid(), os.getgid(), 0, 0, 0, 0))
 
 
 class OpenUiUnitTest(unittest.TestCase):
@@ -126,6 +129,7 @@ class OpenUiUnitTest(unittest.TestCase):
     self.assertEqual(terminal_output.getvalue(),
                      "Will continue without downloading perfetto scripts.\n")
 
+  @mock.patch.object(os, "lstat", return_value=TRUSTED_DIR_STAT, autospec=True)
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "getsize", autospec=True)
@@ -138,7 +142,7 @@ class OpenUiUnitTest(unittest.TestCase):
   def test_open_trace_scripts_large_file(self, mock_popen, mock_expanduser,
                                          mock_exists, mock_subprocess_run,
                                          mock_open_new_tab, mock_abspath,
-                                         mock_getsize):
+                                         mock_getsize, mock_lstat):
     mock_expanduser.return_value = ""
     mock_subprocess_run.return_value = generate_mock_completed_process()
     mock_open_new_tab.return_value = None
@@ -161,6 +165,7 @@ class OpenUiUnitTest(unittest.TestCase):
         "CTRL+C to exit torq and close the trace_processor. "
         "#####\033[0m\nProcess was killed.\n")
 
+  @mock.patch.object(os, "lstat", return_value=TRUSTED_DIR_STAT, autospec=True)
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -170,7 +175,7 @@ class OpenUiUnitTest(unittest.TestCase):
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_open_trace_scripts_large_file_use_trace_processor_enabled(
       self, mock_popen, mock_subprocess_run, mock_open_new_tab, mock_getsize,
-      mock_exists):
+      mock_exists, mock_lstat):
     mock_subprocess_run.return_value = generate_mock_completed_process()
     mock_open_new_tab.return_value = None
     mock_getsize.return_value = LARGE_FILE_SIZE
@@ -191,6 +196,7 @@ class OpenUiUnitTest(unittest.TestCase):
         "CTRL+C to exit torq and close the trace_processor. "
         "#####\033[0m\nProcess was killed.\n")
 
+  @mock.patch.object(os, "lstat", return_value=TRUSTED_DIR_STAT, autospec=True)
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch('src.torq.get_device', autospec=True)
@@ -200,7 +206,7 @@ class OpenUiUnitTest(unittest.TestCase):
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_open_trace_use_trace_processor_path_with_shell_metacharacters(
       self, mock_popen, mock_open_new_tab, mock_getsize, mock_exists,
-      mock_get_device):
+      mock_get_device, mock_lstat):
     mock_get_device.return_value = (None, None)
     mock_open_new_tab.return_value = None
     mock_getsize.return_value = 0
@@ -243,6 +249,7 @@ class OpenUiUnitTest(unittest.TestCase):
     self.assertEqual(error, None)
     self.assertEqual(terminal_output.getvalue(), "")
 
+  @mock.patch.object(os, "lstat", return_value=TRUSTED_DIR_STAT, autospec=True)
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
@@ -252,7 +259,7 @@ class OpenUiUnitTest(unittest.TestCase):
   @mock.patch.object(subprocess, "Popen", autospec=True)
   def test_download_trace_processor_small_file_use_trace_processor_enabled(
       self, mock_popen, mock_subprocess_run, mock_open_new_tab, mock_getsize,
-      mock_exists):
+      mock_exists, mock_lstat):
     mock_subprocess_run.return_value = generate_mock_completed_process()
     mock_open_new_tab.return_value = None
     mock_getsize.return_value = 0
@@ -273,12 +280,13 @@ class OpenUiUnitTest(unittest.TestCase):
         "CTRL+C to exit torq and close the trace_processor. "
         "#####\033[0m\nProcess was killed.\n")
 
+  @mock.patch.object(os, "lstat", return_value=TRUSTED_DIR_STAT, autospec=True)
   @mock.patch.dict(
       os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
   @mock.patch.object(os.path, "exists", autospec=True)
   @mock.patch.object(os.path, "getsize", autospec=True)
   def test_download_trace_processor_android_scripts_exist(
-      self, mock_getsize, mock_exists):
+      self, mock_getsize, mock_exists, mock_lstat):
     mock_getsize.return_value = LARGE_FILE_SIZE
     mock_exists.return_value = True
     terminal_output = io.StringIO()
@@ -304,6 +312,51 @@ class OpenUiUnitTest(unittest.TestCase):
 
     self.assertEqual(trace_processor_path, TORQ_TEMP_TRACE_PROCESSOR)
     self.assertEqual(terminal_output.getvalue(), "")
+
+  @mock.patch.dict(
+      os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(os.path, "getsize", autospec=True)
+  def test_download_trace_processor_untrusted_android_build_top_wrong_owner_error(
+      self, mock_getsize, mock_exists):
+    mock_getsize.return_value = LARGE_FILE_SIZE
+    mock_exists.return_value = True
+    other_owner_stat = os.stat_result(
+        (stat.S_IFDIR | 0o755, 0, 0, 1, os.geteuid() + 1, os.getgid(), 0, 0, 0,
+         0))
+
+    with mock.patch.object(os, "lstat", return_value=other_owner_stat):
+      error = download_trace_processor(TEST_FILE)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(
+        error.message, "Refusing to use untrusted trace_processor under "
+        "$ANDROID_BUILD_TOP: %s%s." %
+        (ANDROID_BUILD_TOP, ANDROID_TRACE_PROCESSOR))
+
+  @mock.patch.dict(
+      os.environ, {"ANDROID_BUILD_TOP": ANDROID_BUILD_TOP}, clear=True)
+  @mock.patch.object(os.path, "exists", autospec=True)
+  @mock.patch.object(os.path, "getsize", autospec=True)
+  @mock.patch.object(subprocess, "Popen", autospec=True)
+  @mock.patch.object(subprocess, "run", autospec=True)
+  def test_open_trace_untrusted_android_build_top_world_writable_returns_error(
+      self, mock_subprocess_run, mock_popen, mock_getsize, mock_exists):
+    mock_getsize.return_value = 0
+    mock_exists.return_value = True
+    world_writable_stat = os.stat_result(
+        (stat.S_IFDIR | 0o777, 0, 0, 1, os.geteuid(), os.getgid(), 0, 0, 0, 0))
+
+    with mock.patch.object(os, "lstat", return_value=world_writable_stat):
+      error = open_trace(TEST_FILE, WEB_UI_ADDRESS, True)
+
+    self.assertNotEqual(error, None)
+    self.assertEqual(
+        error.message, "Refusing to use untrusted trace_processor under "
+        "$ANDROID_BUILD_TOP: %s%s." %
+        (ANDROID_BUILD_TOP, ANDROID_TRACE_PROCESSOR))
+    mock_popen.assert_not_called()
+    mock_subprocess_run.assert_not_called()
 
 
 if __name__ == '__main__':

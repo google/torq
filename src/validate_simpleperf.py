@@ -17,41 +17,68 @@
 import os
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import path_exists, dir_exists, is_bazel, run_subprocess
+from .utils import (path_exists, dir_exists, is_bazel, is_trusted_path,
+                    run_subprocess)
 
 TORQ_TEMP_DIR = "/tmp/.torq"
 SIMPLEPERF_SCRIPTS_DIR = "/system/extras/simpleperf/scripts"
 BUILDER_SCRIPT = SIMPLEPERF_SCRIPTS_DIR + "/binary_cache_builder.py"
+GECKO_GENERATOR_SCRIPT = SIMPLEPERF_SCRIPTS_DIR + "/gecko_profile_generator.py"
+
+
+def _validate_symbols_dir(symbols_path, invalid_message, untrusted_message):
+  if not dir_exists(symbols_path):
+    return ValidationError(
+        invalid_message, "Set --symbols to a valid symbols lib path or set "
+        "$ANDROID_PRODUCT_OUT to your android product out directory "
+        "(<ANDROID_BUILD_TOP>/out/target/product/<TARGET>).")
+  if not is_trusted_path(symbols_path, require_owner=False):
+    return ValidationError(
+        untrusted_message,
+        "Ensure the symbols directory and its parent directories are not "
+        "world-writable.")
+  return None
 
 
 def verify_simpleperf_args(args):
   args.simpleperf_scripts_dir = TORQ_TEMP_DIR
-  if not is_bazel() and ("ANDROID_BUILD_TOP" in os.environ and
-                         path_exists(os.environ["ANDROID_BUILD_TOP"] +
-                                     BUILDER_SCRIPT)):
-    args.simpleperf_scripts_dir = (
-        os.environ["ANDROID_BUILD_TOP"] + SIMPLEPERF_SCRIPTS_DIR)
-
-  if args.symbols is None or not dir_exists(args.symbols):
-    if args.symbols is not None:
+  android_build_top = os.environ.get("ANDROID_BUILD_TOP")
+  if (not is_bazel() and android_build_top and
+      path_exists(android_build_top + BUILDER_SCRIPT) and
+      path_exists(android_build_top + GECKO_GENERATOR_SCRIPT)):
+    builder_path = android_build_top + BUILDER_SCRIPT
+    gecko_path = android_build_top + GECKO_GENERATOR_SCRIPT
+    if not (is_trusted_path(builder_path, root_dir=android_build_top) and
+            is_trusted_path(gecko_path, root_dir=android_build_top)):
       return None, ValidationError(
-          ("%s is not a valid path." % args.symbols),
-          "Set --symbols to a valid symbols lib path or set "
-          "$ANDROID_PRODUCT_OUT to your android product out directory "
-          "(<ANDROID_BUILD_TOP>/out/target/product/<TARGET>).")
+          ("Refusing to use untrusted simpleperf scripts under "
+           "$ANDROID_BUILD_TOP: %s." %
+           (android_build_top + SIMPLEPERF_SCRIPTS_DIR)),
+          "Ensure $ANDROID_BUILD_TOP and its simpleperf scripts are owned by "
+          "your user and not world-writable.")
+    args.simpleperf_scripts_dir = android_build_top + SIMPLEPERF_SCRIPTS_DIR
+
+  if args.symbols is not None:
+    error = _validate_symbols_dir(
+        args.symbols, ("%s is not a valid path." % args.symbols),
+        ("Refusing to use untrusted symbols path: %s." % args.symbols))
+    if error is not None:
+      return None, error
+  else:
     if "ANDROID_PRODUCT_OUT" not in os.environ:
       return None, ValidationError(
           "ANDROID_PRODUCT_OUT is not set.",
           "Set --symbols to a valid symbols lib path or set "
           "$ANDROID_PRODUCT_OUT to your android product out directory "
           "(<ANDROID_BUILD_TOP>/out/target/product/<TARGET>).")
-    if not dir_exists(os.environ["ANDROID_PRODUCT_OUT"]):
-      return None, ValidationError(
-          ("%s is not a valid $ANDROID_PRODUCT_OUT." %
-           (os.environ["ANDROID_PRODUCT_OUT"])),
-          "Set --symbols to a valid symbols lib path or set "
-          "$ANDROID_PRODUCT_OUT to your android product out directory "
-          "(<ANDROID_BUILD_TOP>/out/target/product/<TARGET>).")
+    error = _validate_symbols_dir(
+        os.environ["ANDROID_PRODUCT_OUT"],
+        ("%s is not a valid $ANDROID_PRODUCT_OUT." %
+         os.environ["ANDROID_PRODUCT_OUT"]),
+        ("Refusing to use untrusted $ANDROID_PRODUCT_OUT path: %s." %
+         os.environ["ANDROID_PRODUCT_OUT"]))
+    if error is not None:
+      return None, error
     args.symbols = os.environ["ANDROID_PRODUCT_OUT"]
 
   if args.simpleperf_scripts_dir != TORQ_TEMP_DIR or temp_simpleperf_scripts_exist(

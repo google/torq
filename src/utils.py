@@ -18,6 +18,7 @@ import argparse
 import enum
 import os
 import signal
+import stat
 import subprocess
 import sys
 import pathlib
@@ -96,22 +97,128 @@ def poll_is_task_completed(timed_out_limit, interval, check_is_completed):
       return False
 
 
+def _is_trusted_stat(st, euid, require_owner, allow_symlink=False):
+  if require_owner and st.st_uid != euid:
+    return False
+  if allow_symlink and stat.S_ISLNK(st.st_mode):
+    return True
+  return not (st.st_mode & stat.S_IWOTH)
+
+
+def _trusted_ancestor_uids(euid):
+  trusted_uids = {euid, 0}
+  try:
+    with open("/proc/self/uid_map", "r") as f:
+      uid_map = [line.split() for line in f if line.strip()]
+    has_root_mapping = any(int(parts[0]) == 0 for parts in uid_map)
+    if not has_root_mapping:
+      with open("/proc/sys/kernel/overflowuid", "r") as f:
+        trusted_uids.add(int(f.read().strip()))
+  except (OSError, ValueError):
+    pass
+  return trusted_uids
+
+
+def _has_trusted_ancestors(path, euid, require_owner):
+  trusted_uids = _trusted_ancestor_uids(euid) if require_owner else None
+  cur = os.path.dirname(path)
+  while cur != path:
+    st = os.lstat(cur)
+    if require_owner and st.st_uid not in trusted_uids:
+      return False
+    if (not stat.S_ISLNK(st.st_mode) and (st.st_mode & stat.S_IWOTH) and
+        not (st.st_mode & stat.S_ISVTX)):
+      return False
+    path = cur
+    cur = os.path.dirname(path)
+  return True
+
+
+def _are_subtree_components_trusted(base, target, euid, require_owner,
+                                    allow_symlinks):
+  cur = base
+  rel = os.path.relpath(target, base)
+  parts = [] if rel == "." else rel.split(os.sep)
+  for part in [None] + parts:
+    if part is not None:
+      cur = os.path.join(cur, part)
+    if not _is_trusted_stat(os.lstat(cur), euid, require_owner, allow_symlinks):
+      return False
+  return True
+
+
+def is_trusted_path(path, root_dir=None, require_owner=True):
+  if not path:
+    return False
+  try:
+    euid = os.geteuid()
+    abs_target = os.path.abspath(os.path.expanduser(path))
+    resolved_target = os.path.realpath(abs_target)
+
+    if root_dir is not None:
+      abs_root = os.path.abspath(os.path.expanduser(root_dir))
+      resolved_root = os.path.realpath(abs_root)
+      if (os.path.commonpath([abs_root, abs_target]) != abs_root or
+          os.path.commonpath([resolved_root, resolved_target
+                             ]) != resolved_root):
+        return False
+      if not _has_trusted_ancestors(abs_root, euid, require_owner):
+        return False
+      if (resolved_root != abs_root and
+          not _has_trusted_ancestors(resolved_root, euid, require_owner)):
+        return False
+      if not _are_subtree_components_trusted(
+          abs_root, abs_target, euid, require_owner, allow_symlinks=True):
+        return False
+      return _are_subtree_components_trusted(
+          resolved_root,
+          resolved_target,
+          euid,
+          require_owner,
+          allow_symlinks=False)
+
+    if not _has_trusted_ancestors(abs_target, euid, require_owner):
+      return False
+    if (resolved_target != abs_target and
+        not _has_trusted_ancestors(resolved_target, euid, require_owner)):
+      return False
+    if not _is_trusted_stat(
+        os.lstat(abs_target), euid, require_owner, allow_symlink=True):
+      return False
+    return _is_trusted_stat(
+        os.lstat(resolved_target), euid, require_owner, allow_symlink=False)
+  except OSError:
+    return False
+
+
 def convert_simpleperf_to_gecko(simpleperf_scripts_dir, host_raw_trace_filename,
                                 host_gecko_trace_filename, symbols):
   expanded_symbols = os.path.expanduser(symbols)
   expanded_simpleperf_scripts_dir = os.path.expanduser(simpleperf_scripts_dir)
+  env = os.environ.copy()
+  existing_pythonpath = env.get("PYTHONPATH")
+  env["PYTHONPATH"] = (
+      f"{existing_pythonpath}{os.pathsep}{expanded_simpleperf_scripts_dir}"
+      if existing_pythonpath else expanded_simpleperf_scripts_dir)
   print("Building binary cache, please wait. If no samples were recorded,"
         " the trace will be empty.")
-  run_subprocess((
-      "export PYTHONPATH=$PYTHONPATH:%s && %s/binary_cache_builder.py -i %s -lib %s"
-      % (expanded_simpleperf_scripts_dir, expanded_simpleperf_scripts_dir,
-         host_raw_trace_filename, expanded_symbols)),
-                 shell=True)
-  run_subprocess((
-      "export PYTHONPATH=$PYTHONPATH:%s && %s/gecko_profile_generator.py -i %s > %s"
-      % (expanded_simpleperf_scripts_dir, expanded_simpleperf_scripts_dir,
-         host_raw_trace_filename, host_gecko_trace_filename)),
-                 shell=True)
+  run_subprocess([
+      os.path.join(expanded_simpleperf_scripts_dir, "binary_cache_builder.py"),
+      "-i",
+      host_raw_trace_filename,
+      "-lib",
+      expanded_symbols,
+  ],
+                 env=env)
+  with open(host_gecko_trace_filename, "wb") as gecko_file:
+    run_subprocess([
+        os.path.join(expanded_simpleperf_scripts_dir,
+                     "gecko_profile_generator.py"),
+        "-i",
+        host_raw_trace_filename,
+    ],
+                   stdout=gecko_file,
+                   env=env)
   if not path_exists(host_gecko_trace_filename):
     raise Exception("Gecko file was not created.")
 

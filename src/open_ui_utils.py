@@ -24,7 +24,8 @@ import subprocess
 import types
 from .base import ValidationError
 from .handle_input import HandleInput
-from .utils import path_exists, wait_for_process_or_ctrl_c, wait_for_output, run_subprocess
+from .utils import (is_trusted_path, path_exists, wait_for_process_or_ctrl_c,
+                    wait_for_output, run_subprocess)
 
 TORQ_TEMP_DIR = "/tmp/.torq"
 TRACE_PROCESSOR_BINARY = "/trace_processor"
@@ -58,10 +59,26 @@ class HttpHandler(http.server.SimpleHTTPRequestHandler):
     pass
 
 
+def get_android_trace_processor():
+  android_build_top = os.environ.get("ANDROID_BUILD_TOP")
+  if (android_build_top and
+      path_exists(android_build_top + ANDROID_TRACE_PROCESSOR)):
+    trace_processor_path = android_build_top + ANDROID_TRACE_PROCESSOR
+    if not is_trusted_path(trace_processor_path, root_dir=android_build_top):
+      return ValidationError(
+          ("Refusing to use untrusted trace_processor under "
+           "$ANDROID_BUILD_TOP: %s." % trace_processor_path),
+          "Ensure $ANDROID_BUILD_TOP and trace_processor are owned by your "
+          "user and not world-writable.")
+    return trace_processor_path
+  return None
+
+
 def download_trace_processor(path):
-  if (("ANDROID_BUILD_TOP" in os.environ and
-       path_exists(os.environ["ANDROID_BUILD_TOP"] + ANDROID_TRACE_PROCESSOR))):
-    return os.environ["ANDROID_BUILD_TOP"] + ANDROID_TRACE_PROCESSOR
+  android_trace_processor = get_android_trace_processor()
+  if (isinstance(android_trace_processor, ValidationError) or
+      android_trace_processor is not None):
+    return android_trace_processor
   if path_exists(TORQ_TEMP_TRACE_PROCESSOR):
     return TORQ_TEMP_TRACE_PROCESSOR
 
